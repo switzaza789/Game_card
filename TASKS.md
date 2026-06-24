@@ -281,6 +281,8 @@ Phase 4 result:
 
 ## Phase 5 — Persistence and Match Results
 
+Status: Completed in Phase 5.
+
 ### Tasks
 
 - Save and load current match from Local Storage.
@@ -288,6 +290,10 @@ Phase 4 result:
 - Show match result summary.
 - Preserve action log with saved game.
 - Add version guard for persisted state.
+- Add local match history.
+- Add result summary stats for final score, turns, duration, recycle count, board exits, and highest scoring card.
+- Add match log export/import for local debug.
+- Handle corrupted or unsupported saved data safely.
 
 ### Files to Create or Edit
 
@@ -301,6 +307,19 @@ Phase 4 result:
 - Saved state remains serializable.
 - Invalid persisted version is handled safely.
 - Result screen shows winner and finish reason.
+- Finished matches are moved into local match history and active saves are cleared.
+- Imported match logs are runtime-validated before loading.
+- No personal data, cloud storage, backend, login, or external database is added.
+
+Phase 5 result:
+
+- Local Storage adapter added for active match saves and match history.
+- Runtime validation added for persisted match shape, schema version, card ownership, card locations, board slots, statuses, and card definition ids.
+- Persistence coordinator added to save after valid transitions, recover finished active saves, and move completed matches into history.
+- Match stats tracking added for recycle count, board exits, and highest scoring card.
+- UI now supports continue saved game, clear save, reset active match, local match history, export match log JSON, and import match log JSON.
+- Result screen now displays winner, final scores, turn count, duration, finish reason, recycle count, board exit counts, and highest scoring card.
+- `npm run lint`, `npm test`, `npm run test:coverage`, and `npm run build` passed.
 
 ### Tests Required
 
@@ -321,6 +340,8 @@ Phase 4 result:
 
 ## Phase 6 — QA, Accessibility and Production Build
 
+Status: Completed in Phase 6.
+
 ### Tasks
 
 - Run full test suite.
@@ -330,6 +351,13 @@ Phase 4 result:
 - Review Thai copy.
 - Check forbidden systems are absent.
 - Document remaining known limitations.
+- Verify complete local hot-seat flow through automated regression coverage and manual review.
+- Verify active save, resume, handoff privacy, finished-match recovery, match history, import, and export.
+- Move practical Phase 5 inline styles into `src/ui/styles/global.css`.
+- Add Clipboard API fallback UI for match log export.
+- Scan for direct Local Storage access outside persistence and tests.
+- Scan production engine for `Date.now()` and `new Date()`.
+- Run dependency audit.
 
 ### Files to Create or Edit
 
@@ -343,6 +371,20 @@ Phase 4 result:
 - Lint passes.
 - Core game can be completed locally by 2 players.
 - No forbidden scope has been introduced.
+- Production engine has no direct wall-clock calls.
+- React UI uses persistence adapter instead of direct Local Storage access.
+- Export remains usable when Clipboard API is unavailable or blocked.
+- Keyboard focus is visible for core controls and modals move focus into their main input or close control.
+
+Phase 6 result:
+
+- QA regression checks completed for Phases 0–5.
+- Accessibility improved with visible focus states, modal focus handling, dialog labels, and export/import text-area labels.
+- Desktop/mobile responsive CSS reviewed and strengthened for result/history grids.
+- Phase 5 inline styles were moved into the shared CSS layer where practical.
+- Clipboard-blocked export now shows a JSON fallback modal.
+- Forbidden-scope, direct Local Storage, production engine time calls, dependency, lint, test, coverage, build, and audit checks passed.
+- Known limitations documented in `README_TH.txt`.
 
 ### Tests Required
 

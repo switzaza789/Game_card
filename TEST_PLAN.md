@@ -95,9 +95,28 @@ Unit and UI tests:
 - Save current match to Local Storage.
 - Restore saved match after reload.
 - Clear saved match.
+- Reset active match and clear the active save.
 - Invalid save version is handled safely.
+- Corrupted JSON save is rejected and deleted safely.
+- Storage unavailable or blocked access returns a safe storage error.
+- Runtime validation rejects invalid match status, phase, player score, screen, and card definition ids.
+- Runtime validation accepts attached Support cards as valid counted card locations.
 - Match result screen shows winner and finish reason.
 - Action log survives save and restore.
+- Active match dispatch saves valid transitions.
+- Invalid actions do not update statistics or save a changed state.
+- Resume from saved `handoff` screen preserves hand privacy.
+- Finished-match recovery saves result history and deletes active save.
+- Finished-match recovery is idempotent and does not duplicate history.
+- History save happens before active save deletion.
+- Match history appends, lists, clears, deduplicates same results, reports conflicts for changed duplicate ids, and keeps the newest 100 entries.
+- Export match log produces schema version 1 JSON with `savedAt`.
+- Import match log uses the same runtime validator as stored saves.
+- Import rejects corrupted JSON and unsupported schema versions.
+- Result statistics track recycle count, board exits, Food Thief score contribution, Quick Swap voluntary swaps, and highest-scoring-card contribution.
+- Quick Swap does not double-count returned-to-hand statistics.
+- Highest-scoring-card tie-breaking is deterministic using replayable action-log order.
+- UI tests cover continue saved game, reset game, import debug log, and local match history.
 
 ## Phase 6 — QA, Accessibility and Production Build
 
@@ -110,4 +129,15 @@ Final checks:
 - Manual complete-match smoke test.
 - Local Storage restore smoke test.
 - Forbidden-scope scan.
-
+- Coverage run.
+- Dependency audit with moderate vulnerability threshold.
+- Production engine scan for `Date.now()` and `new Date()`.
+- Direct Local Storage scan outside `src/persistence` and tests.
+- Clipboard export fallback test when `navigator.clipboard.writeText` fails.
+- Import modal focus test.
+- Handoff privacy resume regression test.
+- Finished-match recovery, history, import, and export regression tests.
+- Keyboard focus visibility review for buttons, hand cards, library cards, slots, and text areas.
+- Modal dialog labels and focus behavior review.
+- Desktop and mobile layout review for menu, battle, result, history, import, and export screens.
+- Thai UI copy consistency review.

@@ -12,7 +12,9 @@ export function validateAction(state: MatchState, action: Action): ValidationRes
 
   switch (action.type) {
     case "START_MATCH":
-      return invalid(["START_MATCH is only valid before a MatchState exists"]);
+      return state.actionLog.length === 0 && action.payload.seed === state.rng.seed
+        ? valid()
+        : invalid(["START_MATCH is only valid before a MatchState exists"]);
     case "ADVANCE_PHASE":
       return valid();
     case "END_TURN":

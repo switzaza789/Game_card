@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { CardInstance, MatchState } from "../../types/game";
+import type { CardInstance, MatchState, Action } from "../../types/game";
 import { getCardDefinition } from "../cards/deck";
-import { dispatchAction, evaluateWin, forcePhase } from "./reducer";
+import { dispatchAction as originalDispatchAction, evaluateWin, forcePhase } from "./reducer";
 import { createMatch } from "../state/match";
 import { validateAction } from "../validation/validation";
+
+function dispatchAction(state: MatchState, action: Action): ReturnType<typeof originalDispatchAction> {
+  return originalDispatchAction(state, { action, timestamp: Date.now() });
+}
 
 describe("core engine reducer", () => {
   it("moves through READY, DRAW, SCORE, ACTION, and END phases", () => {
