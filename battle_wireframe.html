@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Animal Score Card Game - Battle Wireframe</title>
+<style>
+:root{--bg:#eef2f6;--panel:#fff;--line:#9aa7b5;--text:#1f2937;--accent:#245a85;--muted:#607080}
+*{box-sizing:border-box} body{margin:0;font-family:Arial,"Noto Sans Thai",sans-serif;background:var(--bg);color:var(--text)}
+.app{max-width:1280px;margin:auto;padding:14px}
+.topbar{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-bottom:10px}
+.player{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+.player.right{text-align:right}.score{font-size:30px;font-weight:700;color:var(--accent)}
+.phase{background:#1f2937;color:white;border-radius:12px;padding:10px 18px;text-align:center;min-width:220px}
+.board{background:#dfe7ee;border:2px solid #7d8b99;border-radius:18px;padding:12px;min-height:610px}
+.zone-label{text-align:center;font-size:12px;color:var(--muted);margin:2px}
+.opponent-hand,.player-hand{height:86px;border:1px dashed var(--line);border-radius:10px;display:flex;justify-content:center;align-items:center;gap:6px;background:rgba(255,255,255,.45)}
+.card-back{width:45px;height:65px;border:1px solid #64748b;border-radius:6px;background:#94a3b8}
+.row{display:grid;grid-template-columns:110px 1fr 110px;gap:10px;align-items:center}
+.side-zone{height:155px;background:rgba(255,255,255,.55);border:1px dashed var(--line);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:12px}
+.animal-zone{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:12px 0}
+.slot{height:155px;background:var(--panel);border:2px dashed #82909e;border-radius:12px;display:flex;align-items:center;justify-content:center;position:relative;text-align:center}
+.slot.filled{border-style:solid}.level{position:absolute;top:7px;left:7px;background:#1f2937;color:#fff;border-radius:20px;padding:4px 8px;font-size:12px}
+.support{position:absolute;bottom:-8px;width:72%;height:24px;border:1px solid #8a96a3;background:#f8fafc;border-radius:5px;font-size:11px;line-height:22px}
+.divider{height:2px;background:#7d8b99;margin:8px 0}
+.player-hand{height:126px;align-items:flex-end;padding:8px;overflow-x:auto}
+.hand-card{min-width:82px;height:110px;border:1px solid #475569;border-radius:8px;background:#fff;padding:6px;font-size:11px;text-align:center;cursor:pointer}
+.hand-card:hover{transform:translateY(-5px)}
+.actions{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:10px}
+.log{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;min-height:76px;font-size:13px}
+.buttons{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+button{border:0;border-radius:8px;padding:10px 14px;cursor:pointer;background:#334155;color:white}
+button.secondary{background:#64748b} button.end{background:#8b2f2f}
+@media(max-width:800px){
+ .topbar{grid-template-columns:1fr 1fr}.phase{grid-column:1/3;grid-row:1}.row{grid-template-columns:70px 1fr 70px}
+ .board{min-height:560px}.slot{height:125px}.side-zone{height:125px}.hand-card{min-width:68px;height:96px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="player"><strong>คู่ต่อสู้</strong><br>Deck 16 | Hand 5</div>
+    <div class="phase"><strong>TURN 4 — ACTION PHASE</strong><br><small>Utility Action: พร้อมใช้</small></div>
+    <div class="player right"><strong>คะแนน</strong> <span class="score">7 / 15</span></div>
+  </div>
+
+  <div class="board">
+    <div class="opponent-hand">
+      <div class="card-back"></div><div class="card-back"></div><div class="card-back"></div><div class="card-back"></div><div class="card-back"></div>
+    </div>
+    <div class="zone-label">มือคู่ต่อสู้</div>
+
+    <div class="row">
+      <div class="side-zone">Deck<br><strong>16</strong></div>
+      <div class="animal-zone">
+        <div class="slot filled"><span class="level">Lv.2</span>หมีใจดี<div class="support">น้ำผึ้งหวาน</div></div>
+        <div class="slot filled"><span class="level">Lv.1</span>เต่าเกราะแข็ง</div>
+        <div class="slot">Animal Slot 3</div>
+      </div>
+      <div class="side-zone">Graveyard<br><strong>3</strong></div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <div class="side-zone">Deck<br><strong>15</strong></div>
+      <div class="animal-zone">
+        <div class="slot filled"><span class="level">Lv.2</span>ปลาจอมพลัง<div class="support">อาหารปลาพิเศษ</div></div>
+        <div class="slot filled"><span class="level">Lv.1</span>สุนัขจอมซน</div>
+        <div class="slot">Animal Slot 3</div>
+      </div>
+      <div class="side-zone">Graveyard<br><strong>2</strong></div>
+    </div>
+
+    <div class="zone-label">Animal Zone ของคุณ — คะแนน 9 / 15</div>
+    <div class="player-hand" id="hand">
+      <div class="hand-card">A002<br><strong>แมวขี้สงสัย</strong><br>Animal</div>
+      <div class="hand-card">S002<br><strong>ไหมพรม</strong><br>Support</div>
+      <div class="hand-card">W005<br><strong>เบ็ดตกปลา</strong><br>Weakness</div>
+      <div class="hand-card">X001<br><strong>เพลงกล่อมหลับ</strong><br>Special</div>
+      <div class="hand-card">X003<br><strong>เปลี่ยนตัวด่วน</strong><br>Special</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <div class="log" id="log"><strong>Action Log</strong><br>เลือกการ์ดจากมือ แล้วเลือกเป้าหมายบนสนาม</div>
+    <div class="buttons">
+      <button onclick="message('เปิดหน้าต่าง Recycle: ทิ้ง 1 ใบ แล้วจั่ว 1 ใบ')">Recycle</button>
+      <button class="secondary" onclick="message('เปิด Graveyard')">ดู Graveyard</button>
+      <button class="secondary" onclick="message('เปิด Card Detail')">รายละเอียดการ์ด</button>
+      <button class="end" onclick="message('จบเทิร์นและส่งสิทธิ์ให้คู่ต่อสู้')">จบเทิร์น</button>
+    </div>
+  </div>
+</div>
+<script>
+function message(t){document.getElementById('log').innerHTML='<strong>Action Log</strong><br>'+t}
+document.querySelectorAll('.hand-card').forEach(c=>c.addEventListener('click',()=>message('เลือก '+c.innerText.replace(/\n/g,' — '))))
+</script>
+</body>
+</html>

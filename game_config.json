@@ -1,0 +1,36 @@
+{
+  "game_title": "Animal Score Card Game",
+  "version": "Prototype v0.3",
+  "players": 2,
+  "deck_size": 24,
+  "starting_hand": 5,
+  "hand_limit": 7,
+  "animal_zone_slots": 3,
+  "target_score": 15,
+  "max_turns_per_player": 12,
+  "level_min": 1,
+  "level_max": 3,
+  "first_player_draws_on_turn_1": false,
+  "guaranteed_animal_in_starting_hand": true,
+  "starting_mulligan_max": 2,
+  "animal_actions_per_turn": 1,
+  "utility_actions_per_turn": 1,
+  "recycle_per_turn": 1,
+  "recycle_allowed_on_first_turn": false,
+  "score_phase_before_action_phase": true,
+  "new_animal_scores_same_turn": false,
+  "turn_phases": [
+    "READY",
+    "DRAW",
+    "SCORE",
+    "ACTION",
+    "END"
+  ],
+  "win_tiebreakers": [
+    "higher_score",
+    "higher_total_animal_level",
+    "more_animals_on_board",
+    "more_cards_remaining_in_deck",
+    "draw"
+  ]
+}
