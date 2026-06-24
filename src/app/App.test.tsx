@@ -298,6 +298,79 @@ describe("App Phase 5 persistence UI", () => {
     expect(screen.getByText(/history-ui-1/)).toBeInTheDocument();
     expect(screen.getByText(/ผู้เล่น 1 ชนะ/)).toBeInTheDocument();
   });
+
+  it("opens playtest feedback and exports required JSON through clipboard fallback", async () => {
+    const originalClipboard = navigator.clipboard;
+    Object.defineProperty(navigator, "clipboard", {
+      get: () => undefined,
+      configurable: true
+    });
+
+    const user = userEvent.setup();
+    const finishedMatch = {
+      ...createMatch({ seed: "playtest-ui" }),
+      status: "FINISHED" as const,
+      winner: "P1" as const,
+      finishReason: "TARGET_SCORE" as const
+    };
+    const exported = exportMatchLog(finishedMatch, "result", initStats());
+    expect(exported.ok).toBe(true);
+    if (!exported.ok) return;
+
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "นำเข้าไฟล์เซฟ" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "ข้อมูล JSON สำหรับนำเข้า" }), { target: { value: exported.value } });
+    await user.click(screen.getByRole("button", { name: "นำเข้า" }));
+
+    await user.click(screen.getByRole("button", { name: "ส่งออกฟีดแบ็ก Playtest" }));
+    expect(screen.getByRole("dialog", { name: "ฟีดแบ็ก Playtest" })).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("ความชัดเจนของกติกา (1-5)"), "5");
+    await user.click(screen.getByRole("button", { name: "ส่งออก JSON" }));
+
+    const exportTextArea = await screen.findByRole("textbox", { name: "ข้อมูล JSON สำหรับส่งออก" });
+    const json = JSON.parse((exportTextArea as HTMLTextAreaElement).value) as Record<string, unknown>;
+    expect(json).toMatchObject({
+      schemaVersion: "1",
+      applicationVersion: "v0.3.0-prototype",
+      matchId: finishedMatch.matchId,
+      winner: "P1",
+      finishReason: "TARGET_SCORE"
+    });
+    expect(json).not.toHaveProperty("email");
+    expect(json).not.toHaveProperty("walletAddress");
+    expect(json).not.toHaveProperty("ipAddress");
+
+    Object.defineProperty(navigator, "clipboard", {
+      value: originalClipboard,
+      configurable: true
+    });
+  });
+
+  it("rejects playtest feedback ratings outside 1 to 5", async () => {
+    const user = userEvent.setup();
+    const finishedMatch = {
+      ...createMatch({ seed: "playtest-invalid-ui" }),
+      status: "FINISHED" as const,
+      winner: "P1" as const,
+      finishReason: "TARGET_SCORE" as const
+    };
+    const exported = exportMatchLog(finishedMatch, "result", initStats());
+    expect(exported.ok).toBe(true);
+    if (!exported.ok) return;
+
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "นำเข้าไฟล์เซฟ" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "ข้อมูล JSON สำหรับนำเข้า" }), { target: { value: exported.value } });
+    await user.click(screen.getByRole("button", { name: "นำเข้า" }));
+
+    await user.click(screen.getByRole("button", { name: "ส่งออกฟีดแบ็ก Playtest" }));
+    await user.type(screen.getByLabelText("ความชัดเจนของกติกา (1-5)"), "6");
+    await user.click(screen.getByRole("button", { name: "ส่งออก JSON" }));
+
+    expect(screen.getByText(/rulesClarity ต้องเป็นจำนวนเต็ม 1 ถึง 5/)).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "ข้อมูล JSON สำหรับส่งออก" })).not.toBeInTheDocument();
+  });
 });
 
 async function startBattle(user: ReturnType<typeof userEvent.setup>) {

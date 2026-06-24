@@ -402,3 +402,63 @@ Phase 6 result:
 ### Suggested Git Checkpoint
 
 `phase-6-qa-production-build`
+
+## Phase 7 — Deployment and Playtest Readiness
+
+Status: Completed locally in Phase 7. Public GitHub Pages activation and URL verification remain pending until the workflow runs from `main`.
+
+### Tasks
+
+- Add GitHub Pages deployment workflow using official Pages actions.
+- Configure Vite production base path for `/Game_card/`.
+- Add Playtest feedback JSON export from the result screen.
+- Add runtime validation for optional playtest feedback ratings.
+- Add Thai playtest guide and playtest report template.
+- Add GitHub issue templates for bug, playtest, and balance reports.
+- Update README with deployment, Local Storage, export/import, and Phase 7 status.
+- Verify Phase 7 UI additions for keyboard access, labels, disabled states, and narrow layouts.
+
+### Files to Create or Edit
+
+- `.github/workflows/deploy-pages.yml`
+- `.github/ISSUE_TEMPLATE/*`
+- `PLAYTEST_GUIDE_TH.md`
+- `PLAYTEST_REPORT_TEMPLATE_TH.md`
+- `vite.config.ts`
+- `package.json`
+- `README_TH.txt`
+- `TASKS.md`
+- `TEST_PLAN.md`
+- `src/playtest/*`
+- `src/app/App.tsx`
+- `src/app/App.test.tsx`
+- `src/ui/styles/global.css`
+
+### Acceptance Criteria
+
+- Deployment workflow runs `npm ci`, lint, tests, and build before deploying `dist`.
+- Production build uses `/Game_card/` asset base while local dev uses `/`.
+- Result screen can export local Playtest feedback JSON without network requests.
+- Rating fields are optional and validated as integers from 1 to 5.
+- Exported playtest JSON contains no names, emails, wallet addresses, IP addresses, device fingerprints, telemetry, or analytics fields.
+- GitHub templates request reproduction steps, browser/viewport details, and optional match logs without requesting sensitive secrets.
+- Documentation clearly distinguishes deployment configuration complete, GitHub Pages activation pending, and public deployment not yet verified.
+
+### Tests Required
+
+- Full Vitest suite.
+- Production base path test.
+- Playtest feedback validation tests.
+- Result-screen feedback export UI tests.
+- Clipboard fallback regression test.
+- Existing save, resume, import, export, history, and engine tests.
+
+### Out of Scope
+
+- Public URL verification before GitHub Pages workflow runs.
+- Backend submission of feedback.
+- Analytics, telemetry, accounts, cloud storage, online PvP, AI, blockchain, NFT, wallet, marketplace, new cards, or balance changes.
+
+### Suggested Git Checkpoint
+
+`phase-7-playtest-release`

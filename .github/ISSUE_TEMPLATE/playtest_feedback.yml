@@ -1,0 +1,41 @@
+name: ฟีดแบ็ก Playtest
+description: ส่งผลสังเกตจากการเล่นจริง
+title: "[Playtest]: "
+labels: ["playtest", "ui-ux", "phase-7"]
+body:
+  - type: markdown
+    attributes:
+      value: "ใช้ข้อมูลสรุปจากเกมและฟีดแบ็กโดยไม่ต้องใส่ชื่อ อีเมล หรือข้อมูลส่วนตัว หากมีประเด็นความปลอดภัยที่ละเอียดอ่อน โปรดติดต่อเจ้าของ repository ผ่านช่องทางส่วนตัว"
+  - type: input
+    id: matches
+    attributes:
+      label: จำนวน match ที่เล่นจบ
+      placeholder: "เช่น 3"
+    validations:
+      required: true
+  - type: textarea
+    id: observations
+    attributes:
+      label: สิ่งที่สังเกตได้
+      description: จุดสนุก จุดสับสน ระยะเวลาเกม หรือปัญหาการส่งเครื่อง
+    validations:
+      required: true
+  - type: textarea
+    id: feedback-json
+    attributes:
+      label: Playtest feedback JSON
+      description: แนบหรือวาง JSON ที่ export จากหน้าผลการแข่งขัน ถ้ามี
+    validations:
+      required: false
+  - type: input
+    id: browser
+    attributes:
+      label: Browser และเวอร์ชัน
+    validations:
+      required: false
+  - type: input
+    id: viewport
+    attributes:
+      label: ขนาดหน้าจอหรือ viewport
+    validations:
+      required: false

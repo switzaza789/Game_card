@@ -1,0 +1,56 @@
+name: รายงานบั๊ก
+description: แจ้งปัญหาที่ทำให้เกมทำงานผิดพลาด
+title: "[Bug]: "
+labels: ["bug", "phase-7"]
+body:
+  - type: markdown
+    attributes:
+      value: "อย่าใส่รหัสผ่าน private key seed phrase wallet credential หรือข้อมูลส่วนตัวที่อ่อนไหวใน issue สาธารณะ หากเป็นปัญหาความปลอดภัยที่ละเอียดอ่อน โปรดติดต่อเจ้าของ repository ผ่านช่องทางส่วนตัวแทนการเปิด issue"
+  - type: textarea
+    id: summary
+    attributes:
+      label: สรุปปัญหา
+      description: เกิดอะไรขึ้น
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: ขั้นตอนทำซ้ำ
+      description: ระบุขั้นตอนตั้งแต่เริ่มเกมจนพบปัญหา
+      placeholder: "1. ...\n2. ...\n3. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: ผลที่คาดหวัง
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: ผลที่เกิดขึ้นจริง
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser และเวอร์ชัน
+      placeholder: Chrome 126, Firefox 127, Safari 18
+    validations:
+      required: true
+  - type: input
+    id: viewport
+    attributes:
+      label: ขนาดหน้าจอหรือ viewport
+      placeholder: Desktop 1366x768 หรือ Mobile 390x844
+    validations:
+      required: true
+  - type: textarea
+    id: match-log
+    attributes:
+      label: Match log หรือ Playtest feedback
+      description: แนบไฟล์ JSON ถ้ามี ห้ามใส่ข้อมูลส่วนตัว
+    validations:
+      required: false

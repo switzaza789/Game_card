@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ปัญหาความปลอดภัยที่ละเอียดอ่อน
+    url: https://github.com/switzaza789/Game_card/security/advisories/new
+    about: โปรดรายงานปัญหาความปลอดภัยแบบส่วนตัว และอย่าเปิดเผยข้อมูลอ่อนไหวใน public issue
