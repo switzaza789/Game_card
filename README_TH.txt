@@ -1,36 +1,45 @@
-ANIMAL SCORE CARD GAME — Prototype v0.3
-ชุดส่งมอบสำหรับเริ่มพัฒนาเกมจริง
+ANIMAL SCORE CARD GAME - Prototype v0.3
 
-ไฟล์หลัก
-1. Animal_Score_Card_Database_v0.3.xlsx
-   - Source of Truth ของการ์ด 24 ใบ
-   - Game Rules
-   - Status Effects
-   - DB Schema Reference
+เกมการ์ด Local Hot-seat สำหรับผู้เล่น 2 คนบนเครื่องเดียวกัน
 
-2. cards_seed.json
-   - ข้อมูลการ์ดสำหรับ Import เข้า Backend/Frontend
+วิธีติดตั้งและรัน
+1. npm install
+2. npm run dev
+3. เปิด URL ที่ Vite แสดงใน browser
 
-3. game_config.json
-   - ค่ากติกาหลัก เช่น Deck Size, Score, Turn Phase
+คำสั่งตรวจสอบ
+- npm run lint
+- npm test
+- npm run test:coverage
+- npm run build
+- npm audit --audit-level=moderate
 
-4. prototype_schema.sql
-   - SQLite Schema สำหรับ Prototype
+วิธีเล่นโดยย่อ
+1. ผู้เล่น 1 และผู้เล่น 2 สลับกันเล่นบนอุปกรณ์เดียวกัน
+2. แต่ละฝ่ายมี Deck 24 ใบ มือเริ่มต้น 5 ใบ และ Animal Zone 3 ช่อง
+3. ใน Action Phase ลง Animal ได้ 1 ครั้ง และใช้ Utility ได้ 1 ครั้ง
+4. Support, Weakness, Special และ Recycle ใช้สิทธิ์ Utility ร่วมกัน
+5. Animal ที่อยู่บนสนามทำคะแนนตาม Level ใน Score Phase
+6. ผู้เล่นที่ถึง 15 คะแนนก่อนชนะ หากครบ Turn Limit ให้ตัดสินตาม tiebreaker
+7. หน้าจอส่งเครื่องจะซ่อนมือก่อนให้อีกฝ่ายเล่น
 
-5. prototype.sqlite
-   - ฐานข้อมูลพร้อมตาราง cards และ Seed การ์ดครบ 24 ใบ
+ระบบบันทึกเกม
+- เกมที่ยังไม่จบจะถูกบันทึกใน Local Storage ของ browser
+- สามารถเล่นต่อ ลบเซฟ รีเซ็ตเกม ดูประวัติการแข่งขัน ส่งออก log JSON และนำเข้า log JSON เพื่อ debug ได้
+- ไม่มีการเก็บข้อมูลส่วนบุคคล ไม่มี cloud และไม่มีระบบบัญชีผู้ใช้
 
-6. battle_wireframe.html
-   - Wireframe Responsive เปิดได้โดยดับเบิลคลิก
-   - มี Interaction ตัวอย่างเล็กน้อย
+สถานะ QA Phase 6
+- Lint ผ่าน
+- Test ผ่าน
+- Coverage ผ่าน
+- Production build ผ่าน
+- npm audit ผ่านระดับ moderate
+- ตรวจแล้วว่าไม่มี direct Local Storage นอก persistence layer ใน production code
+- ตรวจแล้วว่า production engine ไม่มี Date.now() หรือ new Date()
+- ตรวจแล้วว่าไม่มีระบบต้องห้าม เช่น blockchain, wallet, login, backend, cloud, online PvP หรือ AI
 
-7. battle_wireframe.png
-   - Preview Layout สำหรับทีมออกแบบและโปรแกรมเมอร์
-
-ลำดับพัฒนาที่แนะนำ
-A. โหลด game_config.json และ cards_seed.json
-B. สร้าง Match State ใน Server
-C. ทำ Turn State Machine: READY > DRAW > SCORE > ACTION > END
-D. ทำ Server Validation ทุก Action
-E. ทำหน้าจอตาม battle_wireframe.html
-F. เริ่มจาก Local Hot-seat ก่อน แล้วค่อยเพิ่ม Online PvP
+Known limitations
+- ใช้ placeholder art แทนภาพการ์ดจริง
+- ยังไม่มี animation ซับซ้อน
+- Export ใช้ Clipboard API ถ้า browser บล็อก จะเปิดกล่อง JSON ให้คัดลอกเอง
+- การตรวจ responsive และ complete match flow ทำด้วย automated regression และ manual code/UI review ในสภาพแวดล้อมนี้

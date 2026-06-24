@@ -5,14 +5,20 @@ describe("replay", () => {
   it("replays action logs from a seed", () => {
     const state = replayFromActions("replay-seed", [
       {
-        type: "ADVANCE_PHASE",
-        playerId: "P1",
-        payload: {}
+        action: {
+          type: "ADVANCE_PHASE",
+          playerId: "P1",
+          payload: {}
+        },
+        timestamp: 1000
       },
       {
-        type: "ADVANCE_PHASE",
-        playerId: "P1",
-        payload: {}
+        action: {
+          type: "ADVANCE_PHASE",
+          playerId: "P1",
+          payload: {}
+        },
+        timestamp: 1001
       }
     ]);
 

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { cardsSeed } from "../../data/cardsSeed";
-import type { AnimalInstance, CardInstance, MatchState, PlayerId } from "../../types/game";
-import { dispatchAction, forcePhase } from "../actions/reducer";
+import type { AnimalInstance, CardInstance, MatchState, PlayerId, Action } from "../../types/game";
+import { dispatchAction as originalDispatchAction, forcePhase } from "../actions/reducer";
 import { getCardDefinition } from "../cards/deck";
 import { createMatch } from "../state/match";
 import { addStatus } from "../status/status";
+
+function dispatchAction(state: MatchState, action: Action): ReturnType<typeof originalDispatchAction> {
+  return originalDispatchAction(state, { action, timestamp: Date.now() });
+}
 import { effectRegistry } from "./effectEngine";
 
 describe("card effect registry", () => {

@@ -159,6 +159,11 @@ export type ValidationResult =
   | { valid: true }
   | { valid: false; errors: string[] };
 
+export type ActionEnvelope = {
+  action: Action;
+  timestamp: number;
+};
+
 export type RngState = {
   seed: string;
   step: number;
@@ -178,6 +183,7 @@ export type ActionLogEntry = {
   validation: ValidationResult;
   result: string;
   rng: RngState;
+  timestamp: number;
 };
 
 export type GameConfig = {

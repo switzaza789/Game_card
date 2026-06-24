@@ -1,13 +1,25 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { cardCatalog } from "../data/cardsSeed";
 import { gameConfig } from "../data/gameConfig";
-import { dispatchAction } from "../engine/actions/reducer";
 import { getCardDefinition, isAnimalInstance } from "../engine/cards/deck";
 import { createMatch } from "../engine/state/match";
 import { otherPlayerId } from "../engine/state/selectors";
 import type { Action, CardCategory, CardDefinition, MatchState, PlayerId, Target } from "../types/game";
+import { PersistenceCoordinator } from "../persistence/persistenceCoordinator";
+import { loadActiveMatch, deleteActiveMatch, listMatchHistory, clearMatchHistory, exportMatchLog, importMatchLog, saveActiveMatch } from "../persistence/localStorageAdapter";
+import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
+import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
 
-type Screen = "menu" | "howToPlay" | "library" | "battle" | "handoff" | "result";
+/** Convert any StorageError to a displayable string */
+function storageErrorMessage(err: StorageError): string {
+  if ("message" in err) {
+    return err.message;
+  }
+  return err.errors.join("; ");
+}
+
+type Screen = "menu" | "howToPlay" | "library" | "battle" | "handoff" | "result" | "history";
+type PersistableScreen = Exclude<Screen, "history">;
 
 type ModalState =
   | { type: "card"; card: CardDefinition }
@@ -22,21 +34,159 @@ const categoryLabels: Record<CardCategory, string> = {
 };
 
 export function App() {
+  const coordinator = useMemo(() => new PersistenceCoordinator(), []);
   const [screen, setScreen] = useState<Screen>("menu");
   const [match, setMatch] = useState<MatchState | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [message, setMessage] = useState("เลือกการ์ดจากมือ แล้วเลือกเป้าหมายบนสนาม");
   const [modal, setModal] = useState<ModalState>(null);
+  const [hasSavedGame, setHasSavedGame] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [exportText, setExportText] = useState<string | null>(null);
 
-  const activePlayerId = match?.currentPlayerId ?? "P1";
-  const opponentId = otherPlayerId(activePlayerId);
+  useEffect(() => {
+    const loadResult = loadActiveMatch();
+    if (loadResult.ok) {
+      const persisted = loadResult.value;
+      if (persisted) {
+        if (persisted.state.status === "FINISHED") {
+          const recoveryResult = coordinator.performRecoveryIfFinished(
+            persisted,
+            persisted.state.actionLog[persisted.state.actionLog.length - 1]?.timestamp ?? Date.now()
+          );
+          coordinator.initialize(persisted.state, "result", persisted.stats);
+          setMatch(persisted.state);
+          setScreen("result");
+          if (recoveryResult.ok) {
+            setMessage("กู้คืนผลการแข่งขันและลบเซฟเรียบร้อย");
+          } else {
+            setMessage(`เกิดข้อผิดพลาดในการบันทึกประวัติ: ${storageErrorMessage(recoveryResult.error)}`);
+          }
+        } else {
+          setHasSavedGame(true);
+        }
+      }
+    } else {
+      setMessage(`ข้อมูลเซฟมีปัญหา: ${storageErrorMessage(loadResult.error)}`);
+    }
+  }, [coordinator]);
 
   function startGame() {
-    const started = advanceToAction(createMatch({ seed: "local-hot-seat-phase-4" }));
-    setMatch(started);
+    if (hasSavedGame && !window.confirm("คุณมีเกมที่เล่นค้างอยู่ ต้องการเริ่มเกมใหม่และลบเซฟเดิมหรือไม่?")) {
+      return;
+    }
+
+    const timestamp = Date.now();
+    const freshMatch = createMatch({ seed: `match-${timestamp}` });
+    coordinator.initialize(freshMatch, "battle", initStats());
+
+    const dispatchResult = coordinator.dispatch({
+      type: "START_MATCH",
+      playerId: "P1",
+      payload: { seed: freshMatch.rng.seed }
+    }, timestamp);
+
+    let currentMatch = dispatchResult.state;
+    let loopRes = dispatchResult;
+    while (currentMatch.status !== "FINISHED" && currentMatch.phase !== "ACTION") {
+      loopRes = coordinator.dispatch({
+        type: "ADVANCE_PHASE",
+        playerId: currentMatch.currentPlayerId,
+        payload: {}
+      }, Date.now());
+      currentMatch = loopRes.state;
+    }
+
+    setMatch(currentMatch);
     setSelectedCardId(null);
     setMessage("เริ่มเกมแล้ว ผู้เล่น 1 พร้อมเล่น");
     setScreen("battle");
+    setHasSavedGame(false);
+  }
+
+  function resumeGame() {
+    const loadResult = loadActiveMatch();
+    if (loadResult.ok && loadResult.value) {
+      const persisted = loadResult.value;
+      coordinator.initialize(persisted.state, persisted.screen, persisted.stats);
+      setMatch(persisted.state);
+      setScreen(persisted.screen);
+      setSelectedCardId(null);
+      setMessage(`กู้คืนเกมสำเร็จ! ถึงตา ${playerName(persisted.state.currentPlayerId)}`);
+    } else {
+      setMessage(`ไม่สามารถโหลดเซฟได้: ${loadResult.ok ? "ไม่พบไฟล์เซฟ" : storageErrorMessage(loadResult.error)}`);
+    }
+  }
+
+  function clearSave() {
+    if (window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบเกมเซฟนี้?")) {
+      const delResult = deleteActiveMatch();
+      if (delResult.ok) {
+        setHasSavedGame(false);
+        setMessage("ลบเกมเซฟเรียบร้อย");
+      } else {
+        setMessage(`ลบเกมเซฟไม่สำเร็จ: ${storageErrorMessage(delResult.error)}`);
+      }
+    }
+  }
+
+  function handleImport(jsonText: string) {
+    if (match && match.status !== "FINISHED" && !window.confirm("คุณกำลังเล่นเกมอยู่ ต้องการนำเข้าไฟล์เซฟทับเกมปัจจุบันหรือไม่?")) {
+      return;
+    }
+
+    const impResult = importMatchLog(jsonText);
+    if (impResult.ok) {
+      const persisted = impResult.value;
+      coordinator.initialize(persisted.state, persisted.screen, persisted.stats);
+      setMatch(persisted.state);
+      setScreen(persisted.screen);
+      setHasSavedGame(false);
+      setSelectedCardId(null);
+      setMessage("นำเข้าและโหลดไฟล์เซฟสำเร็จ!");
+      saveActiveMatch(persisted.state, persisted.screen, persisted.stats, Date.now());
+      setShowImport(false);
+      setImportError(null);
+    } else {
+      setImportError(`ไม่สามารถนำเข้าข้อมูลได้: ${storageErrorMessage(impResult.error)}`);
+    }
+  }
+
+  function handleExport() {
+    if (!match) return;
+    const expResult = exportMatchLog(match, toPersistableScreen(screen), coordinator.getStats());
+    if (expResult.ok) {
+      if (!navigator.clipboard?.writeText || !window.isSecureContext) {
+        setExportText(expResult.value);
+        setMessage("ไม่สามารถคัดลอกอัตโนมัติได้ เปิดหน้าต่างส่งออก JSON แล้ว");
+        return;
+      }
+
+      void navigator.clipboard.writeText(expResult.value)
+        .then(() => {
+          alert("คัดลอกไฟล์เซฟลง Clipboard เรียบร้อยแล้ว!");
+        })
+        .catch(() => {
+          setExportText(expResult.value);
+          setMessage("ไม่สามารถคัดลอกอัตโนมัติได้ เปิดหน้าต่างส่งออก JSON แล้ว");
+        });
+    } else {
+      alert(`ส่งออกข้อมูลล้มเหลว: ${storageErrorMessage(expResult.error)}`);
+    }
+  }
+
+  function resetMatch() {
+    if (!window.confirm("รีเซ็ตเกมที่กำลังเล่นและกลับเมนูหลักหรือไม่?")) {
+      return;
+    }
+
+    const deleteResult = deleteActiveMatch();
+    setMatch(null);
+    setSelectedCardId(null);
+    setHasSavedGame(false);
+    setScreen("menu");
+    setMessage(deleteResult.ok ? "รีเซ็ตเกมเรียบร้อย" : `รีเซ็ตเกมแล้ว แต่ลบเซฟไม่สำเร็จ: ${storageErrorMessage(deleteResult.error)}`);
   }
 
   function continueFromHandoff() {
@@ -44,11 +194,21 @@ export function App() {
       return;
     }
 
-    const ready = advanceToAction(match);
-    setMatch(ready);
+    let currentMatch = match;
+    let loopRes = { state: currentMatch };
+    while (currentMatch.status !== "FINISHED" && currentMatch.phase !== "ACTION") {
+      loopRes = coordinator.dispatch({
+        type: "ADVANCE_PHASE",
+        playerId: currentMatch.currentPlayerId,
+        payload: {}
+      }, Date.now());
+      currentMatch = loopRes.state;
+    }
+
+    setMatch(currentMatch);
     setSelectedCardId(null);
-    setMessage(`ถึงตา ${playerName(ready.currentPlayerId)}`);
-    setScreen(ready.status === "FINISHED" ? "result" : "battle");
+    setMessage(`ถึงตา ${playerName(currentMatch.currentPlayerId)}`);
+    setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
   }
 
   function endTurn() {
@@ -56,16 +216,29 @@ export function App() {
       return;
     }
 
-    const result = dispatchAction(match, {
+    const result = coordinator.dispatch({
       type: "END_TURN",
       playerId: match.currentPlayerId,
       payload: {}
-    });
+    }, Date.now());
 
     setMatch(result.state);
     setSelectedCardId(null);
-    setMessage(result.validation.valid ? "จบเทิร์นแล้ว" : result.validation.errors.join(", "));
-    setScreen(result.state.status === "FINISHED" ? "result" : "handoff");
+    if (!result.validation.valid) {
+      setMessage(result.validation.errors.join(", "));
+    } else {
+      setMessage("จบเทิร์นแล้ว");
+      if (result.state.status === "FINISHED") {
+        setScreen("result");
+      } else {
+        setScreen("handoff");
+      }
+    }
+
+    const sr1 = result.storageResult;
+    if (!sr1.ok) {
+      setMessage((prev) => `${prev} (บันทึกเซฟล้มเหลว: ${storageErrorMessage(sr1.error)})`);
+    }
   }
 
   function recycleSelected() {
@@ -74,15 +247,24 @@ export function App() {
       return;
     }
 
-    const result = dispatchAction(match, {
+    const result = coordinator.dispatch({
       type: "RECYCLE",
       playerId: match.currentPlayerId,
       payload: { cardInstanceId: selectedCardId }
-    });
+    }, Date.now());
 
     setMatch(result.state);
     setSelectedCardId(null);
-    setMessage(result.validation.valid ? "Recycle สำเร็จ: ทิ้ง 1 ใบ แล้วจั่ว 1 ใบ" : result.validation.errors.join(", "));
+    if (!result.validation.valid) {
+      setMessage(result.validation.errors.join(", "));
+    } else {
+      setMessage("Recycle สำเร็จ: ทิ้ง 1 ใบ แล้วจั่ว 1 ใบ");
+    }
+
+    const sr2 = result.storageResult;
+    if (!sr2.ok) {
+      setMessage((prev) => `${prev} (บันทึกเซฟล้มเหลว: ${storageErrorMessage(sr2.error)})`);
+    }
   }
 
   function playSelected(target?: Target) {
@@ -128,16 +310,27 @@ export function App() {
 
     payload.bottomCardInstanceId = match.players[match.currentPlayerId].hand.find((id) => id !== selectedCardId);
 
-    const result = dispatchAction(match, {
+    const result = coordinator.dispatch({
       type: "PLAY_CARD",
       playerId: match.currentPlayerId,
       payload
-    });
+    }, Date.now());
 
     setMatch(result.state);
     setSelectedCardId(null);
-    setMessage(result.validation.valid ? `${definition.name_th} สำเร็จ` : result.validation.errors.join(", "));
-    setScreen(result.state.status === "FINISHED" ? "result" : "battle");
+    if (!result.validation.valid) {
+      setMessage(result.validation.errors.join(", "));
+    } else {
+      setMessage(`${definition.name_th} สำเร็จ`);
+      if (result.state.status === "FINISHED") {
+        setScreen("result");
+      }
+    }
+
+    const sr3 = result.storageResult;
+    if (!sr3.ok) {
+      setMessage((prev) => `${prev} (บันทึกเซฟล้มเหลว: ${storageErrorMessage(sr3.error)})`);
+    }
   }
 
   const selectedDefinition = useMemo(() => {
@@ -155,20 +348,40 @@ export function App() {
     return <CardLibrary onBack={() => setScreen("menu")} onOpenCard={(card) => setModal({ type: "card", card })} modal={modal} onCloseModal={() => setModal(null)} />;
   }
 
+  if (screen === "history") {
+    return <HistoryScreen onBack={() => setScreen("menu")} />;
+  }
+
   if (screen === "handoff" && match) {
     return <HandoffScreen nextPlayerId={match.currentPlayerId} onContinue={continueFromHandoff} />;
   }
 
   if ((screen === "result" || match?.status === "FINISHED") && match) {
-    return <ResultScreen match={match} onNewGame={startGame} />;
+    return (
+      <>
+        <ResultScreen
+          match={match}
+          stats={coordinator.getStats()}
+          onNewGame={startGame}
+          onBackToMenu={() => setScreen("menu")}
+          onExport={() => { void handleExport(); }}
+        />
+        {exportText && (
+          <ExportModal
+            value={exportText}
+            onClose={() => setExportText(null)}
+          />
+        )}
+      </>
+    );
   }
 
   if (screen === "battle" && match) {
     return (
       <BattleScreen
         match={match}
-        activePlayerId={activePlayerId}
-        opponentId={opponentId}
+        activePlayerId={match.currentPlayerId}
+        opponentId={otherPlayerId(match.currentPlayerId)}
         selectedCardId={selectedCardId}
         selectedDefinition={selectedDefinition}
         message={message}
@@ -180,14 +393,62 @@ export function App() {
         onOpenCard={(card) => setModal({ type: "card", card })}
         onOpenGraveyard={(playerId) => setModal({ type: "graveyard", playerId })}
         onCloseModal={() => setModal(null)}
+        onResetMatch={resetMatch}
       />
     );
   }
 
-  return <MainMenu onStart={startGame} onHowToPlay={() => setScreen("howToPlay")} onLibrary={() => setScreen("library")} />;
+  return (
+    <>
+      <MainMenu
+        onStart={startGame}
+        onHowToPlay={() => setScreen("howToPlay")}
+        onLibrary={() => setScreen("library")}
+        hasSavedGame={hasSavedGame}
+        onContinue={resumeGame}
+        onClearSave={clearSave}
+        onViewHistory={() => setScreen("history")}
+        onOpenImport={() => {
+          setImportError(null);
+          setShowImport(true);
+        }}
+      />
+      {showImport && (
+        <ImportModal
+          onClose={() => setShowImport(false)}
+          onImport={handleImport}
+          error={importError}
+        />
+      )}
+      {exportText && (
+        <ExportModal
+          value={exportText}
+          onClose={() => setExportText(null)}
+        />
+      )}
+    </>
+  );
 }
 
-function MainMenu({ onStart, onHowToPlay, onLibrary }: { onStart: () => void; onHowToPlay: () => void; onLibrary: () => void }) {
+function MainMenu({
+  onStart,
+  onHowToPlay,
+  onLibrary,
+  hasSavedGame,
+  onContinue,
+  onClearSave,
+  onViewHistory,
+  onOpenImport
+}: {
+  onStart: () => void;
+  onHowToPlay: () => void;
+  onLibrary: () => void;
+  hasSavedGame: boolean;
+  onContinue: () => void;
+  onClearSave: () => void;
+  onViewHistory: () => void;
+  onOpenImport: () => void;
+}) {
   return (
     <main className="app-shell" aria-labelledby="game-title">
       <section className="start-panel">
@@ -200,7 +461,17 @@ function MainMenu({ onStart, onHowToPlay, onLibrary }: { onStart: () => void; on
           <div><dt>คะแนนชนะ</dt><dd>{gameConfig.target_score} คะแนน</dd></div>
         </dl>
         <div className="menu-actions">
-          <button type="button" onClick={onStart} aria-label="เริ่มเกมใหม่">เริ่มเกม</button>
+          {hasSavedGame && (
+            <>
+              <button type="button" onClick={onContinue} aria-label="เล่นต่อจากเซฟเดิม">เล่นต่อ</button>
+              <button type="button" className="danger-button" onClick={onClearSave} aria-label="ลบไฟล์เซฟ">ลบเซฟ</button>
+            </>
+          )}
+          <button type="button" onClick={onStart} aria-label="เริ่มเกมใหม่">
+            {hasSavedGame ? "เริ่มเกมใหม่" : "เริ่มเกม"}
+          </button>
+          <button type="button" className="secondary-button" onClick={onViewHistory}>ประวัติการเล่น</button>
+          <button type="button" className="secondary-button" onClick={onOpenImport}>นำเข้าไฟล์เซฟ</button>
           <button type="button" className="secondary-button" onClick={onHowToPlay}>วิธีเล่น</button>
           <button type="button" className="secondary-button" onClick={onLibrary}>คลังการ์ด</button>
         </div>
@@ -271,6 +542,7 @@ function BattleScreen(props: {
   onOpenCard: (card: CardDefinition) => void;
   onOpenGraveyard: (playerId: PlayerId) => void;
   onCloseModal: () => void;
+  onResetMatch: () => void;
 }) {
   const { match, activePlayerId, opponentId, selectedCardId, selectedDefinition } = props;
 
@@ -325,6 +597,7 @@ function BattleScreen(props: {
           <button type="button" className="secondary-button" onClick={props.onRecycle}>Recycle</button>
           <button type="button" className="secondary-button" onClick={() => props.onOpenGraveyard(activePlayerId)}>ดูสุสาน</button>
           <button type="button" className="secondary-button" onClick={() => selectedDefinition && props.onOpenCard(selectedDefinition)} disabled={!selectedDefinition}>รายละเอียด</button>
+          <button type="button" className="secondary-button" onClick={props.onResetMatch}>รีเซ็ตเกม</button>
           <button type="button" className="danger-button" onClick={props.onEndTurn}>จบเทิร์น</button>
         </div>
       </section>
@@ -401,32 +674,105 @@ function HandoffScreen({ nextPlayerId, onContinue }: { nextPlayerId: PlayerId; o
   );
 }
 
-export function ResultScreen({ match, onNewGame }: { match: MatchState; onNewGame: () => void }) {
+export function ResultScreen({
+  match,
+  stats = initStats(),
+  onNewGame,
+  onBackToMenu = () => undefined,
+  onExport = () => undefined
+}: {
+  match: MatchState;
+  stats?: MatchStats;
+  onNewGame: () => void;
+  onBackToMenu?: () => void;
+  onExport?: () => void;
+}) {
+  const highestCard = getHighestScoringCard(stats, match.actionLog);
+
+  let sentToGraveyardCount = 0;
+  let returnedToHandCount = 0;
+  let voluntarySwapCount = 0;
+  for (const pid of ["P1", "P2"] as PlayerId[]) {
+    for (const cardId in stats.sentToGraveyard[pid]) {
+      sentToGraveyardCount += stats.sentToGraveyard[pid][cardId];
+    }
+    for (const cardId in stats.returnedToHand[pid]) {
+      returnedToHandCount += stats.returnedToHand[pid][cardId];
+    }
+    for (const cardId in stats.voluntarySwap[pid]) {
+      voluntarySwapCount += stats.voluntarySwap[pid][cardId];
+    }
+  }
+
+  const startAction = match.actionLog.find((entry) => entry.action.type === "START_MATCH");
+  const startedAt = startAction ? startAction.timestamp : Date.now();
+  const endedAt = match.actionLog[match.actionLog.length - 1]?.timestamp ?? Date.now();
+  const durationMs = endedAt - startedAt;
+
   return (
     <main className="app-shell">
-      <section className="start-panel">
+      <section className="start-panel result-panel">
         <p className="eyebrow">ผลการแข่งขัน</p>
         <h1>{match.winner === "DRAW" ? "เสมอ" : `${playerName(match.winner ?? "P1")} ชนะ`}</h1>
-        <dl className="summary-grid">
-          <div><dt>Player 1</dt><dd>{match.players.P1.score}</dd></div>
-          <div><dt>Player 2</dt><dd>{match.players.P2.score}</dd></div>
-          <div><dt>เหตุผล</dt><dd>{match.finishReason ?? "-"}</dd></div>
-          <div><dt>Turn</dt><dd>{match.turnNumber}</dd></div>
+
+        <dl className="summary-grid result-summary-grid">
+          <div><dt>คะแนนผู้เล่น 1</dt><dd>{match.players.P1.score} คะแนน</dd></div>
+          <div><dt>คะแนนผู้เล่น 2</dt><dd>{match.players.P2.score} คะแนน</dd></div>
+          <div><dt>จำนวนเทิร์น</dt><dd>{match.turnNumber} เทิร์น</dd></div>
+          <div><dt>ระยะเวลาที่ใช้</dt><dd>{formatDuration(durationMs)}</dd></div>
+          <div><dt>เหตุผลที่จบ</dt><dd>{match.finishReason === "TARGET_SCORE" ? "ทำคะแนนถึงเป้าหมาย" : "หมดจำนวนเทิร์น"}</dd></div>
+          <div><dt>จำนวนการรีไซเคิล</dt><dd>{(stats.recycleCount.P1 || 0) + (stats.recycleCount.P2 || 0)} ครั้ง</dd></div>
         </dl>
-        <button type="button" onClick={onNewGame}>เริ่มเกมใหม่</button>
+
+        <hr className="subtle-divider" />
+
+        <h3>สถิติการ์ดออกนอกสนาม (Board Exits)</h3>
+        <dl className="summary-grid compact-summary-grid">
+          <div><dt>ลงสุสาน</dt><dd>{sentToGraveyardCount} ใบ</dd></div>
+          <div><dt>เด้งขึ้นมือ</dt><dd>{returnedToHandCount} ใบ</dd></div>
+          <div><dt>แลกเปลี่ยน (Quick Swap)</dt><dd>{voluntarySwapCount} ใบ</dd></div>
+        </dl>
+
+        <hr className="subtle-divider" />
+
+        {highestCard && (
+          <div className="highlight-card">
+            <h4>การ์ดทำคะแนนสูงสุด (Highest Scoring Card)</h4>
+            <p>
+              <strong>{highestCard.nameTh}</strong> ({highestCard.cardId})
+            </p>
+            <p className="small-copy">
+              คะแนนสะสม: {highestCard.score} คะแนน | เจ้าของ: {playerName(highestCard.ownerId)}
+            </p>
+          </div>
+        )}
+
+        <div className="menu-actions vertical-actions">
+          <button type="button" onClick={onNewGame}>เริ่มเกมใหม่</button>
+          <button type="button" className="secondary-button" onClick={() => { void onExport(); }}>ส่งออกไฟล์เซฟ (คัดลอกลง Clipboard)</button>
+          <button type="button" className="secondary-button" onClick={onBackToMenu}>กลับเมนูหลัก</button>
+        </div>
       </section>
     </main>
   );
 }
 
 function Modal({ modal, match, onClose }: { modal: ModalState; match?: MatchState; onClose: () => void }) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (modal) {
+      closeButtonRef.current?.focus();
+    }
+  }, [modal]);
+
   if (!modal) {
     return null;
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true">
-      <section className="modal-panel">
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={modal.type === "card" ? "รายละเอียดการ์ด" : "สุสาน"}>
+      <section className="modal-panel" tabIndex={-1}>
         {modal.type === "card" ? (
           <>
             <h2>{modal.card.name_th}</h2>
@@ -445,23 +791,12 @@ function Modal({ modal, match, onClose }: { modal: ModalState; match?: MatchStat
             </ul>
           </>
         )}
-        <button type="button" onClick={onClose}>ปิด</button>
+        <button type="button" ref={closeButtonRef} onClick={onClose}>ปิด</button>
       </section>
     </div>
   );
 }
 
-function advanceToAction(state: MatchState): MatchState {
-  let nextState = state;
-  while (nextState.status !== "FINISHED" && nextState.phase !== "ACTION") {
-    nextState = dispatchAction(nextState, {
-      type: "ADVANCE_PHASE",
-      playerId: nextState.currentPlayerId,
-      payload: {}
-    }).state;
-  }
-  return nextState;
-}
 
 function needsTarget(card: CardDefinition): boolean {
   return card.category === "Support" || card.category === "Weakness" || ["X001", "X003", "X004"].includes(card.card_id);
@@ -521,4 +856,163 @@ function phaseLabel(phase: MatchState["phase"]) {
     END: "จบเทิร์น"
   };
   return labels[phase];
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 0 || isNaN(ms)) return "00:00:00";
+  const seconds = Math.floor(ms / 1000);
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+
+function HistoryScreen({ onBack }: { onBack: () => void }) {
+  const [history, setHistory] = useState<MatchResult[]>([]);
+
+  useEffect(() => {
+    const res = listMatchHistory();
+    if (res.ok) {
+      setHistory(res.value);
+    }
+  }, []);
+
+  function handleClear() {
+    if (window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบประวัติการเล่นทั้งหมด?")) {
+      const res = clearMatchHistory();
+      if (res.ok) {
+        setHistory([]);
+        alert("ลบประวัติการเล่นเรียบร้อยแล้ว");
+      } else {
+        alert(`ลบประวัติการเล่นล้มเหลว: ${storageErrorMessage(res.error)}`);
+      }
+    }
+  }
+
+  return (
+    <main className="page-shell scroll-page">
+      <header className="page-header split-header">
+        <h1>ประวัติการเล่น</h1>
+        <div className="inline-actions">
+          {history.length > 0 && (
+            <button type="button" className="danger-button" onClick={handleClear}>ลบประวัติทั้งหมด</button>
+          )}
+          <button type="button" className="secondary-button" onClick={onBack}>กลับเมนู</button>
+        </div>
+      </header>
+
+      {history.length === 0 ? (
+        <p className="empty-state">ไม่มีประวัติการเล่น</p>
+      ) : (
+        <div className="history-list">
+          {history.map((result) => {
+            const playedAtDate = new Date(result.endedAt).toLocaleString("th-TH");
+            return (
+              <section key={result.matchId} className="start-panel history-card">
+                <div className="history-meta">
+                  <small>ID: {result.matchId}</small>
+                  <small>เวลาเล่น: {playedAtDate}</small>
+                </div>
+                <h3>
+                  ผลการแข่งขัน: {result.winner === "DRAW" ? "เสมอ" : `${playerName(result.winner)} ชนะ`}
+                </h3>
+                <dl className="summary-grid compact-summary-grid">
+                  <div><dt>คะแนนผู้เล่น 1</dt><dd>{result.finalScores.P1}</dd></div>
+                  <div><dt>คะแนนผู้เล่น 2</dt><dd>{result.finalScores.P2}</dd></div>
+                  <div><dt>จำนวนเทิร์น</dt><dd>{result.turnCount}</dd></div>
+                  <div><dt>ระยะเวลาเล่น</dt><dd>{formatDuration(result.duration)}</dd></div>
+                  <div><dt>รีไซเคิลรวม</dt><dd>{result.recycleCount} ครั้ง</dd></div>
+                  <div><dt>เหตุผลจบเกม</dt><dd>{result.finishReason === "TARGET_SCORE" ? "ทำคะแนนถึงเป้าหมาย" : "หมดจำนวนเทิร์น"}</dd></div>
+                </dl>
+                <div className="history-exits">
+                  <div><strong>ลงสุสาน:</strong> {result.boardExitCount.sentToGraveyard} ใบ</div>
+                  <div><strong>เด้งขึ้นมือ:</strong> {result.boardExitCount.returnedToHand} ใบ</div>
+                  <div><strong>สลับตำแหน่ง:</strong> {result.boardExitCount.voluntarySwap} ใบ</div>
+                </div>
+                {result.highestScoringCard && (
+                  <div className="history-highlight">
+                    <strong>การ์ดทำคะแนนสูงสุด:</strong> {result.highestScoringCard.nameTh} ({result.highestScoringCard.cardId}) — {result.highestScoringCard.score} คะแนน (ของ {playerName(result.highestScoringCard.ownerId)})
+                  </div>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      )}
+    </main>
+  );
+}
+
+function toPersistableScreen(screen: Screen): PersistableScreen {
+  return screen === "history" ? "menu" : screen;
+}
+
+function ImportModal({
+  onClose,
+  onImport,
+  error
+}: {
+  onClose: () => void;
+  onImport: (jsonText: string) => void;
+  error: string | null;
+}) {
+  const [text, setText] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, []);
+
+  return (
+    <div className="modal-backdrop modal-top" role="dialog" aria-modal="true" aria-label="นำเข้าข้อมูลเซฟเกม">
+      <section className="modal-panel import-export-panel">
+        <h2>นำเข้าข้อมูลเซฟเกม</h2>
+        <p className="muted-copy">วางข้อมูล JSON เพื่อโหลดเซฟเกมที่เคยเล่นอยู่</p>
+        <textarea
+          ref={textareaRef}
+          className="json-textarea"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder='{"schemaVersion": "1", ...}'
+          aria-label="ข้อมูล JSON สำหรับนำเข้า"
+        />
+        {error && (
+          <p className="error-copy">{error}</p>
+        )}
+        <div className="modal-actions">
+          <button type="button" className="secondary-button" onClick={onClose}>ปิด</button>
+          <button type="button" onClick={() => onImport(text)} disabled={!text.trim()}>นำเข้า</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ExportModal({ value, onClose }: { value: string; onClose: () => void }) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+    textareaRef.current?.select();
+  }, []);
+
+  return (
+    <div className="modal-backdrop modal-top" role="dialog" aria-modal="true" aria-label="ส่งออกข้อมูลเซฟเกม">
+      <section className="modal-panel import-export-panel">
+        <h2>ส่งออกข้อมูลเซฟเกม</h2>
+        <p className="muted-copy">คัดลอก JSON นี้เพื่อเก็บ log หรือใช้ debug ภายในเครื่อง</p>
+        <textarea
+          ref={textareaRef}
+          className="json-textarea"
+          value={value}
+          readOnly
+          aria-label="ข้อมูล JSON สำหรับส่งออก"
+        />
+        <div className="modal-actions">
+          <button type="button" onClick={onClose}>ปิด</button>
+        </div>
+      </section>
+    </div>
+  );
 }

@@ -1,5 +1,6 @@
 import type {
   Action,
+  ActionEnvelope,
   ActionLogEntry,
   MatchState,
   Phase,
@@ -22,19 +23,20 @@ export type DispatchResult = {
   validation: ValidationResult;
 };
 
-export function dispatchAction(state: MatchState, action: Action): DispatchResult {
+export function dispatchAction(state: MatchState, envelope: ActionEnvelope): DispatchResult {
+  const { action, timestamp } = envelope;
   const validation = validateAction(state, action);
 
   if (!validation.valid) {
     return {
-      state: appendLog(state, action, validation, "Action rejected"),
+      state: appendLog(state, action, validation, "Action rejected", timestamp),
       validation
     };
   }
 
   const resolved = resolveValidAction(state, action);
   return {
-    state: appendLog(resolved, action, validation, resultText(action)),
+    state: appendLog(resolved, action, validation, resultText(action), timestamp),
     validation
   };
 }
@@ -308,7 +310,8 @@ function appendLog(
   state: MatchState,
   action: Action,
   validation: ValidationResult,
-  result: string
+  result: string,
+  timestamp: number
 ): MatchState {
   const entry: ActionLogEntry = {
     seq: state.actionLog.length + 1,
@@ -318,7 +321,8 @@ function appendLog(
     actor: action.playerId,
     validation,
     result,
-    rng: state.rng
+    rng: state.rng,
+    timestamp
   };
 
   return {
