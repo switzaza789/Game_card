@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, type RefObject } from "react";
 import { cardCatalog } from "../data/cardsSeed";
 import { gameConfig } from "../data/gameConfig";
 import { getCardDefinition, isAnimalInstance } from "../engine/cards/deck";
@@ -9,6 +9,7 @@ import { PersistenceCoordinator } from "../persistence/persistenceCoordinator";
 import { loadActiveMatch, deleteActiveMatch, listMatchHistory, clearMatchHistory, exportMatchLog, importMatchLog, saveActiveMatch } from "../persistence/localStorageAdapter";
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
+import { serializePlaytestFeedback, type FeedbackRatingKey, type FeedbackTextKey, type PlaytestFeedbackInput } from "../playtest/playtestFeedback";
 
 /** Convert any StorageError to a displayable string */
 function storageErrorMessage(err: StorageError): string {
@@ -44,6 +45,8 @@ export function App() {
   const [showImport, setShowImport] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [exportText, setExportText] = useState<string | null>(null);
+  const [playtestFeedbackOpen, setPlaytestFeedbackOpen] = useState(false);
+  const [playtestError, setPlaytestError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadResult = loadActiveMatch();
@@ -174,6 +177,32 @@ export function App() {
     } else {
       alert(`ส่งออกข้อมูลล้มเหลว: ${storageErrorMessage(expResult.error)}`);
     }
+  }
+
+  function handlePlaytestExport(input: PlaytestFeedbackInput) {
+    if (!match) return;
+    const feedbackResult = serializePlaytestFeedback(match, coordinator.getStats(), input);
+    if (!feedbackResult.ok) {
+      setPlaytestError(feedbackResult.errors.join("; "));
+      return;
+    }
+
+    setPlaytestError(null);
+    setPlaytestFeedbackOpen(false);
+    if (!navigator.clipboard?.writeText || !window.isSecureContext) {
+      setExportText(feedbackResult.value);
+      setMessage("ไม่สามารถคัดลอกอัตโนมัติได้ เปิดหน้าต่างส่งออก JSON แล้ว");
+      return;
+    }
+
+    void navigator.clipboard.writeText(feedbackResult.value)
+      .then(() => {
+        alert("คัดลอกฟีดแบ็ก Playtest ลง Clipboard เรียบร้อยแล้ว!");
+      })
+      .catch(() => {
+        setExportText(feedbackResult.value);
+        setMessage("ไม่สามารถคัดลอกอัตโนมัติได้ เปิดหน้าต่างส่งออก JSON แล้ว");
+      });
   }
 
   function resetMatch() {
@@ -365,10 +394,24 @@ export function App() {
           onNewGame={startGame}
           onBackToMenu={() => setScreen("menu")}
           onExport={() => { void handleExport(); }}
+          onOpenPlaytestFeedback={() => {
+            setPlaytestError(null);
+            setPlaytestFeedbackOpen(true);
+          }}
         />
+        {playtestFeedbackOpen && (
+          <PlaytestFeedbackModal
+            onClose={() => setPlaytestFeedbackOpen(false)}
+            onExport={handlePlaytestExport}
+            error={playtestError}
+          />
+        )}
         {exportText && (
           <ExportModal
             value={exportText}
+            title="ส่งออกข้อมูล JSON"
+            description="คัดลอก JSON นี้เพื่อเก็บ log หรือฟีดแบ็ก Playtest ภายในเครื่อง"
+            textareaLabel="ข้อมูล JSON สำหรับส่งออก"
             onClose={() => setExportText(null)}
           />
         )}
@@ -423,6 +466,9 @@ export function App() {
       {exportText && (
         <ExportModal
           value={exportText}
+          title="ส่งออกข้อมูล JSON"
+          description="คัดลอก JSON นี้เพื่อเก็บ log หรือฟีดแบ็ก Playtest ภายในเครื่อง"
+          textareaLabel="ข้อมูล JSON สำหรับส่งออก"
           onClose={() => setExportText(null)}
         />
       )}
@@ -679,13 +725,15 @@ export function ResultScreen({
   stats = initStats(),
   onNewGame,
   onBackToMenu = () => undefined,
-  onExport = () => undefined
+  onExport = () => undefined,
+  onOpenPlaytestFeedback = () => undefined
 }: {
   match: MatchState;
   stats?: MatchStats;
   onNewGame: () => void;
   onBackToMenu?: () => void;
   onExport?: () => void;
+  onOpenPlaytestFeedback?: () => void;
 }) {
   const highestCard = getHighestScoringCard(stats, match.actionLog);
 
@@ -750,6 +798,7 @@ export function ResultScreen({
         <div className="menu-actions vertical-actions">
           <button type="button" onClick={onNewGame}>เริ่มเกมใหม่</button>
           <button type="button" className="secondary-button" onClick={() => { void onExport(); }}>ส่งออกไฟล์เซฟ (คัดลอกลง Clipboard)</button>
+          <button type="button" className="secondary-button" onClick={onOpenPlaytestFeedback}>ส่งออกฟีดแบ็ก Playtest</button>
           <button type="button" className="secondary-button" onClick={onBackToMenu}>กลับเมนูหลัก</button>
         </div>
       </section>
@@ -989,7 +1038,151 @@ function ImportModal({
   );
 }
 
-function ExportModal({ value, onClose }: { value: string; onClose: () => void }) {
+function PlaytestFeedbackModal({
+  onClose,
+  onExport,
+  error
+}: {
+  onClose: () => void;
+  onExport: (input: PlaytestFeedbackInput) => void;
+  error: string | null;
+}) {
+  const firstInputRef = useRef<HTMLInputElement>(null);
+  const [ratings, setRatings] = useState<Record<FeedbackRatingKey, string>>({
+    rulesClarity: "",
+    gameFun: "",
+    gameLength: "",
+    balance: "",
+    uiClarity: ""
+  });
+  const [texts, setTexts] = useState<Record<FeedbackTextKey, string>>({
+    confusingMoments: "",
+    strongestCard: "",
+    weakestCard: "",
+    additionalComments: ""
+  });
+
+  useEffect(() => {
+    firstInputRef.current?.focus();
+  }, []);
+
+  function updateRating(key: FeedbackRatingKey, value: string) {
+    setRatings((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateText(key: FeedbackTextKey, value: string) {
+    setTexts((current) => ({ ...current, [key]: value }));
+  }
+
+  function submit() {
+    const input: PlaytestFeedbackInput = {};
+    for (const key of Object.keys(ratings) as FeedbackRatingKey[]) {
+      if (ratings[key].trim()) {
+        input[key] = Number(ratings[key]);
+      }
+    }
+    for (const key of Object.keys(texts) as FeedbackTextKey[]) {
+      if (texts[key].trim()) {
+        input[key] = texts[key];
+      }
+    }
+    onExport(input);
+  }
+
+  return (
+    <div className="modal-backdrop modal-top" role="dialog" aria-modal="true" aria-label="ฟีดแบ็ก Playtest">
+      <section className="modal-panel import-export-panel playtest-panel">
+        <h2>ฟีดแบ็ก Playtest</h2>
+        <p className="muted-copy">กรอกเฉพาะช่องที่ต้องการ ข้อมูลจะอยู่ในเครื่องจนกว่าจะส่งออกเอง</p>
+        <div className="feedback-grid">
+          <RatingInput id="rulesClarity" label="ความชัดเจนของกติกา" value={ratings.rulesClarity} onChange={(value) => updateRating("rulesClarity", value)} inputRef={firstInputRef} />
+          <RatingInput id="gameFun" label="ความสนุก" value={ratings.gameFun} onChange={(value) => updateRating("gameFun", value)} />
+          <RatingInput id="gameLength" label="ความยาวเกม" value={ratings.gameLength} onChange={(value) => updateRating("gameLength", value)} />
+          <RatingInput id="balance" label="สมดุลเกม" value={ratings.balance} onChange={(value) => updateRating("balance", value)} />
+          <RatingInput id="uiClarity" label="ความชัดเจนของ UI" value={ratings.uiClarity} onChange={(value) => updateRating("uiClarity", value)} />
+        </div>
+        <TextFeedback id="confusingMoments" label="จุดที่สับสน" value={texts.confusingMoments} onChange={(value) => updateText("confusingMoments", value)} />
+        <TextFeedback id="strongestCard" label="การ์ดที่รู้สึกว่าแข็งที่สุด" value={texts.strongestCard} onChange={(value) => updateText("strongestCard", value)} />
+        <TextFeedback id="weakestCard" label="การ์ดที่รู้สึกว่าอ่อนที่สุด" value={texts.weakestCard} onChange={(value) => updateText("weakestCard", value)} />
+        <TextFeedback id="additionalComments" label="ความคิดเห็นเพิ่มเติม" value={texts.additionalComments} onChange={(value) => updateText("additionalComments", value)} />
+        {error && <p className="error-copy">{error}</p>}
+        <div className="modal-actions">
+          <button type="button" className="secondary-button" onClick={onClose}>ปิด</button>
+          <button type="button" onClick={submit}>ส่งออก JSON</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function RatingInput({
+  id,
+  label,
+  value,
+  onChange,
+  inputRef
+}: {
+  id: FeedbackRatingKey;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  inputRef?: RefObject<HTMLInputElement | null>;
+}) {
+  return (
+    <label className="feedback-field" htmlFor={id}>
+      <span>{label} (1-5)</span>
+      <input
+        ref={inputRef}
+        id={id}
+        type="number"
+        min={1}
+        max={5}
+        step={1}
+        inputMode="numeric"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+function TextFeedback({
+  id,
+  label,
+  value,
+  onChange
+}: {
+  id: FeedbackTextKey;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="feedback-field" htmlFor={id}>
+      <span>{label}</span>
+      <textarea
+        id={id}
+        className="feedback-textarea"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
+function ExportModal({
+  value,
+  onClose,
+  title = "ส่งออกข้อมูลเซฟเกม",
+  description = "คัดลอก JSON นี้เพื่อเก็บ log หรือใช้ debug ภายในเครื่อง",
+  textareaLabel = "ข้อมูล JSON สำหรับส่งออก"
+}: {
+  value: string;
+  onClose: () => void;
+  title?: string;
+  description?: string;
+  textareaLabel?: string;
+}) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -998,16 +1191,16 @@ function ExportModal({ value, onClose }: { value: string; onClose: () => void })
   }, []);
 
   return (
-    <div className="modal-backdrop modal-top" role="dialog" aria-modal="true" aria-label="ส่งออกข้อมูลเซฟเกม">
+    <div className="modal-backdrop modal-top" role="dialog" aria-modal="true" aria-label={title}>
       <section className="modal-panel import-export-panel">
-        <h2>ส่งออกข้อมูลเซฟเกม</h2>
-        <p className="muted-copy">คัดลอก JSON นี้เพื่อเก็บ log หรือใช้ debug ภายในเครื่อง</p>
+        <h2>{title}</h2>
+        <p className="muted-copy">{description}</p>
         <textarea
           ref={textareaRef}
           className="json-textarea"
           value={value}
           readOnly
-          aria-label="ข้อมูล JSON สำหรับส่งออก"
+          aria-label={textareaLabel}
         />
         <div className="modal-actions">
           <button type="button" onClick={onClose}>ปิด</button>

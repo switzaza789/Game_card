@@ -141,3 +141,27 @@ Final checks:
 - Modal dialog labels and focus behavior review.
 - Desktop and mobile layout review for menu, battle, result, history, import, and export screens.
 - Thai UI copy consistency review.
+
+## Phase 7 — Deployment and Playtest Readiness
+
+Automated checks:
+
+- GitHub Pages production build base path is `/Game_card/`.
+- Local development base path remains `/`.
+- App result screen opens the Playtest feedback dialog.
+- Playtest rating validation accepts integer values 1-5.
+- Playtest rating validation rejects blank-invalid, below-range, above-range, and decimal values while allowing optional blank fields.
+- Playtest feedback export contains schema version, application version, match id, playedAt, winner, final scores, turn count, duration, finish reason, recycle count, board exit count, highest scoring card, and optional feedback object.
+- Playtest feedback export does not include prohibited personal-data fields such as names, emails, wallet addresses, IP addresses, or device fingerprints.
+- Clipboard failure fallback remains functional for exported JSON.
+- Existing save, resume, handoff privacy, finished-match recovery, history, import, export, engine, and UI regression tests remain passing.
+
+Manual checks:
+
+- GitHub Pages workflow uses official actions, minimum permissions, concurrency protection, `npm ci`, lint, tests, build, artifact upload, and Pages deploy.
+- GitHub Pages public URL must be verified after activation from GitHub repository settings and a successful workflow run.
+- Result and Playtest feedback modals remain keyboard usable without a mouse.
+- Feedback form controls have visible labels and visible focus states.
+- Narrow mobile widths do not overflow for Phase 7 modal additions.
+- Thai deployment and playtest copy is consistent.
+- Issue templates do not ask for passwords, private keys, seed phrases, wallet credentials, or sensitive personal information.
