@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useRef, type RefObject } from "react";
-import { chooseNormalAiAction, MAX_AI_ACTIONS_PER_TURN } from "../ai/normalAi";
+import { runPveNormalAiTurn } from "../ai/aiTurnController";
+import { preparePveHumanTurnToAction } from "./pveHumanTurnController";
 import { cardCatalog } from "../data/cardsSeed";
 import { gameConfig } from "../data/gameConfig";
 import { getCardDefinition, isAnimalInstance } from "../engine/cards/deck";
@@ -69,7 +70,8 @@ export function App() {
   const [playtestFeedbackOpen, setPlaytestFeedbackOpen] = useState(false);
   const [playtestError, setPlaytestError] = useState<string | null>(null);
   const lastFeedbackExportRef = useRef<string | null>(null);
-  const aiRunningRef = useRef(false);
+  const aiExecutionRef = useRef<string | null>(null);
+  const humanTurnPrepRef = useRef<string | null>(null);
 
   useEffect(() => {
     const loadResult = loadActiveMatch();
@@ -314,40 +316,81 @@ export function App() {
     if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.currentPlayerId !== "P2" || match.status === "FINISHED") {
       return;
     }
-    if (aiRunningRef.current) {
+    const aiTurnKey = `${match.matchId}:${match.turnNumber}:${match.currentPlayerId}`;
+    if (aiExecutionRef.current === aiTurnKey) {
       return;
     }
-    aiRunningRef.current = true;
+    aiExecutionRef.current = aiTurnKey;
     const timer = window.setTimeout(() => {
-      let currentMatch = coordinator.getState() ?? match;
-      let actionsTaken = 0;
-      while (currentMatch.status !== "FINISHED" && currentMatch.currentPlayerId === "P2" && currentMatch.phase !== "ACTION") {
-        const result = coordinator.dispatch({ type: "ADVANCE_PHASE", playerId: "P2", payload: {} }, Date.now());
-        currentMatch = result.state;
-      }
-      while (currentMatch.status !== "FINISHED" && currentMatch.currentPlayerId === "P2" && currentMatch.phase === "ACTION") {
-        const decision = chooseNormalAiAction({ state: currentMatch, playerId: "P2" });
-        if (!decision || actionsTaken >= MAX_AI_ACTIONS_PER_TURN) {
-          const result = coordinator.dispatch({ type: "END_TURN", playerId: "P2", payload: {} }, Date.now());
-          currentMatch = result.state;
-          break;
+      try {
+        const result = runPveNormalAiTurn({
+          getState: () => coordinator.getState() ?? match,
+          dispatch: (action) => coordinator.dispatch(action, Date.now())
+        });
+        const currentMatch = result.state;
+        setMatch(currentMatch);
+        setSelectedCardId(null);
+        setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
+        if (currentMatch.status === "FINISHED") {
+          setMessage("เกมจบแล้ว");
+        } else if (currentMatch.currentPlayerId === "P1") {
+          setMessage("คอมพิวเตอร์จบเทิร์นแล้ว ถึงตาคุณ");
+        } else if (result.actionLimitFallback) {
+          setMessage("คอมพิวเตอร์ถึงขีดจำกัด action และหยุดอย่างปลอดภัย");
         }
-        const result = coordinator.dispatch(decision.action, Date.now());
-        currentMatch = result.state;
-        actionsTaken += 1;
-        if (!result.validation.valid) {
-          break;
+      } finally {
+        if (aiExecutionRef.current === aiTurnKey) {
+          aiExecutionRef.current = null;
         }
       }
-      setMatch(currentMatch);
-      setSelectedCardId(null);
-      setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
-      setMessage(currentMatch.status === "FINISHED" ? "เกมจบแล้ว" : "คอมพิวเตอร์จบเทิร์นแล้ว ถึงตาคุณ");
-      aiRunningRef.current = false;
     }, 350);
     return () => {
       window.clearTimeout(timer);
-      aiRunningRef.current = false;
+      if (aiExecutionRef.current === aiTurnKey) {
+        aiExecutionRef.current = null;
+      }
+    };
+  }, [coordinator, match, screen]);
+
+  useEffect(() => {
+    if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.currentPlayerId !== "P1" || match.status === "FINISHED" || match.phase === "ACTION") {
+      return;
+    }
+    const prepKey = `${match.matchId}:${match.turnNumber}:${match.currentPlayerId}`;
+    if (humanTurnPrepRef.current === prepKey) {
+      return;
+    }
+    humanTurnPrepRef.current = prepKey;
+    const timer = window.setTimeout(() => {
+      try {
+        const result = preparePveHumanTurnToAction({
+          getState: () => coordinator.getState() ?? match,
+          dispatch: (action) => coordinator.dispatch(action, Date.now())
+        });
+        const currentMatch = result.state;
+        setMatch(currentMatch);
+        setSelectedCardId(null);
+        setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
+        if (currentMatch.status === "FINISHED") {
+          setMessage("เกมจบแล้ว");
+        } else if (currentMatch.phase === "ACTION") {
+          setMessage("ถึงตาคุณ — เล่นการ์ดได้");
+        } else if (result.stoppedByRejection) {
+          setMessage("เริ่มเทิร์นไม่สำเร็จ กรุณาตรวจสอบ Action Log");
+        } else {
+          setMessage("กำลังจั่วและคิดคะแนน...");
+        }
+      } finally {
+        if (humanTurnPrepRef.current === prepKey) {
+          humanTurnPrepRef.current = null;
+        }
+      }
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      if (humanTurnPrepRef.current === prepKey) {
+        humanTurnPrepRef.current = null;
+      }
     };
   }, [coordinator, match, screen]);
 
@@ -531,7 +574,7 @@ export function App() {
         onOpenGraveyard={(playerId) => setModal({ type: "graveyard", playerId })}
         onCloseModal={() => setModal(null)}
         onResetMatch={resetMatch}
-        controlsDisabled={match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2"}
+        controlsDisabled={(match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2") || match.phase !== "ACTION"}
       />
     );
   }
@@ -691,6 +734,8 @@ function BattleScreen(props: {
 }) {
   const { match, activePlayerId, opponentId, selectedCardId, selectedDefinition } = props;
   const controlsDisabled = Boolean(props.controlsDisabled);
+  const isAiTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2";
+  const isPreparingHumanTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P1" && match.phase !== "ACTION";
 
   return (
     <main className="battle-app">
@@ -710,7 +755,8 @@ function BattleScreen(props: {
       </section>
 
       <section className="board" aria-label="สนามต่อสู้">
-        {controlsDisabled && <div className="ai-banner" role="status" aria-live="polite">AI Turn — Computer is thinking...</div>}
+        {isAiTurn && <div className="ai-banner" role="status" aria-live="polite">AI Turn — Computer is thinking...</div>}
+        {isPreparingHumanTurn && <div className="ai-banner" role="status" aria-live="polite">กำลังจั่วและคิดคะแนน...</div>}
         <HiddenHand count={match.players[opponentId].hand.length} />
         <div className="zone-label">มือคู่ต่อสู้</div>
         <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onOpenGraveyard={props.onOpenGraveyard} />
@@ -745,7 +791,7 @@ function BattleScreen(props: {
           <button type="button" className="secondary-button" onClick={() => props.onOpenGraveyard(activePlayerId)}>ดูสุสาน</button>
           <button type="button" className="secondary-button" onClick={() => selectedDefinition && props.onOpenCard(selectedDefinition)} disabled={!selectedDefinition}>รายละเอียด</button>
           <button type="button" className="secondary-button" onClick={props.onResetMatch}>รีเซ็ตเกม</button>
-          <button type="button" className="danger-button" onClick={props.onEndTurn} disabled={controlsDisabled}>จบเทิร์น</button>
+          <button type="button" className="danger-button" onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")}>จบเทิร์น</button>
         </div>
       </section>
       <Modal modal={props.modal} match={match} onClose={props.onCloseModal} />
@@ -787,6 +833,7 @@ function BoardRow({
             <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : ""}`} disabled={!legal} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
               <span className="level">Lv.{animal.level}</span>
               <strong>{definition.name_th}</strong>
+              {animal.level >= 2 && <small className="statuses">{evolutionLabel(animal.level, animal.evolutionPoints ?? 0)}</small>}
               {animal.attachedSupportIds.map((supportId) => (
                 <span className="attached-support" key={supportId}>{getCardDefinition(match.cardsByInstanceId[supportId].definitionId).name_th}</span>
               ))}
@@ -1006,6 +1053,15 @@ function phaseLabel(phase: MatchState["phase"]) {
     END: "จบเทิร์น"
   };
   return labels[phase];
+}
+
+function evolutionLabel(level: number, points: number): string {
+  if (level >= 3) {
+    return "วิวัฒนาการสำเร็จ ★★";
+  }
+  return points >= 1
+    ? "วิวัฒนาการ ★☆ 1/2 — ทำคะแนนสำเร็จอีก 1 ครั้งเพื่อขึ้น Level 3"
+    : "วิวัฒนาการ ☆☆ 0/2 — ทำคะแนนสำเร็จอีก 2 ครั้งเพื่อขึ้น Level 3";
 }
 
 function formatDuration(ms: number): string {

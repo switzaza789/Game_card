@@ -130,6 +130,11 @@ export function validateStoredMatch(data: unknown): StorageResult<PersistedActiv
           if (![1, 2, 3].includes(animal.level)) {
             errors.push(`Animal ${id} has invalid level: ${animal.level}`);
           }
+          if (animal.evolutionPoints === undefined) {
+            animal.evolutionPoints = 0;
+          } else if (![0, 1, 2].includes(animal.evolutionPoints)) {
+            errors.push(`Animal ${id} has invalid evolutionPoints: ${animal.evolutionPoints}`);
+          }
           if (animal.slotNo !== index + 1) {
             errors.push(`Animal ${id} slotNo mismatch: ${animal.slotNo} !== ${index + 1}`);
           }

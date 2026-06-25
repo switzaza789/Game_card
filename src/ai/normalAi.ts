@@ -136,15 +136,19 @@ function scoreAction(state: MatchState, action: Action): number {
   } else if (def.category === "Support" && target && isAnimalInstance(target)) {
     const match = getCardDefinition(target.definitionId).subtype === supportMatches[def.card_id];
     score = match ? (target.level === 2 ? 95 : 75) : 0;
+    if (target.level === 2 && (target.evolutionPoints ?? 0) === 1 && ["S001", "S003", "S004", "S006"].includes(def.card_id)) {
+      score += 35;
+    }
     if (match && canWinSoon) score += 1000;
   } else if (def.category === "Weakness" && target && isAnimalInstance(target)) {
     const direct = weaknessTargets[def.card_id]?.includes(getCardDefinition(target.definitionId).subtype) ?? false;
-    score = direct ? 90 + target.level * 25 : 20 + target.level * 10;
+    const evolutionThreat = target.level === 2 && (target.evolutionPoints ?? 0) === 1 ? 35 : 0;
+    score = (direct ? 90 + target.level * 25 : 20 + target.level * 10) + evolutionThreat;
     if (opponentThreat) score += 800;
   } else if (def.card_id === "X001" && target && isAnimalInstance(target)) {
-    score = 35 + target.level * 20 + (opponentThreat ? 800 : 0);
+    score = 35 + target.level * 20 + (target.level === 2 && (target.evolutionPoints ?? 0) === 1 ? 35 : 0) + (opponentThreat ? 800 : 0);
   } else if (def.card_id === "X003" && target && isAnimalInstance(target)) {
-    score = target.level === 1 ? 55 : 0;
+    score = target.level === 1 ? 55 : (target.level === 2 && (target.evolutionPoints ?? 0) === 1 ? -20 : 0);
   } else if (def.card_id === "X004" && target && isAnimalInstance(target)) {
     score = 45 + target.level * 10 + (opponentThreat ? 800 : 0);
   } else if (def.card_id === "X005") {

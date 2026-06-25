@@ -74,6 +74,7 @@ export type StatusEffect = {
 export type AnimalInstance = CardInstance & {
   zone: "BOARD";
   level: 1 | 2 | 3;
+  evolutionPoints: 0 | 1 | 2;
   slotNo: 1 | 2 | 3;
   enteredTurn: number;
   attachedSupportIds: string[];
