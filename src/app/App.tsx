@@ -770,7 +770,7 @@ function BattleScreen(props: {
         <div className="divider" />
         <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onOpenGraveyard={props.onOpenGraveyard} />
         <div className="zone-label">Animal Zone ของคุณ — คะแนน {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
-        <div className="player-hand" aria-label="มือผู้เล่นปัจจุบัน">
+        <div className="player-hand" aria-label="มือผู้เล่นปัจจุบัน" tabIndex={0}>
           {match.players[activePlayerId].hand.map((id) => {
             const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
             return (
@@ -843,15 +843,15 @@ function BoardRow({
   const player = match.players[ownerId];
   return (
     <div className="row">
-      <div className="side-zone">Deck<br /><strong>{player.deck.length}</strong></div>
+      <div className="side-zone deck-zone"><span className="zone-title">กองจั่ว</span><strong>{player.deck.length}</strong></div>
       <div className="animal-zone">
         {player.board.map((instanceId, index) => {
           if (!instanceId) {
-            return <div key={index} className="slot">ช่อง Animal {index + 1}</div>;
+            return <div key={index} className="slot" aria-label={`ช่อง Animal ${index + 1}`}>สัตว์ {index + 1}</div>;
           }
           const animal = match.cardsByInstanceId[instanceId];
           if (!isAnimalInstance(animal)) {
-            return <div key={index} className="slot">ช่อง Animal {index + 1}</div>;
+            return <div key={index} className="slot" aria-label={`ช่อง Animal ${index + 1}`}>สัตว์ {index + 1}</div>;
           }
           const definition = getCardDefinition(animal.definitionId);
           const legal = selectedDefinition ? canTarget(selectedDefinition, ownerId, viewerId, animal.level) : false;
@@ -868,7 +868,7 @@ function BoardRow({
           );
         })}
       </div>
-      <button type="button" className="side-zone graveyard-button" onClick={() => onOpenGraveyard(ownerId)}>Graveyard<br /><strong>{player.graveyard.length}</strong></button>
+      <button type="button" className="side-zone graveyard-button" onClick={() => onOpenGraveyard(ownerId)}><span className="zone-title">สุสาน</span><strong>{player.graveyard.length}</strong></button>
     </div>
   );
 }
