@@ -74,7 +74,15 @@ export function validateEffect(state: MatchState, action: Extract<Action, { type
   }
 
   if (definition.category === "Support") {
-    return validateBoardTarget(state, action.playerId, action.payload.target, "own");
+    const boardTarget = validateBoardTarget(state, action.playerId, action.payload.target, "own");
+    if (!boardTarget.valid) {
+      return boardTarget;
+    }
+    const target = getTargetAnimal(state, action.payload.target);
+    if (definition.card_id === "S001" && target.definitionId === "A001" && target.level >= 3) {
+      return invalid(["สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้"]);
+    }
+    return valid();
   }
 
   if (definition.category === "Weakness") {

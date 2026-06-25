@@ -1105,8 +1105,9 @@ function Modal({ modal, match, onClose }: { modal: ModalState; match?: MatchStat
           <>
             <h2>{modal.card.name_th}</h2>
             <p>{modal.card.card_id} — {categoryLabels[modal.card.category]}</p>
-            <p>{modal.card.primary_effect}</p>
-            {modal.card.secondary_effect && <p>{modal.card.secondary_effect}</p>}
+            <div className="card-detail-lines" aria-label="รายละเอียดการ์ด">
+              {formatCardDetailLines(modal.card).map((line) => <p key={line}>{line}</p>)}
+            </div>
           </>
         ) : (
           <>
@@ -1128,6 +1129,47 @@ function Modal({ modal, match, onClose }: { modal: ModalState; match?: MatchStat
 
 function needsTarget(card: CardDefinition): boolean {
   return card.category === "Support" || card.category === "Weakness" || ["X001", "X003", "X004"].includes(card.card_id);
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function formatCardDetailLines(card: CardDefinition): string[] {
+  const lines: string[] = [];
+  if (card.primary_effect) {
+    lines.push(...labelledCardLines(card));
+  }
+  return lines.flatMap(splitCardLine);
+}
+
+function labelledCardLines(card: CardDefinition): string[] {
+  const lines: string[] = [];
+  if (card.timing) {
+    lines.push(`ความสามารถ: ${card.timing}`);
+  }
+  if (card.target) {
+    lines.push(`เงื่อนไข: ${card.target}`);
+  }
+  if (card.category === "Support" && card.primary_effect) {
+    lines.push(`Support: ${card.primary_effect}`);
+  } else if (card.category === "Weakness" && card.primary_effect) {
+    const [fullEffect, weakEffect] = splitWeaknessEffects(card.primary_effect);
+    if (fullEffect) lines.push(`ใช้ตรงกับสัตว์ที่แพ้ทาง: ${fullEffect}`);
+    if (weakEffect) lines.push(`ใช้ผิดเป้าหมาย: ${weakEffect}`);
+  } else if (card.primary_effect) {
+    lines.push(`ความสามารถ: ${card.primary_effect}`);
+  }
+  if (card.secondary_effect) {
+    lines.push(`จุดอ่อน: ${card.secondary_effect}`);
+  }
+  return lines;
+}
+
+function splitWeaknessEffects(text: string): [string, string] {
+  const parts = text.split(/(?:\r?\n)|(?:; )|(?:\.\s+)/).map((part) => part.trim()).filter(Boolean);
+  return [parts[0] ?? "", parts[1] ?? ""];
+}
+
+function splitCardLine(text: string): string[] {
+  return text.split(/\r?\n/).map((part) => part.trim()).filter(Boolean);
 }
 
 type PlayabilityState = "PLAYABLE_NOW" | "PLAYABLE_AFTER_TARGET" | "PARTIAL_EFFECT_ONLY" | "NOT_PLAYABLE";
@@ -1185,6 +1227,9 @@ function getCardPlayability(match: MatchState, playerId: PlayerId, cardInstanceI
     return { state: "NOT_PLAYABLE", label: "ยังใช้ไม่ได้", reason: "ไม่พบการ์ด" };
   }
   const definition = getCardDefinition(card.definitionId);
+  if (definition.card_id === "S001" && hasLevel3Dog(match, playerId)) {
+    return { state: "NOT_PLAYABLE", label: "สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้", reason: "สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้" };
+  }
   const validation = validateAction(match, { type: "PLAY_CARD", playerId, payload: { cardInstanceId } });
   const translated = validation.valid ? "" : translateValidationReason(validation.errors[0]);
   if (validation.valid) {
@@ -1232,6 +1277,14 @@ function hasEnemyBoard(match: MatchState, playerId: PlayerId): boolean {
   return match.players[enemyId].board.some(Boolean);
 }
 
+function hasLevel3Dog(match: MatchState, playerId: PlayerId): boolean {
+  return match.players[playerId].board.some((instanceId) => {
+    if (!instanceId) return false;
+    const animal = match.cardsByInstanceId[instanceId];
+    return isAnimalInstance(animal) && animal.definitionId === "A001" && animal.level >= 3;
+  });
+}
+
 function anyDirectWeaknessTarget(match: MatchState, playerId: PlayerId, card: CardDefinition): boolean {
   const enemyId = otherPlayerId(playerId);
   return match.players[enemyId].board.some((instanceId) => {
@@ -1263,6 +1316,9 @@ function actionCategoryLabel(card: CardDefinition): string {
 
 function canTarget(card: CardDefinition, ownerId: PlayerId, viewerId: PlayerId, level: number): boolean {
   if (card.category === "Support") {
+    if (card.card_id === "S001") {
+      return ownerId === viewerId && level < 3;
+    }
     return ownerId === viewerId;
   }
   if (card.category === "Weakness" || card.card_id === "X001") {

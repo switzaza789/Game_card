@@ -35,6 +35,26 @@ describe("card effects", () => {
     expect(support.zone).toBe("BOARD");
   });
 
+  it("lets Bone target Dog below max level and rejects max-level Dog", () => {
+    let state = setupActionState();
+    state = forceAnimalToBoard(state, "P1", "A001", 1);
+    state = forceCardToHand(state, "P1", "S001");
+
+    const level1 = play(state, "P1", "S001", targetOf(state, "P1", "A001"));
+    expect(level1.validation.valid).toBe(true);
+    expect(getBoardAnimal(level1.state, "P1", "A001").level).toBe(2);
+
+    state = setupActionState();
+    state = forceAnimalToBoard(state, "P1", "A001", 3);
+    state = forceCardToHand(state, "P1", "S001");
+
+    const level3 = play(state, "P1", "S001", targetOf(state, "P1", "A001"));
+    expect(level3.validation.valid).toBe(false);
+    expect(level3.validation.errors).toContain("สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้");
+    expect(level3.state.players.P1.hand).toContain("P1-S001-1");
+    expect(getBoardAnimal(level3.state, "P1", "A001").level).toBe(3);
+  });
+
   it("resolves off-target Support without level up", () => {
     let state = setupActionState();
     state = forceAnimalToBoard(state, "P1", "A001", 1);

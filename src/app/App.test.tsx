@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatch } from "../engine/state/match";
-import { App, ResultScreen } from "./App";
+import { App, ResultScreen, formatCardDetailLines } from "./App";
 import { exportMatchLog, saveActiveMatch, saveMatchResult, listHumanFeedback } from "../persistence/localStorageAdapter";
 import { initStats } from "../persistence/statsTracker";
 import type { MatchResult } from "../persistence/types";
@@ -116,6 +116,38 @@ describe("App Phase 4 UI", () => {
     await user.click(screen.getByRole("button", { name: /A001/ }));
     expect(screen.getByRole("dialog")).toHaveTextContent("สุนัขจอมซน");
   }, 10000);
+
+  it("formats card descriptions with readable Thai labels and line breaks", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+
+    await user.click(screen.getByRole("button", { name: /A001/ }));
+    const animalDialog = screen.getByRole("dialog");
+    expect(animalDialog).toHaveTextContent("ความสามารถ:");
+    expect(animalDialog.querySelectorAll(".card-detail-lines p").length).toBeGreaterThan(0);
+
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: /W001/ }));
+    const weaknessDialog = screen.getByRole("dialog");
+    expect(weaknessDialog).toHaveTextContent("ใช้ตรงกับสัตว์ที่แพ้ทาง:");
+    expect(weaknessDialog).toHaveTextContent("ใช้ผิดเป้าหมาย:");
+    expect(Array.from(weaknessDialog.querySelectorAll(".card-detail-lines p")).some((p) => p.textContent?.startsWith("ใช้ตรงกับสัตว์ที่แพ้ทาง:"))).toBe(true);
+    expect(Array.from(weaknessDialog.querySelectorAll(".card-detail-lines p")).some((p) => p.textContent?.startsWith("ใช้ผิดเป้าหมาย:"))).toBe(true);
+  });
+
+  it("preserves explicit line breaks when formatting card details", () => {
+    expect(
+      formatCardDetailLines({
+        card_id: "T001",
+        nameTh: "ทดสอบ",
+        category: "Support",
+        rarity: "Common",
+        primary_effect: "บรรทัดแรก\nบรรทัดสอง",
+      } as never),
+    ).toEqual(["Support: บรรทัดแรก", "บรรทัดสอง"]);
+  });
 
   it("plays an Animal from hand", async () => {
     const user = userEvent.setup();
