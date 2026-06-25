@@ -35,6 +35,36 @@ describe("card effects", () => {
     expect(support.zone).toBe("BOARD");
   });
 
+  it("rejects every level-increasing Support on Level 3 animals and preserves state", () => {
+    const cases: Array<[string, string, string]> = [
+      ["S001", "A001", "P1-S001-1"],
+      ["S002", "A002", "P1-S002-1"],
+      ["S003", "A003", "P1-S003-1"],
+      ["S004", "A004", "P1-S004-1"],
+      ["S005", "A005", "P1-S005-1"],
+      ["S006", "A006", "P1-S006-1"]
+    ];
+
+    for (const [supportId, animalId, instanceId] of cases) {
+      let state = setupActionState();
+      state = forceAnimalToBoard(state, "P1", animalId, 3);
+      state = forceCardToHand(state, "P1", supportId);
+
+      const beforeBoard = JSON.stringify(getBoardAnimal(state, "P1", animalId));
+      const beforeHand = [...state.players.P1.hand];
+      const result = play(state, "P1", supportId, targetOf(state, "P1", animalId));
+
+      expect(result.validation.valid).toBe(false);
+      expect(result.validation.errors).toContain("สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้");
+      expect(result.state.cardsByInstanceId[instanceId].zone).toBe("HAND");
+      expect(getBoardAnimal(result.state, "P1", animalId).level).toBe(3);
+      expect(result.state.players.P1.utilityActionUsed).toBe(false);
+      expect(result.state.players.P1.animalActionUsed).toBe(false);
+      expect(JSON.stringify(getBoardAnimal(result.state, "P1", animalId))).toBe(beforeBoard);
+      expect(result.state.players.P1.hand).toEqual(beforeHand);
+    }
+  });
+
   it("lets Bone target Dog below max level and rejects max-level Dog", () => {
     let state = setupActionState();
     state = forceAnimalToBoard(state, "P1", "A001", 1);
@@ -50,7 +80,7 @@ describe("card effects", () => {
 
     const level3 = play(state, "P1", "S001", targetOf(state, "P1", "A001"));
     expect(level3.validation.valid).toBe(false);
-    expect(level3.validation.errors).toContain("สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้");
+    expect(level3.validation.errors).toContain("สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้");
     expect(level3.state.players.P1.hand).toContain("P1-S001-1");
     expect(getBoardAnimal(level3.state, "P1", "A001").level).toBe(3);
   });

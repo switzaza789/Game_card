@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatch } from "../engine/state/match";
-import { App, ResultScreen, formatCardDetailLines } from "./App";
+import { App, ResultScreen, formatCardDetailLines, isLevelIncreasingSupportCard } from "./App";
 import { exportMatchLog, saveActiveMatch, saveMatchResult, listHumanFeedback } from "../persistence/localStorageAdapter";
 import { initStats } from "../persistence/statsTracker";
 import type { MatchResult } from "../persistence/types";
@@ -131,10 +131,34 @@ describe("App Phase 4 UI", () => {
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: /W001/ }));
     const weaknessDialog = screen.getByRole("dialog");
-    expect(weaknessDialog).toHaveTextContent("ใช้ตรงกับสัตว์ที่แพ้ทาง:");
+    expect(weaknessDialog).toHaveTextContent("ใช้ตรงเป้าหมาย — สุนัข:");
     expect(weaknessDialog).toHaveTextContent("ใช้ผิดเป้าหมาย:");
-    expect(Array.from(weaknessDialog.querySelectorAll(".card-detail-lines p")).some((p) => p.textContent?.startsWith("ใช้ตรงกับสัตว์ที่แพ้ทาง:"))).toBe(true);
+    expect(Array.from(weaknessDialog.querySelectorAll(".card-detail-lines p")).some((p) => p.textContent?.startsWith("ใช้ตรงเป้าหมาย — สุนัข:"))).toBe(true);
     expect(Array.from(weaknessDialog.querySelectorAll(".card-detail-lines p")).some((p) => p.textContent?.startsWith("ใช้ผิดเป้าหมาย:"))).toBe(true);
+  });
+
+  it("shows each weakness card target animal name from metadata", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+
+    await user.click(screen.getByRole("button", { name: /W003/ }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("ใช้ตรงเป้าหมาย — กระต่ายและหมี:");
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("button", { name: /W005/ }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("ใช้ตรงเป้าหมาย — ปลา:");
+  });
+
+  it("identifies every level-increasing Support logic key", () => {
+    expect(isLevelIncreasingSupportCard("match_level_up_and_bounce_removal_shield")).toBe(true);
+    expect(isLevelIncreasingSupportCard("match_level_up_peek_or_bottom")).toBe(true);
+    expect(isLevelIncreasingSupportCard("match_level_up_temp_level_down_immunity")).toBe(true);
+    expect(isLevelIncreasingSupportCard("match_level_up_minimum_next_score_1")).toBe(true);
+    expect(isLevelIncreasingSupportCard("match_level_up_draw1_bottom1")).toBe(true);
+    expect(isLevelIncreasingSupportCard("match_level_up_temp_weakness_immunity")).toBe(true);
+    expect(isLevelIncreasingSupportCard("return_own_attached_support_to_hand")).toBe(false);
   });
 
   it("preserves explicit line breaks when formatting card details", () => {

@@ -79,8 +79,8 @@ export function validateEffect(state: MatchState, action: Extract<Action, { type
       return boardTarget;
     }
     const target = getTargetAnimal(state, action.payload.target);
-    if (definition.card_id === "S001" && target.definitionId === "A001" && target.level >= 3) {
-      return invalid(["สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้"]);
+    if (supportIncreasesLevel(definition.logic_key) && target.level >= 3) {
+      return invalid(["สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้"]);
     }
     return valid();
   }
@@ -300,6 +300,17 @@ function resolveSupport(state: MatchState, action: Extract<Action, { type: "PLAY
   }
 
   return nextState;
+}
+
+function supportIncreasesLevel(logicKey: string): boolean {
+  return [
+    "match_level_up_and_bounce_removal_shield",
+    "match_level_up_peek_or_bottom",
+    "match_level_up_temp_level_down_immunity",
+    "match_level_up_minimum_next_score_1",
+    "match_level_up_draw1_bottom1",
+    "match_level_up_temp_weakness_immunity"
+  ].includes(logicKey);
 }
 
 function resolveWeakness(state: MatchState, action: Extract<Action, { type: "PLAY_CARD" }>): MatchState {

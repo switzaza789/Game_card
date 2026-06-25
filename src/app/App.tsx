@@ -1152,7 +1152,8 @@ function labelledCardLines(card: CardDefinition): string[] {
     lines.push(`Support: ${card.primary_effect}`);
   } else if (card.category === "Weakness" && card.primary_effect) {
     const [fullEffect, weakEffect] = splitWeaknessEffects(card.primary_effect);
-    if (fullEffect) lines.push(`ใช้ตรงกับสัตว์ที่แพ้ทาง: ${fullEffect}`);
+    const targetLabel = weaknessTargetLabel(card.subtype);
+    if (fullEffect) lines.push(`ใช้ตรงเป้าหมาย — ${targetLabel}: ${fullEffect}`);
     if (weakEffect) lines.push(`ใช้ผิดเป้าหมาย: ${weakEffect}`);
   } else if (card.primary_effect) {
     lines.push(`ความสามารถ: ${card.primary_effect}`);
@@ -1170,6 +1171,16 @@ function splitWeaknessEffects(text: string): [string, string] {
 
 function splitCardLine(text: string): string[] {
   return text.split(/\r?\n/).map((part) => part.trim()).filter(Boolean);
+}
+
+function weaknessTargetLabel(subtype: string): string {
+  const labels = subtype
+    .split("/")
+    .map((part) => part.trim())
+    .map((part) => part.replace(/\s+Weakness$/i, ""))
+    .map((part) => ({ Dog: "สุนัข", Cat: "แมว", Rabbit: "กระต่าย", Bear: "หมี", Bird: "นก", Fish: "ปลา" }[part] ?? part))
+    .filter(Boolean);
+  return labels.join("และ");
 }
 
 type PlayabilityState = "PLAYABLE_NOW" | "PLAYABLE_AFTER_TARGET" | "PARTIAL_EFFECT_ONLY" | "NOT_PLAYABLE";
@@ -1199,8 +1210,8 @@ function previewLines(card: CardDefinition, playability?: PlayabilityInfo): stri
     return [
       ...lines,
       "เลือกสัตว์ของคุณ 1 ใบ",
-      "ถ้า Support ตรงชนิด: เพิ่ม Animal เป็น Level 2",
-      "อาจได้รับสถานะหรือผลเพิ่มเติมตามการ์ด",
+      "ถ้า Support ตรงชนิด: เพิ่ม Level ตามที่การ์ดกำหนด",
+      "บางใบอาจมีสถานะหรือผลเพิ่มเติมตามการ์ด",
       "ใช้ Utility Action ของเทิร์นนี้"
     ];
   }
@@ -1260,6 +1271,7 @@ function translateValidationReason(reason: string | undefined): string {
   if (reason.includes("own Animal")) return "ต้องมีสัตว์ของคุณอยู่ในสนาม";
   if (reason.includes("enemy Animal")) return "ไม่มีเป้าหมายฝ่ายตรงข้าม";
   if (reason.includes("protected from Weakness")) return "เป้าหมายมีเกราะป้องกัน";
+  if (reason.includes("เพิ่มเลเวลได้")) return "สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้";
   if (reason.includes("Level 1")) return "ต้องเลือกสัตว์ Level 1";
   return reason;
 }
@@ -1316,7 +1328,7 @@ function actionCategoryLabel(card: CardDefinition): string {
 
 function canTarget(card: CardDefinition, ownerId: PlayerId, viewerId: PlayerId, level: number): boolean {
   if (card.category === "Support") {
-    if (card.card_id === "S001") {
+    if (supportIncreasesLevel(card.logic_key)) {
       return ownerId === viewerId && level < 3;
     }
     return ownerId === viewerId;
@@ -1331,6 +1343,22 @@ function canTarget(card: CardDefinition, ownerId: PlayerId, viewerId: PlayerId, 
     return ownerId !== viewerId && level === 1;
   }
   return false;
+}
+
+function supportIncreasesLevel(logicKey: string): boolean {
+  return [
+    "match_level_up_and_bounce_removal_shield",
+    "match_level_up_peek_or_bottom",
+    "match_level_up_temp_level_down_immunity",
+    "match_level_up_minimum_next_score_1",
+    "match_level_up_draw1_bottom1",
+    "match_level_up_temp_weakness_immunity"
+  ].includes(logicKey);
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function isLevelIncreasingSupportCard(logicKey: string): boolean {
+  return supportIncreasesLevel(logicKey);
 }
 
 function findHandCard(match: MatchState, playerId: PlayerId, definitionId: string): string | undefined {
