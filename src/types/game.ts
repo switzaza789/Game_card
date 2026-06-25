@@ -6,6 +6,8 @@ export type PlayerId = "P1" | "P2";
 
 export type MatchStatus = "READY" | "ACTIVE" | "FINISHED";
 
+export type GameMode = "LOCAL_PVP" | "PVE_NORMAL";
+
 export type Zone = "DECK" | "HAND" | "BOARD" | "GRAVEYARD";
 
 export type EffectTiming =
@@ -96,6 +98,7 @@ export type PlayerState = {
 
 export type MatchState = {
   matchId: string;
+  gameMode: GameMode;
   status: MatchStatus;
   players: Record<PlayerId, PlayerState>;
   cardsByInstanceId: Record<string, CardInstance | AnimalInstance>;

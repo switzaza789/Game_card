@@ -1,5 +1,5 @@
 import { cardsSeed } from "../../data/cardsSeed";
-import type { CardInstance, MatchState, PlayerId, PlayerState, RngState } from "../../types/game";
+import type { CardInstance, GameMode, MatchState, PlayerId, PlayerState, RngState } from "../../types/game";
 import { buildPlayerDeck, isAnimalDefinition } from "../cards/deck";
 import { engineConfig } from "../config/config";
 import { createRng } from "../rng/rng";
@@ -7,6 +7,7 @@ import { createRng } from "../rng/rng";
 type CreateMatchOptions = {
   matchId?: string;
   seed: string;
+  gameMode?: GameMode;
 };
 
 const playerIds: PlayerId[] = ["P1", "P2"];
@@ -26,6 +27,7 @@ export function createMatch(options: CreateMatchOptions): MatchState {
 
   let state: MatchState = {
     matchId: options.matchId ?? `match-${options.seed}`,
+    gameMode: options.gameMode ?? "LOCAL_PVP",
     status: "ACTIVE",
     players,
     cardsByInstanceId,

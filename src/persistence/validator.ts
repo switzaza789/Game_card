@@ -34,6 +34,11 @@ export function validateStoredMatch(data: unknown): StorageResult<PersistedActiv
   }
 
   if (typeof state.matchId !== "string") errors.push("state.matchId is not a string");
+  if (state.gameMode === undefined) {
+    state.gameMode = "LOCAL_PVP";
+  } else if (!["LOCAL_PVP", "PVE_NORMAL"].includes(state.gameMode)) {
+    errors.push(`Invalid gameMode: ${state.gameMode}`);
+  }
   if (!["READY", "ACTIVE", "FINISHED"].includes(state.status)) {
     errors.push(`Invalid match status: ${state.status}`);
   }

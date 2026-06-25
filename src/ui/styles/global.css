@@ -299,6 +299,16 @@ h1 {
   padding: 12px;
 }
 
+.ai-banner {
+  border: 2px solid #1f7a5a;
+  background: #e8f7f0;
+  color: #174c39;
+  font-weight: 700;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
 .zone-label {
   margin: 5px;
   color: var(--muted);

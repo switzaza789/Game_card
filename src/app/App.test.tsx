@@ -24,6 +24,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -119,6 +120,22 @@ describe("App Phase 4 UI", () => {
     expect(screen.getByRole("heading", { name: /ส่งเครื่องให้ ผู้เล่น 2/ })).toBeInTheDocument();
     expect(screen.queryByLabelText("มือผู้เล่นปัจจุบัน")).not.toBeInTheDocument();
   });
+
+  it("starts PvE with human P1 and runs P2 without a handoff screen", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "เริ่ม PvE กับคอมพิวเตอร์" }));
+    expect(screen.getByText(/เริ่ม PvE แล้ว/)).toBeInTheDocument();
+    expect(screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "จบเทิร์น" }));
+    expect(screen.queryByRole("heading", { name: /ส่งเครื่องให้ ผู้เล่น 2/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/AI Turn/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "จบเทิร์น" })).toBeDisabled();
+
+    expect(await screen.findByText(/ถึงตาคุณ|เกมจบแล้ว/, undefined, { timeout: 1500 })).toBeInTheDocument();
+  }, 10000);
 
   it("uses Recycle successfully after the first turn", async () => {
     const user = userEvent.setup();

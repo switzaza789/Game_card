@@ -1,4 +1,4 @@
-import type { MatchState, PlayerId } from "../types/game";
+import type { GameMode, MatchState, PlayerId } from "../types/game";
 import type { PlaytestFeedbackPayload } from "../playtest/playtestFeedback";
 
 export type ScreenType = "menu" | "howToPlay" | "library" | "battle" | "handoff" | "result";
@@ -35,6 +35,7 @@ export interface PersistedActiveMatch {
 
 export interface MatchResult {
   matchId: string;
+  gameMode?: GameMode;
   winner: PlayerId | "DRAW";
   finalScores: Record<PlayerId, number>;
   turnCount: number;
