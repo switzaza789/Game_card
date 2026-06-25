@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef, type RefObject } from "react";
-import { chooseNormalAiAction, MAX_AI_ACTIONS_PER_TURN } from "../ai/normalAi";
+import { runPveNormalAiTurn } from "../ai/aiTurnController";
 import { cardCatalog } from "../data/cardsSeed";
 import { gameConfig } from "../data/gameConfig";
 import { getCardDefinition, isAnimalInstance } from "../engine/cards/deck";
@@ -69,7 +69,7 @@ export function App() {
   const [playtestFeedbackOpen, setPlaytestFeedbackOpen] = useState(false);
   const [playtestError, setPlaytestError] = useState<string | null>(null);
   const lastFeedbackExportRef = useRef<string | null>(null);
-  const aiRunningRef = useRef(false);
+  const aiExecutionRef = useRef<string | null>(null);
 
   useEffect(() => {
     const loadResult = loadActiveMatch();
@@ -314,40 +314,39 @@ export function App() {
     if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.currentPlayerId !== "P2" || match.status === "FINISHED") {
       return;
     }
-    if (aiRunningRef.current) {
+    const aiTurnKey = `${match.matchId}:${match.turnNumber}:${match.currentPlayerId}`;
+    if (aiExecutionRef.current === aiTurnKey) {
       return;
     }
-    aiRunningRef.current = true;
+    aiExecutionRef.current = aiTurnKey;
     const timer = window.setTimeout(() => {
-      let currentMatch = coordinator.getState() ?? match;
-      let actionsTaken = 0;
-      while (currentMatch.status !== "FINISHED" && currentMatch.currentPlayerId === "P2" && currentMatch.phase !== "ACTION") {
-        const result = coordinator.dispatch({ type: "ADVANCE_PHASE", playerId: "P2", payload: {} }, Date.now());
-        currentMatch = result.state;
-      }
-      while (currentMatch.status !== "FINISHED" && currentMatch.currentPlayerId === "P2" && currentMatch.phase === "ACTION") {
-        const decision = chooseNormalAiAction({ state: currentMatch, playerId: "P2" });
-        if (!decision || actionsTaken >= MAX_AI_ACTIONS_PER_TURN) {
-          const result = coordinator.dispatch({ type: "END_TURN", playerId: "P2", payload: {} }, Date.now());
-          currentMatch = result.state;
-          break;
+      try {
+        const result = runPveNormalAiTurn({
+          getState: () => coordinator.getState() ?? match,
+          dispatch: (action) => coordinator.dispatch(action, Date.now())
+        });
+        const currentMatch = result.state;
+        setMatch(currentMatch);
+        setSelectedCardId(null);
+        setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
+        if (currentMatch.status === "FINISHED") {
+          setMessage("เกมจบแล้ว");
+        } else if (currentMatch.currentPlayerId === "P1") {
+          setMessage("คอมพิวเตอร์จบเทิร์นแล้ว ถึงตาคุณ");
+        } else if (result.actionLimitFallback) {
+          setMessage("คอมพิวเตอร์ถึงขีดจำกัด action และหยุดอย่างปลอดภัย");
         }
-        const result = coordinator.dispatch(decision.action, Date.now());
-        currentMatch = result.state;
-        actionsTaken += 1;
-        if (!result.validation.valid) {
-          break;
+      } finally {
+        if (aiExecutionRef.current === aiTurnKey) {
+          aiExecutionRef.current = null;
         }
       }
-      setMatch(currentMatch);
-      setSelectedCardId(null);
-      setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
-      setMessage(currentMatch.status === "FINISHED" ? "เกมจบแล้ว" : "คอมพิวเตอร์จบเทิร์นแล้ว ถึงตาคุณ");
-      aiRunningRef.current = false;
     }, 350);
     return () => {
       window.clearTimeout(timer);
-      aiRunningRef.current = false;
+      if (aiExecutionRef.current === aiTurnKey) {
+        aiExecutionRef.current = null;
+      }
     };
   }, [coordinator, match, screen]);
 
