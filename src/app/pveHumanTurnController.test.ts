@@ -54,6 +54,27 @@ describe("PvE human turn preparation", () => {
     expect(scoreState.players.P1.hand.length).toBe(scoreHandBefore);
   });
 
+  it("preserves PvE turn progression while awarding and resolving Evolution once", () => {
+    let state = forcePhase(createMatch({ seed: "pve-evolution-handoff", gameMode: "PVE_NORMAL" }), "ACTION");
+    state = withBoardAnimal(state, "P1-A001-1", 2, 1);
+    state = { ...state, phase: "READY", currentPlayerId: "P1", turnNumber: 2 };
+    const actions: Action[] = [];
+    expect(state.currentPlayerId).toBe("P1");
+    expect(state.phase).toBe("READY");
+
+    const scoreBefore = state.players.P1.score;
+    const logBefore = state.actionLog.length;
+    state = prepareHuman(state, actions);
+    const prepLogs = state.actionLog.slice(logBefore);
+
+    expect(prepLogs.map((entry) => entry.action.type)).toEqual(["ADVANCE_PHASE", "ADVANCE_PHASE", "ADVANCE_PHASE"]);
+    expect(state.phase).toBe("ACTION");
+    expect(state.players.P1.score).toBe(scoreBefore + 2);
+    expect(boardAnimal(state, "P1-A001-1").level).toBe(3);
+    expect(boardAnimal(state, "P1-A001-1").evolutionPoints).toBe(2);
+    expect(prepLogs.filter((entry) => entry.result.includes("วิวัฒนาการเป็น Level 3"))).toHaveLength(1);
+  });
+
   it("does nothing for Local PvP and P1 ACTION", () => {
     const local = forcePhase(createMatch({ seed: "local-no-prep", gameMode: "LOCAL_PVP" }), "READY");
     expect(prepareHuman(local, [])).toBe(local);
@@ -92,4 +113,43 @@ function prepareHuman(initialState: MatchState, actions: Action[]): MatchState {
 function dispatch(state: MatchState, action: Action, actions: Action[]): MatchState {
   actions.push(action);
   return dispatchAction(state, { action, timestamp: actions.length }).state;
+}
+
+function withBoardAnimal(state: MatchState, instanceId: string, level: 1 | 2 | 3, evolutionPoints: 0 | 1 | 2): MatchState {
+  const player = state.players.P1;
+  const card = state.cardsByInstanceId[instanceId];
+  return {
+    ...state,
+    players: {
+      ...state.players,
+      P1: {
+        ...player,
+        hand: player.hand.filter((id) => id !== instanceId),
+        deck: player.deck.filter((id) => id !== instanceId),
+        board: [instanceId, ...player.board.slice(1)]
+      }
+    },
+    cardsByInstanceId: {
+      ...state.cardsByInstanceId,
+      [instanceId]: {
+        ...card,
+        zone: "BOARD",
+        level,
+        evolutionPoints,
+        slotNo: 1,
+        enteredTurn: 1,
+        attachedSupportIds: [],
+        statuses: [],
+        onceFlags: []
+      }
+    }
+  };
+}
+
+function boardAnimal(state: MatchState, instanceId: string) {
+  const card = state.cardsByInstanceId[instanceId];
+  if (card.zone !== "BOARD" || !("level" in card)) {
+    throw new Error(`Expected board Animal ${instanceId}`);
+  }
+  return card;
 }
