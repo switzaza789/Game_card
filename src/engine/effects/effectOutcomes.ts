@@ -1,5 +1,5 @@
 import type { Action, AnimalInstance, EffectOutcome, MatchState, PlayerId, StatusEffect } from "../../types/game";
-import { isAnimalInstance } from "../cards/deck";
+import { getCardDefinition, isAnimalInstance } from "../cards/deck";
 
 export function buildEffectOutcomes(before: MatchState, after: MatchState, action: Action): EffectOutcome[] {
   if (!actionLogCanHaveOutcomes(action)) {
@@ -10,14 +10,25 @@ export function buildEffectOutcomes(before: MatchState, after: MatchState, actio
 
   if (action.type === "PLAY_CARD") {
     const played = before.cardsByInstanceId[action.payload.cardInstanceId];
+    const definition = getCardDefinition(played.definitionId);
+    const target = action.payload.target?.instanceId ? before.cardsByInstanceId[action.payload.target.instanceId] : undefined;
     const playedOutcome: EffectOutcome = {
       code: "CARD_PLAYED",
       cardInstanceId: action.payload.cardInstanceId,
       definitionId: played.definitionId,
-      playerId: action.playerId
+      playerId: action.playerId,
+      actionKind: actionKindForCard(definition.card_id, definition.category),
+      effectResult: effectResultForPlay(before, action)
     };
+    const reasonCode = reasonCodeForPlay(before, action);
+    if (reasonCode) {
+      playedOutcome.reasonCode = reasonCode;
+    }
     if (action.payload.target?.instanceId) {
       playedOutcome.targetInstanceId = action.payload.target.instanceId;
+    }
+    if (target?.ownerId) {
+      playedOutcome.targetPlayerId = target.ownerId;
     }
     outcomes.push(playedOutcome);
   }
@@ -28,6 +39,59 @@ export function buildEffectOutcomes(before: MatchState, after: MatchState, actio
   outcomes.push(...drawOutcomes(before, after, action.playerId));
 
   return dedupeOutcomes(outcomes);
+}
+
+function actionKindForCard(cardId: string, category: string): Extract<EffectOutcome, { code: "CARD_PLAYED" }>["actionKind"] {
+  if (category === "Animal") return "PLAY_ANIMAL";
+  if (category === "Support") return "SUPPORT";
+  if (category === "Weakness") return "WEAKNESS";
+  if (cardId === "X002" || cardId === "X004") return "PROTECT";
+  if (cardId === "X005") return "STEAL_SCORE";
+  if (cardId === "X003") return "RETURN_TO_HAND";
+  if (cardId === "X001") return "STATUS_CHANGE";
+  return "SPECIAL";
+}
+
+function effectResultForPlay(before: MatchState, action: Extract<Action, { type: "PLAY_CARD" }>): Extract<EffectOutcome, { code: "CARD_PLAYED" }>["effectResult"] {
+  const played = before.cardsByInstanceId[action.payload.cardInstanceId];
+  const definition = getCardDefinition(played.definitionId);
+  if (definition.category !== "Weakness") {
+    return "FULL_EFFECT";
+  }
+  const target = action.payload.target?.instanceId ? before.cardsByInstanceId[action.payload.target.instanceId] : undefined;
+  if (!target || !isAnimalInstance(target)) {
+    return "NO_EFFECT";
+  }
+  if (target.statuses.some((status) => status.code === "TEMP_WEAKNESS_IMMUNITY")) {
+    return "PREVENTED";
+  }
+  return weaknessMatches(definition.card_id, getCardDefinition(target.definitionId).subtype) ? "FULL_EFFECT" : "PARTIAL_EFFECT";
+}
+
+function reasonCodeForPlay(before: MatchState, action: Extract<Action, { type: "PLAY_CARD" }>): Extract<EffectOutcome, { code: "CARD_PLAYED" }>["reasonCode"] {
+  const played = before.cardsByInstanceId[action.payload.cardInstanceId];
+  const definition = getCardDefinition(played.definitionId);
+  if (definition.category !== "Weakness") {
+    return undefined;
+  }
+  const target = action.payload.target?.instanceId ? before.cardsByInstanceId[action.payload.target.instanceId] : undefined;
+  if (!target || !isAnimalInstance(target)) {
+    return "NO_VALID_TARGET";
+  }
+  if (target.statuses.some((status) => status.code === "TEMP_WEAKNESS_IMMUNITY")) {
+    return "TARGET_PROTECTED";
+  }
+  return weaknessMatches(definition.card_id, getCardDefinition(target.definitionId).subtype) ? "MATCHING_WEAKNESS" : "NON_MATCHING_WEAKNESS";
+}
+
+function weaknessMatches(cardId: string, subtype: string): boolean {
+  return (
+    (cardId === "W001" && subtype === "Dog")
+    || (cardId === "W002" && subtype === "Cat")
+    || (cardId === "W003" && (subtype === "Rabbit" || subtype === "Bear"))
+    || (cardId === "W004" && subtype === "Bird")
+    || (cardId === "W005" && subtype === "Fish")
+  );
 }
 
 function actionLogCanHaveOutcomes(action: Action): boolean {

@@ -7,6 +7,7 @@ import { getCardDefinition, isAnimalInstance } from "../engine/cards/deck";
 import { createMatch } from "../engine/state/match";
 import { otherPlayerId } from "../engine/state/selectors";
 import type { Action, CardCategory, CardDefinition, GameMode, MatchState, PlayerId, Target } from "../types/game";
+import { validateAction } from "../engine/validation/validation";
 import { PersistenceCoordinator } from "../persistence/persistenceCoordinator";
 import {
   loadActiveMatch,
@@ -24,7 +25,7 @@ import {
 } from "../persistence/localStorageAdapter";
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
-import { renderOutcomeLines, statusLabel, summarizeOutcomes } from "../ui/effectFeedback";
+import { formatActionLogEntry, renderCombatOutcomeLines, renderOutcomeLines, statusLabel } from "../ui/effectFeedback";
 import {
   buildPlaytestFeedbackPayload,
   humanFeedbackFilename,
@@ -330,8 +331,10 @@ export function App() {
           dispatch: (action) => coordinator.dispatch(action, Date.now())
         });
         const currentMatch = result.state;
+        const botEntry = [...currentMatch.actionLog].reverse().find((entry) => entry.actor === "P2" && entry.action.type === "PLAY_CARD" && entry.validation.valid);
         setMatch(currentMatch);
         setSelectedCardId(null);
+        setEffectFeedback(botEntry ? renderCombatOutcomeLines(currentMatch, botEntry) : null);
         setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
         if (currentMatch.status === "FINISHED") {
           setMessage("เกมจบแล้ว");
@@ -743,9 +746,23 @@ function BattleScreen(props: {
   const controlsDisabled = Boolean(props.controlsDisabled);
   const isAiTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2";
   const isPreparingHumanTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P1" && match.phase !== "ACTION";
+  const lastLog = [...match.actionLog].reverse().find((entry) => entry.action.type === "PLAY_CARD" && (entry.outcomes?.length ?? 0) > 0)
+    ?? [...match.actionLog].reverse().find((entry) => (entry.outcomes?.length ?? 0) > 0)
+    ?? match.actionLog[match.actionLog.length - 1];
+  const scoreDeltas = scoreDeltaByPlayer(lastLog);
+  const selectedPlayability = selectedCardId ? getCardPlayability(match, activePlayerId, selectedCardId) : null;
 
   return (
     <main className="battle-app">
+      <section className="scoreboard" aria-label="คะแนนผู้เล่น" aria-live="polite">
+        {(["P1", "P2"] as PlayerId[]).map((playerId) => (
+          <div key={playerId} className={`scoreboard-player ${match.currentPlayerId === playerId ? "active" : ""}`}>
+            <span>{playerNameForMode(playerId, match.gameMode)}</span>
+            <strong>{match.players[playerId].score} / {gameConfig.target_score}</strong>
+            {scoreDeltas[playerId] !== 0 && <em>{scoreDeltas[playerId] > 0 ? "+" : ""}{scoreDeltas[playerId]}</em>}
+          </div>
+        ))}
+      </section>
       <section className="topbar" aria-label="สถานะการแข่งขัน">
         <div className="player-panel">
           <strong>{playerName(opponentId)}</strong>
@@ -773,11 +790,13 @@ function BattleScreen(props: {
         <div className="player-hand" aria-label="มือผู้เล่นปัจจุบัน" tabIndex={0}>
           {match.players[activePlayerId].hand.map((id) => {
             const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
+            const playability = getCardPlayability(match, activePlayerId, id);
             return (
-              <button key={id} type="button" className={`hand-card ${categoryClass(definition.category)} ${selectedCardId === id ? "selected" : ""}`} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled}>
+              <button key={id} type="button" className={`hand-card ${categoryClass(definition.category)} state-${playability.state.toLowerCase()} ${selectedCardId === id ? "selected" : ""}`} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={playability.state === "NOT_PLAYABLE"} aria-describedby={`playability-${id}`}>
                 <span>{definition.card_id}</span>
                 <strong>{definition.name_th}</strong>
                 <small>{categoryLabels[definition.category]}</small>
+                <small id={`playability-${id}`} className="playability-label">{playability.label}</small>
               </button>
             );
           })}
@@ -788,10 +807,10 @@ function BattleScreen(props: {
         <div className="log" role="status">
           <strong>Action Log</strong>
           <p>{props.message}</p>
-          <small>{summarizeOutcomes(match, match.actionLog[match.actionLog.length - 1]?.outcomes) || match.actionLog[match.actionLog.length - 1]?.result || "ยังไม่มี action"}</small>
+          <small>{formatActionLogEntry(match, lastLog)}</small>
         </div>
         <div className="buttons">
-          <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || needsTarget(selectedDefinition)}>
+          <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || selectedPlayability?.state === "NOT_PLAYABLE" || needsTarget(selectedDefinition)}>
             เล่นการ์ด
           </button>
           <button type="button" className="secondary-button" onClick={props.onRecycle} disabled={controlsDisabled}>Recycle</button>
@@ -804,7 +823,7 @@ function BattleScreen(props: {
           <div className="effect-preview" aria-label="ผลที่จะเกิดขึ้น">
             <strong>ผลที่จะเกิดขึ้น</strong>
             <ul>
-              {previewLines(selectedDefinition).map((line) => <li key={line}>{line}</li>)}
+              {previewLines(selectedDefinition, getCardPlayability(match, activePlayerId, selectedCardId ?? "")).map((line) => <li key={line}>{line}</li>)}
             </ul>
           </div>
         )}
@@ -856,8 +875,9 @@ function BoardRow({
           const definition = getCardDefinition(animal.definitionId);
           const legal = selectedDefinition ? canTarget(selectedDefinition, ownerId, viewerId, animal.level) : false;
           return (
-            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : ""}`} disabled={!legal} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
+            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} disabled={!legal} aria-label={`${definition.name_th} ช่อง ${animal.slotNo}${legal ? " เป้าหมายถูกต้อง" : " เป้าหมายนี้ใช้ไม่ได้"}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
               <span className="level">Lv.{animal.level}</span>
+              <span className="target-badge">{legal ? "เลือกได้" : "ใช้ไม่ได้"}</span>
               <strong>{definition.name_th}</strong>
               {animal.level >= 2 && <small className="statuses">{evolutionLabel(animal.level, animal.evolutionPoints ?? 0)}</small>}
               {animal.attachedSupportIds.map((supportId) => (
@@ -1025,12 +1045,33 @@ function needsTarget(card: CardDefinition): boolean {
   return card.category === "Support" || card.category === "Weakness" || ["X001", "X003", "X004"].includes(card.card_id);
 }
 
-function previewLines(card: CardDefinition): string[] {
+type PlayabilityState = "PLAYABLE_NOW" | "PLAYABLE_AFTER_TARGET" | "PARTIAL_EFFECT_ONLY" | "NOT_PLAYABLE";
+
+type PlayabilityInfo = {
+  state: PlayabilityState;
+  label: string;
+  reason?: string;
+};
+
+function previewLines(card: CardDefinition, playability?: PlayabilityInfo): string[] {
+  const lines = [`ประเภท: ${actionCategoryLabel(card)}`];
+  if (playability?.state === "NOT_PLAYABLE") {
+    lines.push("ยังใช้ไม่ได้", playability.reason ?? playability.label);
+    return lines;
+  }
+  if (playability?.state === "PLAYABLE_AFTER_TARGET") {
+    lines.push("ต้องเลือกเป้าหมายก่อนยืนยันผล");
+  }
+  if (playability?.state === "PARTIAL_EFFECT_ONLY") {
+    lines.push("ผลอ่อน: ใช้ได้ แต่ผลจะลดลง");
+  }
   if (card.category === "Animal") {
-    return ["ลง Animal ที่ Level 1", "ใช้ Animal Action ของเทิร์นนี้"];
+    return [...lines, "ลง Animal ที่ Level 1", "ใช้ Animal Action ของเทิร์นนี้"];
   }
   if (card.category === "Support") {
     return [
+      ...lines,
+      "เลือกสัตว์ของคุณ 1 ใบ",
       "ถ้า Support ตรงชนิด: เพิ่ม Animal เป็น Level 2",
       "อาจได้รับสถานะหรือผลเพิ่มเติมตามการ์ด",
       "ใช้ Utility Action ของเทิร์นนี้"
@@ -1038,17 +1079,101 @@ function previewLines(card: CardDefinition): string[] {
   }
   if (card.category === "Weakness") {
     return [
+      ...lines,
+      "เลือกสัตว์ฝ่ายตรงข้าม 1 ใบ",
       "หากใช้กับเป้าหมายที่แพ้ทาง: ลด Level หรือนำออกจากสนาม",
       "หากใช้ผิดเป้าหมาย: ลดคะแนนรอบถัดไป",
       "อาจถูกป้องกันด้วย Weakness Shield"
     ];
   }
-  if (card.card_id === "X001") return ["ทำให้เป้าหมายข้ามการคิดคะแนนครั้งถัดไป", "ใช้ Utility Action ของเทิร์นนี้"];
-  if (card.card_id === "X002") return ["ใช้เป็น Reaction เพื่อป้องกัน Weakness", "ไม่สามารถเล่นโดยตรงได้"];
-  if (card.card_id === "X003") return ["คืน Animal ของตัวเองขึ้นมือและลง Animal จากมือแทน", "แต้มวิวัฒนาการของตัวที่ออกจากสนามจะหายไป"];
-  if (card.card_id === "X004") return ["คืน Animal Level 1 ของคู่ต่อสู้ขึ้นมือ", "โล่ป้องกันการนำออกอาจป้องกันผลนี้"];
-  if (card.card_id === "X005") return ["ใช้ได้เมื่อคะแนนตามหลัง", "คุณได้ +1 คะแนน และคู่ต่อสู้เสีย 1 คะแนน"];
-  return ["ใช้ Utility Action ของเทิร์นนี้"];
+  if (card.card_id === "X001") return [...lines, "เลือกสัตว์ฝ่ายตรงข้าม 1 ใบ", "ทำให้เป้าหมายข้ามการคิดคะแนนครั้งถัดไป", "ใช้ Utility Action ของเทิร์นนี้"];
+  if (card.card_id === "X002") return [...lines, "ใช้เป็น Reaction เพื่อป้องกัน Weakness", "ไม่สามารถเล่นโดยตรงได้"];
+  if (card.card_id === "X003") return [...lines, "เลือกสัตว์ของคุณ 1 ใบ", "คืน Animal ของตัวเองขึ้นมือและลง Animal จากมือแทน", "แต้มวิวัฒนาการของตัวที่ออกจากสนามจะหายไป"];
+  if (card.card_id === "X004") return [...lines, "เลือกสัตว์ Level 1 ฝ่ายตรงข้าม", "คืน Animal Level 1 ของคู่ต่อสู้ขึ้นมือ", "โล่ป้องกันการนำออกอาจป้องกันผลนี้"];
+  if (card.card_id === "X005") return [...lines, "คุณได้ +1 คะแนน และคู่ต่อสู้เสีย 1 คะแนน"];
+  return [...lines, "ใช้ Utility Action ของเทิร์นนี้"];
+}
+
+function getCardPlayability(match: MatchState, playerId: PlayerId, cardInstanceId: string): PlayabilityInfo {
+  const card = match.cardsByInstanceId[cardInstanceId];
+  if (!card) {
+    return { state: "NOT_PLAYABLE", label: "ยังใช้ไม่ได้", reason: "ไม่พบการ์ด" };
+  }
+  const definition = getCardDefinition(card.definitionId);
+  const validation = validateAction(match, { type: "PLAY_CARD", playerId, payload: { cardInstanceId } });
+  const translated = validation.valid ? "" : translateValidationReason(validation.errors[0]);
+  if (validation.valid) {
+    return { state: "PLAYABLE_NOW", label: "ใช้ได้ทันที" };
+  }
+  if (needsTarget(definition) && validation.errors.some((error) => error.includes("target is required") || error.includes("target"))) {
+    if (definition.category === "Weakness" && hasEnemyBoard(match, playerId)) {
+      return anyDirectWeaknessTarget(match, playerId, definition)
+        ? { state: "PLAYABLE_AFTER_TARGET", label: "ต้องเลือกเป้าหมาย" }
+        : { state: "PARTIAL_EFFECT_ONLY", label: "ใช้ได้แบบผลอ่อน", reason: "ใช้ได้ แต่ไม่ตรงจุดอ่อน: จะลดคะแนนครั้งถัดไป 1 คะแนน" };
+    }
+    if (hasPotentialTarget(match, playerId, definition)) {
+      return { state: "PLAYABLE_AFTER_TARGET", label: "ต้องเลือกเป้าหมาย" };
+    }
+  }
+  return { state: "NOT_PLAYABLE", label: translated, reason: translated };
+}
+
+function translateValidationReason(reason: string | undefined): string {
+  if (!reason) return "ยังใช้ไม่ได้";
+  if (reason.includes("ACTION phase")) return "ยังไม่ถึงช่วงที่ใช้ได้";
+  if (reason.includes("current player's hand")) return "การ์ดไม่ได้อยู่ในมือ";
+  if (reason.includes("Animal action already")) return "ใช้การ์ดสัตว์แล้วในเทิร์นนี้";
+  if (reason.includes("Animal zone is full")) return "ช่องสัตว์เต็ม";
+  if (reason.includes("Utility action is locked")) return "ใช้การ์ดประเภทนี้ไม่ได้ในเทิร์นนี้";
+  if (reason.includes("Utility action already")) return "ใช้การ์ดประเภทนี้แล้วในเทิร์นนี้";
+  if (reason.includes("board Animal target")) return "การ์ดนี้ต้องเลือกสัตว์";
+  if (reason.includes("own Animal")) return "ต้องมีสัตว์ของคุณอยู่ในสนาม";
+  if (reason.includes("enemy Animal")) return "ไม่มีเป้าหมายฝ่ายตรงข้าม";
+  if (reason.includes("protected from Weakness")) return "เป้าหมายมีเกราะป้องกัน";
+  if (reason.includes("Level 1")) return "ต้องเลือกสัตว์ Level 1";
+  return reason;
+}
+
+function hasPotentialTarget(match: MatchState, playerId: PlayerId, card: CardDefinition): boolean {
+  return (["P1", "P2"] as PlayerId[]).some((ownerId) => match.players[ownerId].board.some((instanceId) => {
+    if (!instanceId) return false;
+    const animal = match.cardsByInstanceId[instanceId];
+    return isAnimalInstance(animal) && canTarget(card, ownerId, playerId, animal.level);
+  }));
+}
+
+function hasEnemyBoard(match: MatchState, playerId: PlayerId): boolean {
+  const enemyId = otherPlayerId(playerId);
+  return match.players[enemyId].board.some(Boolean);
+}
+
+function anyDirectWeaknessTarget(match: MatchState, playerId: PlayerId, card: CardDefinition): boolean {
+  const enemyId = otherPlayerId(playerId);
+  return match.players[enemyId].board.some((instanceId) => {
+    if (!instanceId) return false;
+    const animal = match.cardsByInstanceId[instanceId];
+    return isAnimalInstance(animal) && weaknessMatches(card.card_id, getCardDefinition(animal.definitionId).subtype);
+  });
+}
+
+function weaknessMatches(cardId: string, subtype: string): boolean {
+  return (
+    (cardId === "W001" && subtype === "Dog")
+    || (cardId === "W002" && subtype === "Cat")
+    || (cardId === "W003" && (subtype === "Rabbit" || subtype === "Bear"))
+    || (cardId === "W004" && subtype === "Bird")
+    || (cardId === "W005" && subtype === "Fish")
+  );
+}
+
+function actionCategoryLabel(card: CardDefinition): string {
+  if (card.category === "Weakness") return "ใช้จุดอ่อน";
+  if (card.category === "Support") return "สนับสนุน";
+  if (card.category === "Animal") return "ลงสัตว์";
+  if (card.card_id === "X005") return "ขโมยคะแนน";
+  if (card.card_id === "X004") return "ส่งกลับขึ้นมือ";
+  if (card.card_id === "X002") return "ป้องกัน";
+  return "เปลี่ยนสถานะ";
 }
 
 function canTarget(card: CardDefinition, ownerId: PlayerId, viewerId: PlayerId, level: number): boolean {
@@ -1090,6 +1215,23 @@ function findOwnAttachedSupport(match: MatchState, playerId: PlayerId): string |
 
 function playerName(playerId: PlayerId) {
   return playerId === "P1" ? "ผู้เล่น 1" : "ผู้เล่น 2";
+}
+
+function playerNameForMode(playerId: PlayerId, gameMode: GameMode) {
+  if (gameMode === "PVE_NORMAL") {
+    return playerId === "P1" ? "คุณ" : "Bot";
+  }
+  return playerName(playerId);
+}
+
+function scoreDeltaByPlayer(entry: MatchState["actionLog"][number] | undefined): Record<PlayerId, number> {
+  const deltas: Record<PlayerId, number> = { P1: 0, P2: 0 };
+  for (const outcome of entry?.outcomes ?? []) {
+    if (outcome.code === "SCORE_CHANGED") {
+      deltas[outcome.playerId] += outcome.amount;
+    }
+  }
+  return deltas;
 }
 
 function categoryClass(category: CardCategory) {

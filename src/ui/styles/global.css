@@ -262,6 +262,43 @@ h1 {
   margin-bottom: 10px;
 }
 
+.scoreboard {
+  position: sticky;
+  top: max(8px, env(safe-area-inset-top));
+  z-index: 15;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.scoreboard-player {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.scoreboard-player.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(36, 90, 133, 0.18);
+}
+
+.scoreboard-player em {
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: #0f5132;
+  background: #d1fae5;
+  font-style: normal;
+  font-weight: 700;
+  animation: scorePulse 900ms ease-out;
+}
+
 .player-panel {
   display: grid;
   gap: 4px;
@@ -429,6 +466,27 @@ h1 {
   outline: 3px solid #245a85;
 }
 
+.slot.unavailable-target {
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.target-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  color: #ffffff;
+  background: #64748b;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.slot.targetable .target-badge {
+  background: #245a85;
+}
+
 .level {
   position: absolute;
   top: 7px;
@@ -480,6 +538,37 @@ h1 {
   overflow-wrap: anywhere;
 }
 
+.playability-label {
+  display: block;
+  border-radius: 6px;
+  padding: 3px 5px;
+  color: #1f2937;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.state-playable_after_target .playability-label {
+  background: #dbeafe;
+}
+
+.state-partial_effect_only {
+  border-color: #b45309;
+}
+
+.state-partial_effect_only .playability-label {
+  background: #fef3c7;
+}
+
+.state-not_playable {
+  color: #475569;
+  background-image: repeating-linear-gradient(135deg, rgba(148, 163, 184, 0.18) 0 8px, transparent 8px 16px);
+}
+
+.state-not_playable .playability-label {
+  background: #e2e8f0;
+}
+
 .hand-card.selected {
   outline: 3px solid #245a85;
 }
@@ -500,6 +589,25 @@ h1 {
 
 .log p {
   margin: 6px 0;
+}
+
+.log small {
+  white-space: pre-line;
+}
+
+@keyframes scorePulse {
+  from {
+    transform: translateY(-2px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scoreboard-player em {
+    animation: none;
+  }
 }
 
 .modal-backdrop {
@@ -673,6 +781,12 @@ h1 {
 
   .topbar {
     gap: 8px;
+  }
+
+  .scoreboard-player {
+    grid-template-columns: 1fr;
+    gap: 2px;
+    text-align: center;
   }
 
   .player-panel,
