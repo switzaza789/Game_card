@@ -623,6 +623,12 @@ function detachSupportToHand(state: MatchState, animalId: string, supportId: str
   }
 
   const player = state.players[animal.ownerId];
+  const detachedSupport: CardInstance = {
+    instanceId: support.instanceId,
+    definitionId: support.definitionId,
+    ownerId: support.ownerId,
+    zone: "HAND"
+  };
 
   return {
     ...state,
@@ -639,12 +645,7 @@ function detachSupportToHand(state: MatchState, animalId: string, supportId: str
         ...animal,
         attachedSupportIds: animal.attachedSupportIds.filter((id) => id !== supportId)
       },
-      [supportId]: {
-        ...support,
-        zone: "HAND",
-        attachedToId: undefined,
-        increasedLevel: undefined
-      }
+      [supportId]: detachedSupport
     }
   };
 }
@@ -676,6 +677,12 @@ function moveAttachedSupportToGraveyard(state: MatchState, animalId: string, sup
   }
 
   const player = state.players[animal.ownerId];
+  const discardedSupport: CardInstance = {
+    instanceId: support.instanceId,
+    definitionId: support.definitionId,
+    ownerId: support.ownerId,
+    zone: "GRAVEYARD"
+  };
 
   return {
     ...state,
@@ -692,12 +699,7 @@ function moveAttachedSupportToGraveyard(state: MatchState, animalId: string, sup
         ...animal,
         attachedSupportIds: animal.attachedSupportIds.filter((id) => id !== supportId)
       },
-      [supportId]: {
-        ...support,
-        zone: "GRAVEYARD",
-        attachedToId: undefined,
-        increasedLevel: undefined
-      }
+      [supportId]: discardedSupport
     }
   };
 }

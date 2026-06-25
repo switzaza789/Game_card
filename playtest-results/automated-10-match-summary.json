@@ -1,0 +1,944 @@
+{
+  "schemaVersion": "1",
+  "generatedAt": "2026-06-25T00:00:00.000+07:00",
+  "testerType": "AUTOMATED_AGENT",
+  "applicationVersion": "v0.3.0-prototype",
+  "commitHash": "38e739c51486be25e7183912a40588055a45e1f2",
+  "totalMatches": 10,
+  "completedMatches": 10,
+  "failedMatches": 0,
+  "targetScoreFinishes": 10,
+  "turnLimitFinishes": 0,
+  "stuckMatches": 0,
+  "P1Wins": 8,
+  "P2Wins": 2,
+  "draws": 0,
+  "averageTurns": 6.8,
+  "medianTurns": 7,
+  "averageDurationMs": 68700,
+  "averageRecycleCount": 2,
+  "totalCardUsage": {
+    "S001": 14,
+    "S003": 10,
+    "S002": 8,
+    "S004": 8,
+    "W005": 7,
+    "A001": 20,
+    "A002": 18,
+    "A003": 17,
+    "A004": 5,
+    "S005": 5,
+    "W002": 6,
+    "W004": 4,
+    "X003": 4,
+    "A005": 1,
+    "A006": 7,
+    "W001": 6,
+    "W003": 5,
+    "A007": 2,
+    "S006": 2,
+    "X005": 2,
+    "X004": 3,
+    "X001": 2
+  },
+  "scoreContribution": {
+    "A001": 90,
+    "A002": 72,
+    "A003": 63,
+    "A004": 20,
+    "A005": 8,
+    "A006": 13,
+    "A007": 7,
+    "X005": 2
+  },
+  "repeatedRejectedActions": {},
+  "bugs": [],
+  "objectiveObservations": [
+    "Preliminary usage signal: A001 20, A002 18, A003 17.",
+    "Preliminary score-contribution signal: A001 90, A002 72, A003 63; requires human verification."
+  ],
+  "seeds": [
+    "automated-playtest-001",
+    "automated-playtest-002",
+    "automated-playtest-003",
+    "automated-playtest-004",
+    "automated-playtest-005",
+    "automated-playtest-006",
+    "automated-playtest-007",
+    "automated-playtest-008",
+    "automated-playtest-009",
+    "automated-playtest-010"
+  ],
+  "perMatchResults": [
+    {
+      "matchIndex": 1,
+      "seed": "automated-playtest-001",
+      "strategies": {
+        "P1": "score-priority",
+        "P2": "disruption-priority"
+      },
+      "completed": true,
+      "failed": false,
+      "stuck": false,
+      "winner": "P1",
+      "finishReason": "TARGET_SCORE",
+      "turns": 6,
+      "acceptedActions": 58,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 58000,
+      "animalsPlayed": {
+        "P1": {
+          "A001": 1,
+          "A002": 1,
+          "A003": 1
+        },
+        "P2": {
+          "A001": 1,
+          "A002": 1,
+          "A004": 1
+        }
+      },
+      "supportCardsUsed": {
+        "S001": 2,
+        "S003": 1,
+        "S002": 1,
+        "S004": 1
+      },
+      "matchingSupportsUsed": {
+        "S001": 2,
+        "S003": 1,
+        "S002": 1,
+        "S004": 1
+      },
+      "weaknessCardsUsed": {
+        "W005": 1
+      },
+      "directWeaknessHits": {},
+      "offTargetWeaknessUses": {
+        "W005": 1
+      },
+      "specialCardsUsed": {},
+      "namedSpecialUses": {
+        "Lullaby": 0,
+        "Weakness Shield": 0,
+        "Quick Swap": 0,
+        "Strong Wind": 0,
+        "Food Thief": 0
+      },
+      "recycleCount": 2,
+      "animalsSentToGraveyard": {
+        "A004": 1,
+        "A003": 1
+      },
+      "animalsReturnedToHand": {},
+      "voluntarySwaps": {},
+      "scoreContributionByCard": {
+        "A001": 14,
+        "A002": 8,
+        "A003": 5,
+        "A004": 2
+      },
+      "highestScoringCard": {
+        "cardId": "A001",
+        "nameTh": "สุนัขจอมซน",
+        "score": 9,
+        "ownerId": "P1"
+      },
+      "noUsefulLegalActionTurns": 10,
+      "onlyRecycleOrEndTurnTurns": 10,
+      "persistenceScenario": "normal uninterrupted match",
+      "persistenceResult": "PASS",
+      "bugs": []
+    },
+    {
+      "matchIndex": 2,
+      "seed": "automated-playtest-002",
+      "strategies": {
+        "P1": "disruption-priority",
+        "P2": "score-priority"
+      },
+      "completed": true,
+      "failed": false,
+      "stuck": false,
+      "winner": "P1",
+      "finishReason": "TARGET_SCORE",
+      "turns": 7,
+      "acceptedActions": 69,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 69000,
+      "animalsPlayed": {
+        "P1": {
+          "A001": 1,
+          "A002": 1,
+          "A003": 1
+        },
+        "P2": {
+          "A002": 1,
+          "A003": 1,
+          "A005": 1,
+          "A006": 1
+        }
+      },
+      "supportCardsUsed": {
+        "S003": 1,
+        "S001": 1,
+        "S002": 1,
+        "S005": 1
+      },
+      "matchingSupportsUsed": {
+        "S003": 1,
+        "S005": 1
+      },
+      "weaknessCardsUsed": {
+        "W002": 1,
+        "W004": 1,
+        "W005": 1
+      },
+      "directWeaknessHits": {
+        "W002": 1
+      },
+      "offTargetWeaknessUses": {
+        "W004": 1,
+        "W005": 1
+      },
+      "specialCardsUsed": {
+        "X003": 1
+      },
+      "namedSpecialUses": {
+        "Lullaby": 0,
+        "Weakness Shield": 0,
+        "Quick Swap": 1,
+        "Strong Wind": 0,
+        "Food Thief": 0
+      },
+      "recycleCount": 2,
+      "animalsSentToGraveyard": {
+        "A008": 1,
+        "A002": 1,
+        "A004": 1
+      },
+      "animalsReturnedToHand": {},
+      "voluntarySwaps": {
+        "A001": 1
+      },
+      "scoreContributionByCard": {
+        "A001": 5,
+        "A002": 5,
+        "A003": 9,
+        "A004": 1,
+        "A005": 3,
+        "A006": 2
+      },
+      "highestScoringCard": {
+        "cardId": "A001",
+        "nameTh": "สุนัขจอมซน",
+        "score": 5,
+        "ownerId": "P1"
+      },
+      "noUsefulLegalActionTurns": 12,
+      "onlyRecycleOrEndTurnTurns": 12,
+      "persistenceScenario": "save and resume during ACTION phase",
+      "persistenceResult": "PASS",
+      "bugs": []
+    },
+    {
+      "matchIndex": 3,
+      "seed": "automated-playtest-003",
+      "strategies": {
+        "P1": "score-priority",
+        "P2": "disruption-priority"
+      },
+      "completed": true,
+      "failed": false,
+      "stuck": false,
+      "winner": "P1",
+      "finishReason": "TARGET_SCORE",
+      "turns": 8,
+      "acceptedActions": 82,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 82000,
+      "animalsPlayed": {
+        "P1": {
+          "A001": 1,
+          "A004": 1,
+          "A002": 1,
+          "A006": 1
+        },
+        "P2": {
+          "A001": 1,
+          "A002": 1,
+          "A003": 1,
+          "A006": 1,
+          "A007": 1
+        }
+      },
+      "supportCardsUsed": {
+        "S005": 1,
+        "S001": 1
+      },
+      "matchingSupportsUsed": {
+        "S001": 1
+      },
+      "weaknessCardsUsed": {
+        "W001": 2,
+        "W004": 2,
+        "W002": 1,
+        "W005": 2,
+        "W003": 1
+      },
+      "directWeaknessHits": {
+        "W001": 2,
+        "W002": 1,
+        "W005": 1,
+        "W003": 1
+      },
+      "offTargetWeaknessUses": {
+        "W004": 2,
+        "W005": 1
+      },
+      "specialCardsUsed": {},
+      "namedSpecialUses": {
+        "Lullaby": 0,
+        "Weakness Shield": 0,
+        "Quick Swap": 0,
+        "Strong Wind": 0,
+        "Food Thief": 0
+      },
+      "recycleCount": 3,
+      "animalsSentToGraveyard": {
+        "A005": 1,
+        "A004": 1,
+        "A007": 1,
+        "A002": 1,
+        "A006": 1,
+        "A008": 1
+      },
+      "animalsReturnedToHand": {},
+      "voluntarySwaps": {},
+      "scoreContributionByCard": {
+        "A004": 3,
+        "A002": 5,
+        "A001": 8,
+        "A006": 2,
+        "A003": 4,
+        "A007": 2
+      },
+      "highestScoringCard": {
+        "cardId": "A002",
+        "nameTh": "แมวขี้สงสัย",
+        "score": 5,
+        "ownerId": "P1"
+      },
+      "noUsefulLegalActionTurns": 14,
+      "onlyRecycleOrEndTurnTurns": 13,
+      "persistenceScenario": "save and resume during handoff screen with privacy check",
+      "persistenceResult": "PASS",
+      "bugs": []
+    },
+    {
+      "matchIndex": 4,
+      "seed": "automated-playtest-004",
+      "strategies": {
+        "P1": "disruption-priority",
+        "P2": "score-priority"
+      },
+      "completed": true,
+      "failed": false,
+      "stuck": false,
+      "winner": "P1",
+      "finishReason": "TARGET_SCORE",
+      "turns": 6,
+      "acceptedActions": 59,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 59000,
+      "animalsPlayed": {
+        "P1": {
+          "A001": 1,
+          "A002": 1,
+          "A003": 1
+        },
+        "P2": {
+          "A001": 1,
+          "A002": 1,
+          "A003": 1
+        }
+      },
+      "supportCardsUsed": {
+        "S006": 1,
+        "S001": 1,
+        "S003": 1,
+        "S005": 1
+      },
+      "matchingSupportsUsed": {
+        "S001": 1,
+        "S003": 1
+      },
+      "weaknessCardsUsed": {
+        "W005": 1,
+        "W002": 1
+      },
+      "directWeaknessHits": {
+        "W002": 1
+      },
+      "offTargetWeaknessUses": {
+        "W005": 1
+      },
+      "specialCardsUsed": {
+        "X005": 1
+      },
+      "namedSpecialUses": {
+        "Lullaby": 0,
+        "Weakness Shield": 0,
+        "Quick Swap": 0,
+        "Strong Wind": 0,
+        "Food Thief": 1
+      },
+      "recycleCount": 2,
+      "animalsSentToGraveyard": {
+        "A007": 1,
+        "A002": 1,
+        "A004": 1
+      },
+      "animalsReturnedToHand": {},
+      "voluntarySwaps": {},
+      "scoreContributionByCard": {
+        "A001": 13,
+        "A002": 5,
+        "A003": 7,
+        "X005": 1
+      },
+      "highestScoringCard": {
+        "cardId": "A001",
+        "nameTh": "สุนัขจอมซน",
+        "score": 9,
+        "ownerId": "P1"
+      },
+      "noUsefulLegalActionTurns": 10,
+      "onlyRecycleOrEndTurnTurns": 10,
+      "persistenceScenario": "export and import active match log",
+      "persistenceResult": "PASS",
+      "bugs": []
+    },
+    {
+      "matchIndex": 5,
+      "seed": "automated-playtest-005",
+      "strategies": {
+        "P1": "score-priority",
+        "P2": "disruption-priority"
+      },
+      "completed": true,
+      "failed": false,
+      "stuck": false,
+      "winner": "P1",
+      "finishReason": "TARGET_SCORE",
+      "turns": 6,
+      "acceptedActions": 58,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 58000,
+      "animalsPlayed": {
+        "P1": {
+          "A003": 1,
+          "A004": 1,
+          "A006": 1
+        },
+        "P2": {
+          "A001": 1,
+          "A002": 1,
+          "A003": 1
+        }
+      },
+      "supportCardsUsed": {
+        "S001": 2,
+        "S003": 1,
+        "S004": 1,
+        "S002": 1
+      },
+      "matchingSupportsUsed": {
+        "S001": 1,
+        "S003": 1,
+        "S004": 1,
+        "S002": 1
+      },
+      "weaknessCardsUsed": {
+        "W003": 1
+      },
+      "directWeaknessHits": {
+        "W003": 1
+      },
+      "offTargetWeaknessUses": {},
+      "specialCardsUsed": {},
+      "namedSpecialUses": {
+        "Lullaby": 0,
+        "Weakness Shield": 0,
+        "Quick Swap": 0,
+        "Strong Wind": 0,
+        "Food Thief": 0
+      },
+      "recycleCount": 2,
+      "animalsSentToGraveyard": {
+        "A005": 2
+      },
+      "animalsReturnedToHand": {},
+      "voluntarySwaps": {},
+      "scoreContributionByCard": {
+        "A003": 9,
+        "A004": 5,
+        "A006": 3,
+        "A001": 6,
+        "A002": 3
+      },
+      "highestScoringCard": {
+        "cardId": "A003",
+        "nameTh": "กระต่ายว่องไว",
+        "score": 7,
+        "ownerId": "P1"
+      },
+      "noUsefulLegalActionTurns": 10,
+      "onlyRecycleOrEndTurnTurns": 10,
+      "persistenceScenario": "refresh/resume simulation twice",
+      "persistenceResult": "PASS",
+      "bugs": []
+    },
+    {
+      "matchIndex": 6,
+      "seed": "automated-playtest-006",
+      "strategies": {
+        "P1": "disruption-priority",
+        "P2": "score-priority"
+      },
+      "completed": true,
+      "failed": false,
+      "stuck": false,
+      "winner": "P1",
+      "finishReason": "TARGET_SCORE",
+      "turns": 6,
+      "acceptedActions": 59,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 59000,
+      "animalsPlayed": {
+        "P1": {
+          "A001": 1,
+          "A002": 1,
+          "A003": 1
+        },
+        "P2": {
+          "A001": 1,
+          "A002": 1,
+          "A003": 1
+        }
+      },
+      "supportCardsUsed": {
+        "S002": 2,
+        "S001": 2,
+        "S003": 2,
+        "S004": 1
+      },
+      "matchingSupportsUsed": {
+        "S001": 2,
+        "S002": 1,
+        "S003": 2
+      },
+      "weaknessCardsUsed": {
+        "W005": 1
+      },
+      "directWeaknessHits": {},
+      "offTargetWeaknessUses": {
+        "W005": 1
+      },
+      "specialCardsUsed": {},
+      "namedSpecialUses": {
+        "Lullaby": 0,
+        "Weakness Shield": 0,
+        "Quick Swap": 0,
+        "Strong Wind": 0,
+        "Food Thief": 0
+      },
+      "recycleCount": 1,
+      "animalsSentToGraveyard": {
+        "A006": 1
+      },
+      "animalsReturnedToHand": {},
+      "voluntarySwaps": {},
+      "scoreContributionByCard": {
+        "A001": 13,
+        "A002": 9,
+        "A003": 7
+      },
+      "highestScoringCard": {
+        "cardId": "A001",
+        "nameTh": "สุนัขจอมซน",
+        "score": 9,
+        "ownerId": "P1"
+      },
+      "noUsefulLegalActionTurns": 10,
+      "onlyRecycleOrEndTurnTurns": 10,
+      "persistenceScenario": "finish, save result to history, delete active save",
+      "persistenceResult": "PASS",
+      "bugs": []
+    },
+    {
+      "matchIndex": 7,
+      "seed": "automated-playtest-007",
+      "strategies": {
+        "P1": "score-priority",
+        "P2": "disruption-priority"
+      },
+      "completed": true,
+      "failed": false,
+      "stuck": false,
+      "winner": "P2",
+      "finishReason": "TARGET_SCORE",
+      "turns": 7,
+      "acceptedActions": 76,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 76000,
+      "animalsPlayed": {
+        "P1": {
+          "A001": 2,
+          "A002": 1,
+          "A003": 1
+        },
+        "P2": {
+          "A001": 1,
+          "A002": 1,
+          "A003": 1,
+          "A004": 1
+        }
+      },
+      "supportCardsUsed": {
+        "S002": 1,
+        "S004": 2,
+        "S003": 1
+      },
+      "matchingSupportsUsed": {
+        "S002": 1,
+        "S003": 1,
+        "S004": 1
+      },
+      "weaknessCardsUsed": {
+        "W001": 2,
+        "W004": 1,
+        "W002": 1
+      },
+      "directWeaknessHits": {
+        "W001": 2,
+        "W002": 1
+      },
+      "offTargetWeaknessUses": {
+        "W004": 1
+      },
+      "specialCardsUsed": {
+        "X004": 1,
+        "X001": 1,
+        "X003": 1
+      },
+      "namedSpecialUses": {
+        "Lullaby": 1,
+        "Weakness Shield": 0,
+        "Quick Swap": 1,
+        "Strong Wind": 1,
+        "Food Thief": 0
+      },
+      "recycleCount": 1,
+      "animalsSentToGraveyard": {
+        "A004": 1,
+        "A002": 1
+      },
+      "animalsReturnedToHand": {
+        "A001": 1
+      },
+      "voluntarySwaps": {
+        "A001": 1
+      },
+      "scoreContributionByCard": {
+        "A002": 12,
+        "A003": 9,
+        "A001": 7,
+        "A004": 2
+      },
+      "highestScoringCard": {
+        "cardId": "A002",
+        "nameTh": "แมวขี้สงสัย",
+        "score": 9,
+        "ownerId": "P1"
+      },
+      "noUsefulLegalActionTurns": 13,
+      "onlyRecycleOrEndTurnTurns": 13,
+      "persistenceScenario": "history save failure leaves active save recoverable",
+      "persistenceResult": "PASS",
+      "bugs": []
+    },
+    {
+      "matchIndex": 8,
+      "seed": "automated-playtest-008",
+      "strategies": {
+        "P1": "disruption-priority",
+        "P2": "score-priority"
+      },
+      "completed": true,
+      "failed": false,
+      "stuck": false,
+      "winner": "P1",
+      "finishReason": "TARGET_SCORE",
+      "turns": 7,
+      "acceptedActions": 71,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 71000,
+      "animalsPlayed": {
+        "P1": {
+          "A001": 1,
+          "A002": 1,
+          "A003": 1,
+          "A006": 1
+        },
+        "P2": {
+          "A001": 2,
+          "A002": 1,
+          "A003": 1
+        }
+      },
+      "supportCardsUsed": {
+        "S003": 1,
+        "S001": 2,
+        "S002": 1,
+        "S004": 1
+      },
+      "matchingSupportsUsed": {
+        "S001": 2,
+        "S002": 1
+      },
+      "weaknessCardsUsed": {
+        "W001": 1,
+        "W003": 1,
+        "W002": 1
+      },
+      "directWeaknessHits": {
+        "W001": 1,
+        "W003": 1,
+        "W002": 1
+      },
+      "offTargetWeaknessUses": {},
+      "specialCardsUsed": {
+        "X004": 1
+      },
+      "namedSpecialUses": {
+        "Lullaby": 0,
+        "Weakness Shield": 0,
+        "Quick Swap": 0,
+        "Strong Wind": 1,
+        "Food Thief": 0
+      },
+      "recycleCount": 2,
+      "animalsSentToGraveyard": {
+        "A004": 1,
+        "A005": 1,
+        "A003": 1
+      },
+      "animalsReturnedToHand": {
+        "A001": 1
+      },
+      "voluntarySwaps": {},
+      "scoreContributionByCard": {
+        "A001": 14,
+        "A002": 9,
+        "A003": 4,
+        "A006": 1
+      },
+      "highestScoringCard": {
+        "cardId": "A001",
+        "nameTh": "สุนัขจอมซน",
+        "score": 7,
+        "ownerId": "P2"
+      },
+      "noUsefulLegalActionTurns": 12,
+      "onlyRecycleOrEndTurnTurns": 12,
+      "persistenceScenario": "history save success plus active-save deletion failure retry",
+      "persistenceResult": "PASS",
+      "bugs": []
+    },
+    {
+      "matchIndex": 9,
+      "seed": "automated-playtest-009",
+      "strategies": {
+        "P1": "score-priority",
+        "P2": "disruption-priority"
+      },
+      "completed": true,
+      "failed": false,
+      "stuck": false,
+      "winner": "P1",
+      "finishReason": "TARGET_SCORE",
+      "turns": 8,
+      "acceptedActions": 79,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 79000,
+      "animalsPlayed": {
+        "P1": {
+          "A001": 1,
+          "A002": 1,
+          "A004": 1
+        },
+        "P2": {
+          "A001": 2,
+          "A002": 1,
+          "A003": 1
+        }
+      },
+      "supportCardsUsed": {
+        "S003": 1,
+        "S004": 1,
+        "S006": 1,
+        "S001": 1,
+        "S005": 1
+      },
+      "matchingSupportsUsed": {},
+      "weaknessCardsUsed": {
+        "W003": 2
+      },
+      "directWeaknessHits": {
+        "W003": 1
+      },
+      "offTargetWeaknessUses": {
+        "W003": 1
+      },
+      "specialCardsUsed": {
+        "X003": 2,
+        "X001": 1
+      },
+      "namedSpecialUses": {
+        "Lullaby": 1,
+        "Weakness Shield": 0,
+        "Quick Swap": 2,
+        "Strong Wind": 0,
+        "Food Thief": 0
+      },
+      "recycleCount": 3,
+      "animalsSentToGraveyard": {
+        "A003": 2,
+        "A006": 1
+      },
+      "animalsReturnedToHand": {},
+      "voluntarySwaps": {
+        "A001": 2
+      },
+      "scoreContributionByCard": {
+        "A001": 5,
+        "A002": 11,
+        "A005": 5,
+        "A004": 7,
+        "A003": 2
+      },
+      "highestScoringCard": {
+        "cardId": "A002",
+        "nameTh": "แมวขี้สงสัย",
+        "score": 6,
+        "ownerId": "P1"
+      },
+      "noUsefulLegalActionTurns": 14,
+      "onlyRecycleOrEndTurnTurns": 14,
+      "persistenceScenario": "clipboard-unavailable export fallback path",
+      "persistenceResult": "PASS",
+      "bugs": []
+    },
+    {
+      "matchIndex": 10,
+      "seed": "automated-playtest-010",
+      "strategies": {
+        "P1": "disruption-priority",
+        "P2": "score-priority"
+      },
+      "completed": true,
+      "failed": false,
+      "stuck": false,
+      "winner": "P2",
+      "finishReason": "TARGET_SCORE",
+      "turns": 7,
+      "acceptedActions": 76,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 76000,
+      "animalsPlayed": {
+        "P1": {
+          "A006": 2,
+          "A007": 1,
+          "A003": 1
+        },
+        "P2": {
+          "A001": 1,
+          "A002": 1,
+          "A003": 1
+        }
+      },
+      "supportCardsUsed": {
+        "S003": 1,
+        "S001": 2,
+        "S002": 1,
+        "S004": 1,
+        "S005": 1
+      },
+      "matchingSupportsUsed": {
+        "S001": 1
+      },
+      "weaknessCardsUsed": {
+        "W005": 1,
+        "W002": 1,
+        "W001": 1
+      },
+      "directWeaknessHits": {
+        "W005": 1,
+        "W001": 1
+      },
+      "offTargetWeaknessUses": {
+        "W002": 1
+      },
+      "specialCardsUsed": {
+        "X004": 1,
+        "X005": 1
+      },
+      "namedSpecialUses": {
+        "Lullaby": 0,
+        "Weakness Shield": 0,
+        "Quick Swap": 0,
+        "Strong Wind": 1,
+        "Food Thief": 1
+      },
+      "recycleCount": 2,
+      "animalsSentToGraveyard": {
+        "A004": 1,
+        "A005": 1
+      },
+      "animalsReturnedToHand": {
+        "A006": 1
+      },
+      "voluntarySwaps": {},
+      "scoreContributionByCard": {
+        "A006": 5,
+        "A007": 5,
+        "A003": 7,
+        "A001": 5,
+        "A002": 5,
+        "X005": 1
+      },
+      "highestScoringCard": {
+        "cardId": "A006",
+        "nameTh": "ปลาจอมพลัง",
+        "score": 5,
+        "ownerId": "P1"
+      },
+      "noUsefulLegalActionTurns": 13,
+      "onlyRecycleOrEndTurnTurns": 13,
+      "persistenceScenario": "normal regression comparison",
+      "persistenceResult": "PASS",
+      "bugs": []
+    }
+  ]
+}
