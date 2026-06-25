@@ -45,6 +45,22 @@ describe("App Phase 4 UI", () => {
     expect(localStorage.getItem("animal_score_saved_match")).not.toContain('"matchId":"match-match-');
   });
 
+  it("renders mobile-safe board and hand structure", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    expect(hand).toHaveClass("player-hand");
+    expect(hand).toHaveAttribute("tabindex", "0");
+    expect(within(hand).getAllByRole("button").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("กองจั่ว").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /สุสาน/ }).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/ช่อง Animal/).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "เล่นการ์ด" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "จบเทิร์น" })).toBeInTheDocument();
+  });
+
   it("shows how to play and card library screens", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -67,9 +83,11 @@ describe("App Phase 4 UI", () => {
     const animalButton = findFirstHandCardByCategory("สัตว์");
     const animalName = animalButton.querySelector("strong")?.textContent ?? "";
     await user.click(animalButton);
+    expect(screen.getByLabelText("ผลที่จะเกิดขึ้น")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
 
     expect(screen.getByText(new RegExp(animalName + ".*สำเร็จ|สำเร็จ"))).toBeInTheDocument();
+    expect(screen.getByLabelText("สรุปผลของการ์ด")).toBeInTheDocument();
   });
 
   it("plays Support by selecting a legal target", async () => {
