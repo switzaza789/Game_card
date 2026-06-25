@@ -110,6 +110,14 @@ export type MatchState = {
   winner?: PlayerId | "DRAW";
   finishReason?: "TARGET_SCORE" | "TURN_LIMIT";
   actionLog: ActionLogEntry[];
+  undoSnapshot?: UndoSnapshot;
+};
+
+export type UndoSnapshot = {
+  state: Omit<MatchState, "undoSnapshot">;
+  actor: PlayerId;
+  summary: string;
+  blockedReason?: string;
 };
 
 export type Target = {
@@ -157,6 +165,11 @@ export type Action =
       type: "ADVANCE_PHASE";
       playerId: PlayerId;
       payload: Record<string, never>;
+    }
+  | {
+      type: "UNDO_LAST_REVERSIBLE_ACTION";
+      playerId: PlayerId;
+      payload: Record<string, never>;
     };
 
 export type ValidationResult =
@@ -186,9 +199,86 @@ export type ActionLogEntry = {
   actor: PlayerId;
   validation: ValidationResult;
   result: string;
+  outcomes?: EffectOutcome[];
   rng: RngState;
   timestamp: number;
 };
+
+export type EffectOutcome =
+  | {
+      code: "CARD_PLAYED";
+      cardInstanceId: string;
+      definitionId: string;
+      playerId: PlayerId;
+      targetInstanceId?: string;
+      targetPlayerId?: PlayerId;
+      actionKind?: "PLAY_ANIMAL" | "SUPPORT" | "WEAKNESS" | "PROTECT" | "STEAL_SCORE" | "STATUS_CHANGE" | "REMOVE_FROM_BOARD" | "RETURN_TO_HAND" | "DRAW_CARD" | "EVOLUTION" | "SPECIAL";
+      effectResult?: "FULL_EFFECT" | "PARTIAL_EFFECT" | "NO_EFFECT" | "PREVENTED";
+      reasonCode?: "MATCHING_WEAKNESS" | "NON_MATCHING_WEAKNESS" | "TARGET_PROTECTED" | "NO_VALID_TARGET";
+    }
+  | {
+      code: "ANIMAL_ENTERED_BOARD";
+      cardInstanceId: string;
+      slotNo: 1 | 2 | 3;
+    }
+  | {
+      code: "CARD_ATTACHED";
+      sourceCardInstanceId: string;
+      targetInstanceId: string;
+    }
+  | {
+      code: "LEVEL_CHANGED";
+      targetInstanceId: string;
+      fromLevel: 1 | 2 | 3;
+      toLevel: 1 | 2 | 3;
+    }
+  | {
+      code: "STATUS_APPLIED";
+      targetInstanceId: string;
+      statusCode: StatusEffectCode;
+      expiresAt: StatusEffect["expiresAt"];
+    }
+  | {
+      code: "STATUS_REMOVED";
+      targetInstanceId: string;
+      statusCode: StatusEffectCode;
+    }
+  | {
+      code: "CARD_MOVED";
+      cardInstanceId: string;
+      definitionId: string;
+      fromZone: Zone;
+      toZone: Zone;
+    }
+  | {
+      code: "CARD_DRAWN";
+      playerId: PlayerId;
+      count: number;
+    }
+  | {
+      code: "SCORE_CHANGED";
+      playerId: PlayerId;
+      amount: number;
+      fromScore: number;
+      toScore: number;
+    }
+  | {
+      code: "EVOLUTION_POINT_GAINED";
+      targetInstanceId: string;
+      current: 1 | 2;
+      required: 2;
+    }
+  | {
+      code: "EVOLVED";
+      targetInstanceId: string;
+      fromLevel: 1 | 2;
+      toLevel: 3;
+    }
+  | {
+      code: "REMOVAL_PREVENTED";
+      targetInstanceId: string;
+      statusCode: "REMOVAL_SHIELD";
+    };
 
 export type GameConfig = {
   game_title: string;

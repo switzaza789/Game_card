@@ -74,7 +74,15 @@ export function validateEffect(state: MatchState, action: Extract<Action, { type
   }
 
   if (definition.category === "Support") {
-    return validateBoardTarget(state, action.playerId, action.payload.target, "own");
+    const boardTarget = validateBoardTarget(state, action.playerId, action.payload.target, "own");
+    if (!boardTarget.valid) {
+      return boardTarget;
+    }
+    const target = getTargetAnimal(state, action.payload.target);
+    if (supportIncreasesLevel(definition.logic_key) && target.level >= 3) {
+      return invalid(["สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้"]);
+    }
+    return valid();
   }
 
   if (definition.category === "Weakness") {
@@ -183,16 +191,16 @@ export function calculateScorePhase(state: MatchState, playerId: PlayerId): Matc
 }
 
 function resolveAnimalOnPlay(state: MatchState, action: Extract<Action, { type: "PLAY_CARD" }>): MatchState {
-  return playAnimalToBoard(state, action.playerId, action.payload.cardInstanceId);
+  return playAnimalToBoard(state, action.playerId, action.payload.cardInstanceId, action.payload.target?.slotNo);
 }
 
 function resolveBirdPeek(state: MatchState, action: Extract<Action, { type: "PLAY_CARD" }>): MatchState {
-  const withBird = playAnimalToBoard(state, action.playerId, action.payload.cardInstanceId);
+  const withBird = playAnimalToBoard(state, action.playerId, action.payload.cardInstanceId, action.payload.target?.slotNo);
   return maybeMoveDeckTopToBottom(withBird, action.playerId, Boolean(action.payload.moveTopCardToBottom));
 }
 
 function resolveMonkeyReturnSupport(state: MatchState, action: Extract<Action, { type: "PLAY_CARD" }>): MatchState {
-  let nextState = playAnimalToBoard(state, action.playerId, action.payload.cardInstanceId);
+  let nextState = playAnimalToBoard(state, action.playerId, action.payload.cardInstanceId, action.payload.target?.slotNo);
   const selectedSupportId = action.payload.selectedSupportInstanceId;
 
   /* v8 ignore next -- optional Monkey choice is validated by UI in later phases. */
@@ -292,6 +300,17 @@ function resolveSupport(state: MatchState, action: Extract<Action, { type: "PLAY
   }
 
   return nextState;
+}
+
+function supportIncreasesLevel(logicKey: string): boolean {
+  return [
+    "match_level_up_and_bounce_removal_shield",
+    "match_level_up_peek_or_bottom",
+    "match_level_up_temp_level_down_immunity",
+    "match_level_up_minimum_next_score_1",
+    "match_level_up_draw1_bottom1",
+    "match_level_up_temp_weakness_immunity"
+  ].includes(logicKey);
 }
 
 function resolveWeakness(state: MatchState, action: Extract<Action, { type: "PLAY_CARD" }>): MatchState {
@@ -509,9 +528,11 @@ function getTargetAnimal(state: MatchState, target: Target | undefined): AnimalI
   return animal;
 }
 
-function playAnimalToBoard(state: MatchState, playerId: PlayerId, cardInstanceId: string): MatchState {
+function playAnimalToBoard(state: MatchState, playerId: PlayerId, cardInstanceId: string, preferredSlotNo?: 1 | 2 | 3): MatchState {
   const player = state.players[playerId];
-  const slotIndex = player.board.findIndex((slot) => slot === null);
+  const slotIndex = preferredSlotNo && player.board[preferredSlotNo - 1] === null
+    ? preferredSlotNo - 1
+    : player.board.findIndex((slot) => slot === null);
   return playAnimalToSpecificSlot(state, playerId, cardInstanceId, (slotIndex + 1) as 1 | 2 | 3);
 }
 

@@ -27,6 +27,8 @@ export function validateAction(state: MatchState, action: Action): ValidationRes
       return validatePlayCard(state, action);
     case "RECYCLE":
       return validateRecycle(state, action.playerId, action.payload.cardInstanceId);
+    case "UNDO_LAST_REVERSIBLE_ACTION":
+      return validateUndo(state, action.playerId);
   }
 }
 
@@ -104,6 +106,10 @@ function validatePlayCard(state: MatchState, action: Extract<Action, { type: "PL
     if (!player.board.some((slot) => slot === null)) {
       errors.push("Animal zone is full");
     }
+
+    if (action.payload.target?.slotNo && player.board[action.payload.target.slotNo - 1] !== null) {
+      errors.push("Selected Animal slot is occupied");
+    }
   } else {
     if (player.utilityLocked) {
       errors.push("Utility action is locked this turn");
@@ -119,6 +125,21 @@ function validatePlayCard(state: MatchState, action: Extract<Action, { type: "PL
   }
 
   return validateEffect(state, action);
+}
+
+function validateUndo(state: MatchState, playerId: PlayerId): ValidationResult {
+  const undo = state.undoSnapshot;
+  const errors: string[] = [];
+  if (!undo) {
+    errors.push("No reversible action is available");
+  } else {
+    if (undo.actor !== playerId) errors.push("Only the player who made the action can undo it");
+    if (state.currentPlayerId !== playerId) errors.push("Undo is only available during your current turn");
+    if (state.status === "FINISHED") errors.push("Cannot undo after match finish");
+    if (state.phase !== "ACTION") errors.push("Cannot undo outside ACTION phase");
+    if (undo.blockedReason) errors.push(undo.blockedReason);
+  }
+  return errors.length > 0 ? invalid(errors) : valid();
 }
 
 function validateRecycle(state: MatchState, playerId: PlayerId, cardInstanceId: string): ValidationResult {

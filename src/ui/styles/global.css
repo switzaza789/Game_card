@@ -248,6 +248,7 @@ h1 {
 }
 
 .battle-app {
+  width: min(100%, 1280px);
   max-width: 1280px;
   margin: auto;
   padding: 14px;
@@ -259,6 +260,43 @@ h1 {
   gap: 12px;
   align-items: center;
   margin-bottom: 10px;
+}
+
+.scoreboard {
+  position: sticky;
+  top: max(8px, env(safe-area-inset-top));
+  z-index: 15;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.scoreboard-player {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+}
+
+.scoreboard-player.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(36, 90, 133, 0.18);
+}
+
+.scoreboard-player em {
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: #0f5132;
+  background: #d1fae5;
+  font-style: normal;
+  font-weight: 700;
+  animation: scorePulse 900ms ease-out;
 }
 
 .player-panel {
@@ -309,6 +347,71 @@ h1 {
   text-align: center;
 }
 
+.effect-feedback,
+.effect-preview {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0.75rem;
+}
+
+.effect-feedback {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  max-width: none;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.35);
+  box-shadow: none;
+}
+
+.effect-feedback > div,
+.effect-feedback > button {
+  width: min(520px, 100%);
+}
+
+.effect-feedback > div {
+  border: 1px solid var(--line);
+  border-radius: 8px 8px 0 0;
+  background: #ffffff;
+  padding: 1rem;
+}
+
+.effect-feedback > button {
+  border-radius: 0 0 8px 8px;
+}
+
+.action-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.action-modal-panel {
+  width: min(520px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1rem;
+  background: #ffffff;
+  overflow-wrap: anywhere;
+}
+
+.effect-feedback button {
+  min-height: 44px;
+}
+
+.effect-feedback ul,
+.effect-preview ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
 .zone-label {
   margin: 5px;
   color: var(--muted);
@@ -344,6 +447,7 @@ h1 {
   grid-template-columns: 110px 1fr 110px;
   gap: 10px;
   align-items: center;
+  min-width: 0;
 }
 
 .side-zone {
@@ -357,6 +461,11 @@ h1 {
   color: var(--ink);
   background: rgba(255, 255, 255, 0.55);
   text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.zone-title {
+  white-space: nowrap;
 }
 
 .graveyard-button {
@@ -368,12 +477,14 @@ h1 {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin: 12px 0;
+  min-width: 0;
 }
 
 .slot {
   position: relative;
   display: flex;
   min-height: 155px;
+  min-width: 0;
   flex-direction: column;
   align-items: center;
   justify-content: center;
@@ -382,6 +493,7 @@ h1 {
   color: var(--ink);
   background: var(--panel);
   text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .slot.filled {
@@ -390,6 +502,27 @@ h1 {
 
 .slot.targetable {
   outline: 3px solid #245a85;
+}
+
+.slot.unavailable-target {
+  border-style: dashed;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.target-badge {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  border-radius: 999px;
+  padding: 2px 6px;
+  color: #ffffff;
+  background: #64748b;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.slot.targetable .target-badge {
+  background: #245a85;
 }
 
 .level {
@@ -429,11 +562,49 @@ h1 {
   min-height: 132px;
   justify-content: flex-start;
   overflow-x: auto;
-  padding: 8px;
+  padding: 10px 14px;
+  scroll-padding-inline: 14px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
 }
 
 .hand-card {
-  min-width: 96px;
+  flex: 0 0 clamp(104px, 18vw, 132px);
+  min-width: 0;
+  min-height: 112px;
+  scroll-snap-align: start;
+  overflow-wrap: anywhere;
+}
+
+.playability-label {
+  display: block;
+  border-radius: 6px;
+  padding: 3px 5px;
+  color: #1f2937;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.state-playable_after_target .playability-label {
+  background: #dbeafe;
+}
+
+.state-partial_effect_only {
+  border-color: #b45309;
+}
+
+.state-partial_effect_only .playability-label {
+  background: #fef3c7;
+}
+
+.state-not_playable {
+  color: #475569;
+  background-image: repeating-linear-gradient(135deg, rgba(148, 163, 184, 0.18) 0 8px, transparent 8px 16px);
+}
+
+.state-not_playable .playability-label {
+  background: #e2e8f0;
 }
 
 .hand-card.selected {
@@ -445,6 +616,7 @@ h1 {
   grid-template-columns: 1fr auto;
   gap: 10px;
   margin-top: 10px;
+  min-width: 0;
 }
 
 .log {
@@ -455,6 +627,32 @@ h1 {
 
 .log p {
   margin: 6px 0;
+}
+
+.log small {
+  white-space: pre-line;
+}
+
+.card-detail-lines p {
+  margin: 0 0 0.35rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@keyframes scorePulse {
+  from {
+    transform: translateY(-2px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scoreboard-player em {
+    animation: none;
+  }
 }
 
 .modal-backdrop {
@@ -612,9 +810,34 @@ h1 {
 }
 
 @media (max-width: 820px) {
+  .app-shell,
+  .page-shell {
+    padding: 14px;
+  }
+
+  .battle-app {
+    padding: 10px;
+  }
+
   .topbar,
   .actions {
     grid-template-columns: 1fr;
+  }
+
+  .topbar {
+    gap: 8px;
+  }
+
+  .scoreboard-player {
+    grid-template-columns: 1fr;
+    gap: 2px;
+    text-align: center;
+  }
+
+  .player-panel,
+  .player-panel.right,
+  .phase-panel {
+    text-align: center;
   }
 
   .phase-panel {
@@ -622,17 +845,42 @@ h1 {
   }
 
   .row {
-    grid-template-columns: 70px 1fr 70px;
+    grid-template-columns: minmax(92px, 1fr) minmax(92px, 1fr);
+    grid-template-areas:
+      "deck graveyard"
+      "animals animals";
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .deck-zone {
+    grid-area: deck;
+  }
+
+  .graveyard-button {
+    grid-area: graveyard;
+  }
+
+  .animal-zone {
+    grid-area: animals;
+    gap: 8px;
+    margin: 0;
   }
 
   .slot,
   .side-zone {
-    min-height: 126px;
+    min-height: 104px;
+    padding: 8px;
   }
 
   .hand-card {
-    min-width: 82px;
-    min-height: 100px;
+    flex-basis: clamp(108px, 34vw, 128px);
+    min-height: 108px;
+    padding: 0.7rem 0.75rem;
+  }
+
+  .buttons button {
+    min-height: 44px;
   }
 
   .result-summary-grid,
@@ -646,4 +894,60 @@ h1 {
   .inline-actions {
     flex-direction: column;
   }
+}
+
+@media (max-width: 480px) {
+  body {
+    min-width: 0;
+  }
+
+  .battle-app {
+    padding: 8px;
+  }
+
+  .board {
+    padding: 8px;
+  }
+
+  .opponent-hand,
+  .player-hand {
+    gap: 8px;
+  }
+
+  .player-hand {
+    padding-inline: 12px;
+    scroll-padding-inline: 12px;
+  }
+
+  .animal-zone {
+    grid-template-columns: repeat(3, minmax(74px, 1fr));
+  }
+
+  .slot {
+    min-height: 96px;
+    font-size: 0.85rem;
+  }
+
+  .slot strong {
+    font-size: 0.86rem;
+    line-height: 1.2;
+  }
+
+  .side-zone {
+    min-height: 74px;
+  }
+
+  .level {
+    top: 5px;
+    left: 5px;
+    padding: 3px 6px;
+  }
+
+  .attached-support,
+  .statuses {
+    width: 100%;
+    font-size: 0.7rem;
+    line-height: 1.25;
+  }
+
 }

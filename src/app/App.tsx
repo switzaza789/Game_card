@@ -7,6 +7,7 @@ import { getCardDefinition, isAnimalInstance } from "../engine/cards/deck";
 import { createMatch } from "../engine/state/match";
 import { otherPlayerId } from "../engine/state/selectors";
 import type { Action, CardCategory, CardDefinition, GameMode, MatchState, PlayerId, Target } from "../types/game";
+import { validateAction } from "../engine/validation/validation";
 import { PersistenceCoordinator } from "../persistence/persistenceCoordinator";
 import {
   loadActiveMatch,
@@ -24,6 +25,7 @@ import {
 } from "../persistence/localStorageAdapter";
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
+import { formatActionLogEntry, renderCombatOutcomeLines, statusLabel } from "../ui/effectFeedback";
 import {
   buildPlaytestFeedbackPayload,
   humanFeedbackFilename,
@@ -69,6 +71,9 @@ export function App() {
   const [exportText, setExportText] = useState<string | null>(null);
   const [playtestFeedbackOpen, setPlaytestFeedbackOpen] = useState(false);
   const [playtestError, setPlaytestError] = useState<string | null>(null);
+  const [effectFeedback, setEffectFeedback] = useState<string[] | null>(null);
+  const [pendingAnimalSlot, setPendingAnimalSlot] = useState<Target | null>(null);
+  const [endTurnConfirmOpen, setEndTurnConfirmOpen] = useState(false);
   const lastFeedbackExportRef = useRef<string | null>(null);
   const aiExecutionRef = useRef<string | null>(null);
   const humanTurnPrepRef = useRef<string | null>(null);
@@ -328,8 +333,10 @@ export function App() {
           dispatch: (action) => coordinator.dispatch(action, Date.now())
         });
         const currentMatch = result.state;
+        const botEntry = [...currentMatch.actionLog].reverse().find((entry) => entry.actor === "P2" && entry.action.type === "PLAY_CARD" && entry.validation.valid);
         setMatch(currentMatch);
         setSelectedCardId(null);
+        setEffectFeedback(botEntry ? renderCombatOutcomeLines(currentMatch, botEntry) : null);
         setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
         if (currentMatch.status === "FINISHED") {
           setMessage("เกมจบแล้ว");
@@ -396,9 +403,13 @@ export function App() {
 
   function recycleSelected() {
     if (!match || !selectedCardId) {
-      setMessage("เลือกการ์ดในมือก่อนใช้ Recycle");
+      const reason = "ต้องเลือกการ์ดในมือก่อน Recycle";
+      setMessage(reason);
+      setEffectFeedback(["รีไซเคิลไม่สำเร็จ", reason]);
       return;
     }
+    const before = match;
+    const recycledName = getCardDefinition(before.cardsByInstanceId[selectedCardId].definitionId).name_th;
 
     const result = coordinator.dispatch({
       type: "RECYCLE",
@@ -409,9 +420,20 @@ export function App() {
     setMatch(result.state);
     setSelectedCardId(null);
     if (!result.validation.valid) {
-      setMessage(result.validation.errors.join(", "));
+      const reason = result.validation.errors.map(translateValidationReason).join(", ");
+      setMessage(reason);
+      setEffectFeedback(["รีไซเคิลไม่สำเร็จ", reason]);
     } else {
       setMessage("Recycle สำเร็จ: ทิ้ง 1 ใบ แล้วจั่ว 1 ใบ");
+      const drawnId = result.state.players[match.currentPlayerId].hand.find((id) => !before.players[match.currentPlayerId].hand.includes(id));
+      const drawnName = drawnId ? getCardDefinition(result.state.cardsByInstanceId[drawnId].definitionId).name_th : "การ์ดใหม่";
+      setEffectFeedback([
+        "รีไซเคิลสำเร็จ",
+        `ส่ง ${recycledName} จากมือไปสุสาน`,
+        `จั่ว ${drawnName} ขึ้นมือ`,
+        `กองจั่วเหลือ ${result.state.players[match.currentPlayerId].deck.length} ใบ`,
+        "ใช้ Recycle ของเทิร์นนี้แล้ว"
+      ]);
     }
 
     const sr2 = result.storageResult;
@@ -424,17 +446,19 @@ export function App() {
     if (!match || !selectedCardId) {
       return;
     }
+    playCardFromHand(selectedCardId, target);
+  }
 
-    const card = match.cardsByInstanceId[selectedCardId];
-    const definition = getCardDefinition(card.definitionId);
-
-    if (isImportantCard(definition) && !window.confirm(`ยืนยันการเล่น ${definition.name_th}?`)) {
-      setMessage("ยกเลิกการเล่นการ์ด");
+  function playCardFromHand(cardInstanceId: string, target?: Target) {
+    if (!match) {
       return;
     }
 
+    const card = match.cardsByInstanceId[cardInstanceId];
+    const definition = getCardDefinition(card.definitionId);
+
     const payload: Extract<Action, { type: "PLAY_CARD" }>["payload"] = {
-      cardInstanceId: selectedCardId,
+      cardInstanceId,
       target
     };
 
@@ -449,7 +473,7 @@ export function App() {
 
     if (definition.card_id === "X003") {
       const replacement = match.players[match.currentPlayerId].hand.find((id) => {
-        if (id === selectedCardId) {
+        if (id === cardInstanceId) {
           return false;
         }
         return getCardDefinition(match.cardsByInstanceId[id].definitionId).category === "Animal";
@@ -461,7 +485,7 @@ export function App() {
       payload.selectedSupportInstanceId = findOwnAttachedSupport(match, match.currentPlayerId);
     }
 
-    payload.bottomCardInstanceId = match.players[match.currentPlayerId].hand.find((id) => id !== selectedCardId);
+    payload.bottomCardInstanceId = match.players[match.currentPlayerId].hand.find((id) => id !== cardInstanceId);
 
     const result = coordinator.dispatch({
       type: "PLAY_CARD",
@@ -471,10 +495,14 @@ export function App() {
 
     setMatch(result.state);
     setSelectedCardId(null);
+    setPendingAnimalSlot(null);
     if (!result.validation.valid) {
-      setMessage(result.validation.errors.join(", "));
+      const reason = result.validation.errors.map(translateValidationReason).join(", ");
+      setMessage(reason);
+      setEffectFeedback([`ใช้ ${definition.name_th} ไม่สำเร็จ`, reason]);
     } else {
       setMessage(`${definition.name_th} สำเร็จ`);
+      setEffectFeedback(renderCombatOutcomeLines(result.state, result.state.actionLog[result.state.actionLog.length - 1]));
       if (result.state.status === "FINISHED") {
         setScreen("result");
       }
@@ -484,6 +512,30 @@ export function App() {
     if (!sr3.ok) {
       setMessage((prev) => `${prev} (บันทึกเซฟล้มเหลว: ${storageErrorMessage(sr3.error)})`);
     }
+  }
+
+  function selectCard(id: string) {
+    if (match && pendingAnimalSlot) {
+      const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
+      if (definition.category === "Animal") {
+        playCardFromHand(id, pendingAnimalSlot);
+        return;
+      }
+    }
+    setSelectedCardId(id);
+  }
+
+  function requestEndTurn() {
+    setEndTurnConfirmOpen(true);
+  }
+
+  function undoLastAction() {
+    if (!match) return;
+    const result = coordinator.dispatch({ type: "UNDO_LAST_REVERSIBLE_ACTION", playerId: match.currentPlayerId, payload: {} }, Date.now());
+    setMatch(result.state);
+    const text = result.validation.valid ? "ย้อนกลับสำเร็จ" : result.validation.errors.map(translateValidationReason).join(", ");
+    setMessage(text);
+    setEffectFeedback([text, result.state.actionLog[result.state.actionLog.length - 1]?.result ?? ""]);
   }
 
   const selectedDefinition = useMemo(() => {
@@ -566,15 +618,32 @@ export function App() {
         selectedDefinition={selectedDefinition}
         message={message}
         modal={modal}
-        onSelectCard={setSelectedCardId}
+        onSelectCard={selectCard}
         onPlaySelected={playSelected}
+        onSelectEmptySlot={(target) => {
+          if (selectedDefinition?.category === "Animal") {
+            playSelected(target);
+          } else {
+            setPendingAnimalSlot(target);
+            setMessage("เลือก Animal จากมือเพื่อลงช่องนี้");
+          }
+        }}
         onRecycle={recycleSelected}
-        onEndTurn={endTurn}
+        onEndTurn={requestEndTurn}
+        onUndo={undoLastAction}
         onOpenCard={(card) => setModal({ type: "card", card })}
         onOpenGraveyard={(playerId) => setModal({ type: "graveyard", playerId })}
         onCloseModal={() => setModal(null)}
         onResetMatch={resetMatch}
         controlsDisabled={(match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2") || match.phase !== "ACTION"}
+        effectFeedback={effectFeedback}
+        onDismissFeedback={() => setEffectFeedback(null)}
+        endTurnConfirmOpen={endTurnConfirmOpen}
+        onCancelEndTurn={() => setEndTurnConfirmOpen(false)}
+        onConfirmEndTurn={() => {
+          setEndTurnConfirmOpen(false);
+          endTurn();
+        }}
       />
     );
   }
@@ -724,21 +793,42 @@ function BattleScreen(props: {
   modal: ModalState;
   onSelectCard: (id: string) => void;
   onPlaySelected: (target?: Target) => void;
+  onSelectEmptySlot: (target: Target) => void;
   onRecycle: () => void;
   onEndTurn: () => void;
+  onUndo: () => void;
   onOpenCard: (card: CardDefinition) => void;
   onOpenGraveyard: (playerId: PlayerId) => void;
   onCloseModal: () => void;
   onResetMatch: () => void;
   controlsDisabled?: boolean;
+  effectFeedback: string[] | null;
+  onDismissFeedback: () => void;
+  endTurnConfirmOpen: boolean;
+  onCancelEndTurn: () => void;
+  onConfirmEndTurn: () => void;
 }) {
   const { match, activePlayerId, opponentId, selectedCardId, selectedDefinition } = props;
   const controlsDisabled = Boolean(props.controlsDisabled);
   const isAiTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2";
   const isPreparingHumanTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P1" && match.phase !== "ACTION";
+  const lastLog = [...match.actionLog].reverse().find((entry) => entry.action.type === "PLAY_CARD" && (entry.outcomes?.length ?? 0) > 0)
+    ?? [...match.actionLog].reverse().find((entry) => (entry.outcomes?.length ?? 0) > 0)
+    ?? match.actionLog[match.actionLog.length - 1];
+  const scoreDeltas = scoreDeltaByPlayer(lastLog);
+  const selectedPlayability = selectedCardId ? getCardPlayability(match, activePlayerId, selectedCardId) : null;
 
   return (
     <main className="battle-app">
+      <section className="scoreboard" aria-label="คะแนนผู้เล่น" aria-live="polite">
+        {(["P1", "P2"] as PlayerId[]).map((playerId) => (
+          <div key={playerId} className={`scoreboard-player ${match.currentPlayerId === playerId ? "active" : ""}`}>
+            <span>{playerNameForMode(playerId, match.gameMode)}</span>
+            <strong>{match.players[playerId].score} / {gameConfig.target_score}</strong>
+            {scoreDeltas[playerId] !== 0 && <em>{scoreDeltas[playerId] > 0 ? "+" : ""}{scoreDeltas[playerId]}</em>}
+          </div>
+        ))}
+      </section>
       <section className="topbar" aria-label="สถานะการแข่งขัน">
         <div className="player-panel">
           <strong>{playerName(opponentId)}</strong>
@@ -759,18 +849,20 @@ function BattleScreen(props: {
         {isPreparingHumanTurn && <div className="ai-banner" role="status" aria-live="polite">กำลังจั่วและคิดคะแนน...</div>}
         <HiddenHand count={match.players[opponentId].hand.length} />
         <div className="zone-label">มือคู่ต่อสู้</div>
-        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onOpenGraveyard={props.onOpenGraveyard} />
+        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} />
         <div className="divider" />
-        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onOpenGraveyard={props.onOpenGraveyard} />
+        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} />
         <div className="zone-label">Animal Zone ของคุณ — คะแนน {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
-        <div className="player-hand" aria-label="มือผู้เล่นปัจจุบัน">
+        <div className="player-hand" aria-label="มือผู้เล่นปัจจุบัน" tabIndex={0}>
           {match.players[activePlayerId].hand.map((id) => {
             const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
+            const playability = getCardPlayability(match, activePlayerId, id);
             return (
-              <button key={id} type="button" className={`hand-card ${categoryClass(definition.category)} ${selectedCardId === id ? "selected" : ""}`} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled}>
+              <button key={id} type="button" className={`hand-card ${categoryClass(definition.category)} state-${playability.state.toLowerCase()} ${selectedCardId === id ? "selected" : ""}`} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={playability.state === "NOT_PLAYABLE"} aria-describedby={`playability-${id}`}>
                 <span>{definition.card_id}</span>
                 <strong>{definition.name_th}</strong>
                 <small>{categoryLabels[definition.category]}</small>
+                <small id={`playability-${id}`} className="playability-label">{playability.label}</small>
               </button>
             );
           })}
@@ -781,19 +873,51 @@ function BattleScreen(props: {
         <div className="log" role="status">
           <strong>Action Log</strong>
           <p>{props.message}</p>
-          <small>{match.actionLog[match.actionLog.length - 1]?.result ?? "ยังไม่มี action"}</small>
+          <small>{formatActionLogEntry(match, lastLog)}</small>
         </div>
         <div className="buttons">
-          <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || needsTarget(selectedDefinition)}>
+          <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || selectedPlayability?.state === "NOT_PLAYABLE" || needsTarget(selectedDefinition)}>
             เล่นการ์ด
           </button>
           <button type="button" className="secondary-button" onClick={props.onRecycle} disabled={controlsDisabled}>Recycle</button>
           <button type="button" className="secondary-button" onClick={() => props.onOpenGraveyard(activePlayerId)}>ดูสุสาน</button>
           <button type="button" className="secondary-button" onClick={() => selectedDefinition && props.onOpenCard(selectedDefinition)} disabled={!selectedDefinition}>รายละเอียด</button>
           <button type="button" className="secondary-button" onClick={props.onResetMatch}>รีเซ็ตเกม</button>
+          <button type="button" className="secondary-button" onClick={props.onUndo} disabled={!match.undoSnapshot}>ย้อนกลับ</button>
           <button type="button" className="danger-button" onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")}>จบเทิร์น</button>
         </div>
+        {selectedDefinition && (
+          <div className="effect-preview" aria-label="ผลที่จะเกิดขึ้น">
+            <strong>ผลที่จะเกิดขึ้น</strong>
+            <ul>
+              {previewLines(selectedDefinition, getCardPlayability(match, activePlayerId, selectedCardId ?? "")).map((line) => <li key={line}>{line}</li>)}
+            </ul>
+          </div>
+        )}
       </section>
+      {props.effectFeedback && props.effectFeedback.length > 0 && (
+        <section className="effect-feedback" role="status" aria-live="polite" aria-label="สรุปผลของการ์ด">
+          <div>
+            <strong>ผลที่ได้รับ</strong>
+            <ul>
+              {props.effectFeedback.map((line) => <li key={line}>{line}</li>)}
+            </ul>
+          </div>
+          <button type="button" className="secondary-button" onClick={props.onDismissFeedback}>ปิด</button>
+        </section>
+      )}
+      {props.endTurnConfirmOpen && (
+        <section className="action-modal" role="dialog" aria-modal="true" aria-label="ยืนยันจบเทิร์น">
+          <div className="action-modal-panel">
+            <strong>จบเทิร์นหรือไม่</strong>
+            <p>ตรวจสอบการ์ดที่ยังใช้ได้, Recycle และ Undo ก่อนจบเทิร์น</p>
+            <div className="modal-actions">
+              <button type="button" className="danger-button" onClick={props.onConfirmEndTurn}>จบเทิร์น</button>
+              <button type="button" className="secondary-button" onClick={props.onCancelEndTurn}>เล่นต่อ</button>
+            </div>
+          </div>
+        </section>
+      )}
       <Modal modal={props.modal} match={match} onClose={props.onCloseModal} />
     </main>
   );
@@ -805,6 +929,7 @@ function BoardRow({
   viewerId,
   selectedDefinition,
   onTarget,
+  onSelectEmptySlot,
   onOpenGraveyard
 }: {
   match: MatchState;
@@ -812,37 +937,43 @@ function BoardRow({
   viewerId: PlayerId;
   selectedDefinition: CardDefinition | null;
   onTarget: (target?: Target) => void;
+  onSelectEmptySlot: (target: Target) => void;
   onOpenGraveyard: (playerId: PlayerId) => void;
 }) {
   const player = match.players[ownerId];
   return (
     <div className="row">
-      <div className="side-zone">Deck<br /><strong>{player.deck.length}</strong></div>
+      <div className="side-zone deck-zone"><span className="zone-title">กองจั่ว</span><strong>{player.deck.length}</strong></div>
       <div className="animal-zone">
         {player.board.map((instanceId, index) => {
           if (!instanceId) {
-            return <div key={index} className="slot">ช่อง Animal {index + 1}</div>;
+            const slotNo = (index + 1) as 1 | 2 | 3;
+            const canPlace = ownerId === viewerId && (!selectedDefinition || selectedDefinition.category === "Animal");
+            return canPlace
+              ? <button key={index} type="button" className={`slot empty-slot ${selectedDefinition?.category === "Animal" ? "targetable" : ""}`} aria-label={`ช่อง Animal ${index + 1} ว่าง`} onClick={() => onSelectEmptySlot({ playerId: ownerId, zone: "BOARD", slotNo })}>สัตว์ {index + 1}</button>
+              : <div key={index} className="slot" aria-label={`ช่อง Animal ${index + 1}`}>สัตว์ {index + 1}</div>;
           }
           const animal = match.cardsByInstanceId[instanceId];
           if (!isAnimalInstance(animal)) {
-            return <div key={index} className="slot">ช่อง Animal {index + 1}</div>;
+            return <div key={index} className="slot" aria-label={`ช่อง Animal ${index + 1}`}>สัตว์ {index + 1}</div>;
           }
           const definition = getCardDefinition(animal.definitionId);
           const legal = selectedDefinition ? canTarget(selectedDefinition, ownerId, viewerId, animal.level) : false;
           return (
-            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : ""}`} disabled={!legal} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
+            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} disabled={!legal} aria-label={`${definition.name_th} ช่อง ${animal.slotNo}${legal ? " เป้าหมายถูกต้อง" : " เป้าหมายนี้ใช้ไม่ได้"}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
               <span className="level">Lv.{animal.level}</span>
+              <span className="target-badge">{legal ? "เลือกได้" : "ใช้ไม่ได้"}</span>
               <strong>{definition.name_th}</strong>
               {animal.level >= 2 && <small className="statuses">{evolutionLabel(animal.level, animal.evolutionPoints ?? 0)}</small>}
               {animal.attachedSupportIds.map((supportId) => (
                 <span className="attached-support" key={supportId}>{getCardDefinition(match.cardsByInstanceId[supportId].definitionId).name_th}</span>
               ))}
-              {animal.statuses.length > 0 && <small className="statuses">{animal.statuses.map((status) => status.code).join(", ")}</small>}
+              {animal.statuses.length > 0 && <small className="statuses">{animal.statuses.map((status) => statusLabel(status.code)).join(", ")}</small>}
             </button>
           );
         })}
       </div>
-      <button type="button" className="side-zone graveyard-button" onClick={() => onOpenGraveyard(ownerId)}>Graveyard<br /><strong>{player.graveyard.length}</strong></button>
+      <button type="button" className="side-zone graveyard-button" onClick={() => onOpenGraveyard(ownerId)}><span className="zone-title">สุสาน</span><strong>{player.graveyard.length}</strong></button>
     </div>
   );
 }
@@ -974,8 +1105,9 @@ function Modal({ modal, match, onClose }: { modal: ModalState; match?: MatchStat
           <>
             <h2>{modal.card.name_th}</h2>
             <p>{modal.card.card_id} — {categoryLabels[modal.card.category]}</p>
-            <p>{modal.card.primary_effect}</p>
-            {modal.card.secondary_effect && <p>{modal.card.secondary_effect}</p>}
+            <div className="card-detail-lines" aria-label="รายละเอียดการ์ด">
+              {formatCardDetailLines(modal.card).map((line) => <p key={line}>{line}</p>)}
+            </div>
           </>
         ) : (
           <>
@@ -999,8 +1131,206 @@ function needsTarget(card: CardDefinition): boolean {
   return card.category === "Support" || card.category === "Weakness" || ["X001", "X003", "X004"].includes(card.card_id);
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
+export function formatCardDetailLines(card: CardDefinition): string[] {
+  const lines: string[] = [];
+  if (card.primary_effect) {
+    lines.push(...labelledCardLines(card));
+  }
+  return lines.flatMap(splitCardLine);
+}
+
+function labelledCardLines(card: CardDefinition): string[] {
+  const lines: string[] = [];
+  if (card.timing) {
+    lines.push(`ความสามารถ: ${card.timing}`);
+  }
+  if (card.target) {
+    lines.push(`เงื่อนไข: ${card.target}`);
+  }
+  if (card.category === "Support" && card.primary_effect) {
+    lines.push(`Support: ${card.primary_effect}`);
+  } else if (card.category === "Weakness" && card.primary_effect) {
+    const [fullEffect, weakEffect] = splitWeaknessEffects(card.primary_effect);
+    const targetLabel = weaknessTargetLabel(card.subtype);
+    if (fullEffect) lines.push(`ใช้ตรงเป้าหมาย — ${targetLabel}: ${fullEffect}`);
+    if (weakEffect) lines.push(`ใช้ผิดเป้าหมาย: ${weakEffect}`);
+  } else if (card.primary_effect) {
+    lines.push(`ความสามารถ: ${card.primary_effect}`);
+  }
+  if (card.secondary_effect) {
+    lines.push(`จุดอ่อน: ${card.secondary_effect}`);
+  }
+  return lines;
+}
+
+function splitWeaknessEffects(text: string): [string, string] {
+  const parts = text.split(/(?:\r?\n)|(?:; )|(?:\.\s+)/).map((part) => part.trim()).filter(Boolean);
+  return [parts[0] ?? "", parts[1] ?? ""];
+}
+
+function splitCardLine(text: string): string[] {
+  return text.split(/\r?\n/).map((part) => part.trim()).filter(Boolean);
+}
+
+function weaknessTargetLabel(subtype: string): string {
+  const labels = subtype
+    .split("/")
+    .map((part) => part.trim())
+    .map((part) => part.replace(/\s+Weakness$/i, ""))
+    .map((part) => ({ Dog: "สุนัข", Cat: "แมว", Rabbit: "กระต่าย", Bear: "หมี", Bird: "นก", Fish: "ปลา" }[part] ?? part))
+    .filter(Boolean);
+  return labels.join("และ");
+}
+
+type PlayabilityState = "PLAYABLE_NOW" | "PLAYABLE_AFTER_TARGET" | "PARTIAL_EFFECT_ONLY" | "NOT_PLAYABLE";
+
+type PlayabilityInfo = {
+  state: PlayabilityState;
+  label: string;
+  reason?: string;
+};
+
+function previewLines(card: CardDefinition, playability?: PlayabilityInfo): string[] {
+  const lines = [`ประเภท: ${actionCategoryLabel(card)}`];
+  if (playability?.state === "NOT_PLAYABLE") {
+    lines.push("ยังใช้ไม่ได้", playability.reason ?? playability.label);
+    return lines;
+  }
+  if (playability?.state === "PLAYABLE_AFTER_TARGET") {
+    lines.push("ต้องเลือกเป้าหมายก่อนยืนยันผล");
+  }
+  if (playability?.state === "PARTIAL_EFFECT_ONLY") {
+    lines.push("ผลอ่อน: ใช้ได้ แต่ผลจะลดลง");
+  }
+  if (card.category === "Animal") {
+    return [...lines, "ลง Animal ที่ Level 1", "ใช้ Animal Action ของเทิร์นนี้"];
+  }
+  if (card.category === "Support") {
+    return [
+      ...lines,
+      "เลือกสัตว์ของคุณ 1 ใบ",
+      "ถ้า Support ตรงชนิด: เพิ่ม Level ตามที่การ์ดกำหนด",
+      "บางใบอาจมีสถานะหรือผลเพิ่มเติมตามการ์ด",
+      "ใช้ Utility Action ของเทิร์นนี้"
+    ];
+  }
+  if (card.category === "Weakness") {
+    return [
+      ...lines,
+      "เลือกสัตว์ฝ่ายตรงข้าม 1 ใบ",
+      "หากใช้กับเป้าหมายที่แพ้ทาง: ลด Level หรือนำออกจากสนาม",
+      "หากใช้ผิดเป้าหมาย: ลดคะแนนรอบถัดไป",
+      "อาจถูกป้องกันด้วย Weakness Shield"
+    ];
+  }
+  if (card.card_id === "X001") return [...lines, "เลือกสัตว์ฝ่ายตรงข้าม 1 ใบ", "ทำให้เป้าหมายข้ามการคิดคะแนนครั้งถัดไป", "ใช้ Utility Action ของเทิร์นนี้"];
+  if (card.card_id === "X002") return [...lines, "ใช้เป็น Reaction เพื่อป้องกัน Weakness", "ไม่สามารถเล่นโดยตรงได้"];
+  if (card.card_id === "X003") return [...lines, "เลือกสัตว์ของคุณ 1 ใบ", "คืน Animal ของตัวเองขึ้นมือและลง Animal จากมือแทน", "แต้มวิวัฒนาการของตัวที่ออกจากสนามจะหายไป"];
+  if (card.card_id === "X004") return [...lines, "เลือกสัตว์ Level 1 ฝ่ายตรงข้าม", "คืน Animal Level 1 ของคู่ต่อสู้ขึ้นมือ", "โล่ป้องกันการนำออกอาจป้องกันผลนี้"];
+  if (card.card_id === "X005") return [...lines, "คุณได้ +1 คะแนน และคู่ต่อสู้เสีย 1 คะแนน"];
+  return [...lines, "ใช้ Utility Action ของเทิร์นนี้"];
+}
+
+function getCardPlayability(match: MatchState, playerId: PlayerId, cardInstanceId: string): PlayabilityInfo {
+  const card = match.cardsByInstanceId[cardInstanceId];
+  if (!card) {
+    return { state: "NOT_PLAYABLE", label: "ยังใช้ไม่ได้", reason: "ไม่พบการ์ด" };
+  }
+  const definition = getCardDefinition(card.definitionId);
+  if (definition.card_id === "S001" && hasLevel3Dog(match, playerId)) {
+    return { state: "NOT_PLAYABLE", label: "สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้", reason: "สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้" };
+  }
+  const validation = validateAction(match, { type: "PLAY_CARD", playerId, payload: { cardInstanceId } });
+  const translated = validation.valid ? "" : translateValidationReason(validation.errors[0]);
+  if (validation.valid) {
+    return { state: "PLAYABLE_NOW", label: "ใช้ได้ทันที" };
+  }
+  if (needsTarget(definition) && validation.errors.some((error) => error.includes("target is required") || error.includes("target"))) {
+    if (definition.category === "Weakness" && hasEnemyBoard(match, playerId)) {
+      return anyDirectWeaknessTarget(match, playerId, definition)
+        ? { state: "PLAYABLE_AFTER_TARGET", label: "ต้องเลือกเป้าหมาย" }
+        : { state: "PARTIAL_EFFECT_ONLY", label: "ใช้ได้แบบผลอ่อน", reason: "ใช้ได้ แต่ไม่ตรงจุดอ่อน: จะลดคะแนนครั้งถัดไป 1 คะแนน" };
+    }
+    if (hasPotentialTarget(match, playerId, definition)) {
+      return { state: "PLAYABLE_AFTER_TARGET", label: "ต้องเลือกเป้าหมาย" };
+    }
+  }
+  return { state: "NOT_PLAYABLE", label: translated, reason: translated };
+}
+
+function translateValidationReason(reason: string | undefined): string {
+  if (!reason) return "ยังใช้ไม่ได้";
+  if (reason.includes("ACTION phase")) return "ยังไม่ถึงช่วงที่ใช้ได้";
+  if (reason.includes("current player's hand")) return "การ์ดไม่ได้อยู่ในมือ";
+  if (reason.includes("Animal action already")) return "ใช้การ์ดสัตว์แล้วในเทิร์นนี้";
+  if (reason.includes("Animal zone is full")) return "ช่องสัตว์เต็ม";
+  if (reason.includes("Utility action is locked")) return "ใช้การ์ดประเภทนี้ไม่ได้ในเทิร์นนี้";
+  if (reason.includes("Utility action already")) return "ใช้การ์ดประเภทนี้แล้วในเทิร์นนี้";
+  if (reason.includes("board Animal target")) return "การ์ดนี้ต้องเลือกสัตว์";
+  if (reason.includes("own Animal")) return "ต้องมีสัตว์ของคุณอยู่ในสนาม";
+  if (reason.includes("enemy Animal")) return "ไม่มีเป้าหมายฝ่ายตรงข้าม";
+  if (reason.includes("protected from Weakness")) return "เป้าหมายมีเกราะป้องกัน";
+  if (reason.includes("เพิ่มเลเวลได้")) return "สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้";
+  if (reason.includes("Level 1")) return "ต้องเลือกสัตว์ Level 1";
+  return reason;
+}
+
+function hasPotentialTarget(match: MatchState, playerId: PlayerId, card: CardDefinition): boolean {
+  return (["P1", "P2"] as PlayerId[]).some((ownerId) => match.players[ownerId].board.some((instanceId) => {
+    if (!instanceId) return false;
+    const animal = match.cardsByInstanceId[instanceId];
+    return isAnimalInstance(animal) && canTarget(card, ownerId, playerId, animal.level);
+  }));
+}
+
+function hasEnemyBoard(match: MatchState, playerId: PlayerId): boolean {
+  const enemyId = otherPlayerId(playerId);
+  return match.players[enemyId].board.some(Boolean);
+}
+
+function hasLevel3Dog(match: MatchState, playerId: PlayerId): boolean {
+  return match.players[playerId].board.some((instanceId) => {
+    if (!instanceId) return false;
+    const animal = match.cardsByInstanceId[instanceId];
+    return isAnimalInstance(animal) && animal.definitionId === "A001" && animal.level >= 3;
+  });
+}
+
+function anyDirectWeaknessTarget(match: MatchState, playerId: PlayerId, card: CardDefinition): boolean {
+  const enemyId = otherPlayerId(playerId);
+  return match.players[enemyId].board.some((instanceId) => {
+    if (!instanceId) return false;
+    const animal = match.cardsByInstanceId[instanceId];
+    return isAnimalInstance(animal) && weaknessMatches(card.card_id, getCardDefinition(animal.definitionId).subtype);
+  });
+}
+
+function weaknessMatches(cardId: string, subtype: string): boolean {
+  return (
+    (cardId === "W001" && subtype === "Dog")
+    || (cardId === "W002" && subtype === "Cat")
+    || (cardId === "W003" && (subtype === "Rabbit" || subtype === "Bear"))
+    || (cardId === "W004" && subtype === "Bird")
+    || (cardId === "W005" && subtype === "Fish")
+  );
+}
+
+function actionCategoryLabel(card: CardDefinition): string {
+  if (card.category === "Weakness") return "ใช้จุดอ่อน";
+  if (card.category === "Support") return "สนับสนุน";
+  if (card.category === "Animal") return "ลงสัตว์";
+  if (card.card_id === "X005") return "ขโมยคะแนน";
+  if (card.card_id === "X004") return "ส่งกลับขึ้นมือ";
+  if (card.card_id === "X002") return "ป้องกัน";
+  return "เปลี่ยนสถานะ";
+}
+
 function canTarget(card: CardDefinition, ownerId: PlayerId, viewerId: PlayerId, level: number): boolean {
   if (card.category === "Support") {
+    if (supportIncreasesLevel(card.logic_key)) {
+      return ownerId === viewerId && level < 3;
+    }
     return ownerId === viewerId;
   }
   if (card.category === "Weakness" || card.card_id === "X001") {
@@ -1015,8 +1345,20 @@ function canTarget(card: CardDefinition, ownerId: PlayerId, viewerId: PlayerId, 
   return false;
 }
 
-function isImportantCard(card: CardDefinition): boolean {
-  return card.category === "Weakness" || ["X003", "X004", "X005"].includes(card.card_id);
+function supportIncreasesLevel(logicKey: string): boolean {
+  return [
+    "match_level_up_and_bounce_removal_shield",
+    "match_level_up_peek_or_bottom",
+    "match_level_up_temp_level_down_immunity",
+    "match_level_up_minimum_next_score_1",
+    "match_level_up_draw1_bottom1",
+    "match_level_up_temp_weakness_immunity"
+  ].includes(logicKey);
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function isLevelIncreasingSupportCard(logicKey: string): boolean {
+  return supportIncreasesLevel(logicKey);
 }
 
 function findHandCard(match: MatchState, playerId: PlayerId, definitionId: string): string | undefined {
@@ -1038,6 +1380,23 @@ function findOwnAttachedSupport(match: MatchState, playerId: PlayerId): string |
 
 function playerName(playerId: PlayerId) {
   return playerId === "P1" ? "ผู้เล่น 1" : "ผู้เล่น 2";
+}
+
+function playerNameForMode(playerId: PlayerId, gameMode: GameMode) {
+  if (gameMode === "PVE_NORMAL") {
+    return playerId === "P1" ? "คุณ" : "Bot";
+  }
+  return playerName(playerId);
+}
+
+function scoreDeltaByPlayer(entry: MatchState["actionLog"][number] | undefined): Record<PlayerId, number> {
+  const deltas: Record<PlayerId, number> = { P1: 0, P2: 0 };
+  for (const outcome of entry?.outcomes ?? []) {
+    if (outcome.code === "SCORE_CHANGED") {
+      deltas[outcome.playerId] += outcome.amount;
+    }
+  }
+  return deltas;
 }
 
 function categoryClass(category: CardCategory) {
