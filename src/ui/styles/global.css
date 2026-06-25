@@ -505,6 +505,7 @@ h1 {
 }
 
 .feedback-field input,
+.feedback-field select,
 .feedback-textarea {
   width: 100%;
   border: 1px solid var(--line);
@@ -588,6 +589,12 @@ h1 {
   margin-top: 0.75rem;
   padding: 0.5rem 0.75rem;
   font-size: 0.85rem;
+}
+
+.history-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .privacy-shell {

@@ -1,4 +1,5 @@
 import type { MatchState, PlayerId } from "../types/game";
+import type { PlaytestFeedbackPayload } from "../playtest/playtestFeedback";
 
 export type ScreenType = "menu" | "howToPlay" | "library" | "battle" | "handoff" | "result";
 
@@ -53,4 +54,26 @@ export interface MatchResult {
     ownerId: PlayerId;
   } | null;
   finishReason: "TARGET_SCORE" | "TURN_LIMIT";
+}
+
+export interface HumanFeedbackStore {
+  schemaVersion: string;
+  entries: PlaytestFeedbackPayload[];
+}
+
+export interface HistoryExportPayload {
+  schemaVersion: string;
+  exportType: "MATCH_HISTORY_SUMMARY";
+  exportedAt: string;
+  recordCount: number;
+  records: MatchResult[];
+  note: string;
+}
+
+export interface SingleHistoryExportPayload {
+  schemaVersion: string;
+  exportType: "MATCH_HISTORY_RECORD";
+  exportedAt: string;
+  record: MatchResult;
+  note: string;
 }

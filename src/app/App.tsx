@@ -6,10 +6,30 @@ import { createMatch } from "../engine/state/match";
 import { otherPlayerId } from "../engine/state/selectors";
 import type { Action, CardCategory, CardDefinition, MatchState, PlayerId, Target } from "../types/game";
 import { PersistenceCoordinator } from "../persistence/persistenceCoordinator";
-import { loadActiveMatch, deleteActiveMatch, listMatchHistory, clearMatchHistory, exportMatchLog, importMatchLog, saveActiveMatch } from "../persistence/localStorageAdapter";
+import {
+  loadActiveMatch,
+  deleteActiveMatch,
+  listMatchHistory,
+  clearMatchHistory,
+  exportMatchLog,
+  importMatchLog,
+  saveActiveMatch,
+  saveHumanFeedback,
+  exportAllMatchHistory,
+  exportSingleMatchHistoryRecord,
+  matchHistoryFilename,
+  singleMatchHistoryFilename
+} from "../persistence/localStorageAdapter";
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
-import { serializePlaytestFeedback, type FeedbackRatingKey, type FeedbackTextKey, type PlaytestFeedbackInput } from "../playtest/playtestFeedback";
+import {
+  buildPlaytestFeedbackPayload,
+  humanFeedbackFilename,
+  type FeedbackRatingKey,
+  type FeedbackTextKey,
+  type PlayerSeat,
+  type PlaytestFeedbackInput
+} from "../playtest/playtestFeedback";
 
 /** Convert any StorageError to a displayable string */
 function storageErrorMessage(err: StorageError): string {
@@ -47,6 +67,7 @@ export function App() {
   const [exportText, setExportText] = useState<string | null>(null);
   const [playtestFeedbackOpen, setPlaytestFeedbackOpen] = useState(false);
   const [playtestError, setPlaytestError] = useState<string | null>(null);
+  const lastFeedbackExportRef = useRef<string | null>(null);
 
   useEffect(() => {
     const loadResult = loadActiveMatch();
@@ -81,7 +102,7 @@ export function App() {
     }
 
     const timestamp = Date.now();
-    const freshMatch = createMatch({ seed: `match-${timestamp}` });
+    const freshMatch = createMatch({ matchId: `match-${timestamp}`, seed: `match-${timestamp}` });
     coordinator.initialize(freshMatch, "battle", initStats());
 
     const dispatchResult = coordinator.dispatch({
@@ -181,27 +202,42 @@ export function App() {
 
   function handlePlaytestExport(input: PlaytestFeedbackInput) {
     if (!match) return;
-    const feedbackResult = serializePlaytestFeedback(match, coordinator.getStats(), input);
+    const timestamp = Date.now();
+    const feedbackResult = buildPlaytestFeedbackPayload(match, input, timestamp);
     if (!feedbackResult.ok) {
       setPlaytestError(feedbackResult.errors.join("; "));
       return;
     }
 
-    setPlaytestError(null);
-    setPlaytestFeedbackOpen(false);
-    if (!navigator.clipboard?.writeText || !window.isSecureContext) {
-      setExportText(feedbackResult.value);
-      setMessage("ไม่สามารถคัดลอกอัตโนมัติได้ เปิดหน้าต่างส่งออก JSON แล้ว");
+    const duplicateKey = JSON.stringify({ matchId: match.matchId, input });
+    if (lastFeedbackExportRef.current === duplicateKey) {
+      setPlaytestError("ฟีดแบ็กชุดนี้เพิ่งถูกบันทึกแล้ว");
       return;
     }
 
-    void navigator.clipboard.writeText(feedbackResult.value)
+    const saveResult = saveHumanFeedback(feedbackResult.value);
+    if (!saveResult.ok) {
+      setPlaytestError(`บันทึกฟีดแบ็กล้มเหลว: ${storageErrorMessage(saveResult.error)}`);
+      return;
+    }
+
+    const json = JSON.stringify(feedbackResult.value, null, 2);
+    lastFeedbackExportRef.current = duplicateKey;
+    setPlaytestError(null);
+    setPlaytestFeedbackOpen(false);
+    downloadJson(json, humanFeedbackFilename(match.matchId, timestamp));
+    setMessage("บันทึกและส่งออกฟีดแบ็ก JSON แล้ว");
+    if (!navigator.clipboard?.writeText || !window.isSecureContext) {
+      setExportText(json);
+      return;
+    }
+
+    void navigator.clipboard.writeText(json)
       .then(() => {
-        alert("คัดลอกฟีดแบ็ก Playtest ลง Clipboard เรียบร้อยแล้ว!");
+        alert("บันทึกและคัดลอกฟีดแบ็ก Playtest ลง Clipboard เรียบร้อยแล้ว!");
       })
       .catch(() => {
-        setExportText(feedbackResult.value);
-        setMessage("ไม่สามารถคัดลอกอัตโนมัติได้ เปิดหน้าต่างส่งออก JSON แล้ว");
+        setExportText(json);
       });
   }
 
@@ -378,7 +414,20 @@ export function App() {
   }
 
   if (screen === "history") {
-    return <HistoryScreen onBack={() => setScreen("menu")} />;
+    return (
+      <>
+        <HistoryScreen onBack={() => setScreen("menu")} onShowExport={(json) => setExportText(json)} onMessage={setMessage} />
+        {exportText && (
+          <ExportModal
+            value={exportText}
+            title="ส่งออกข้อมูล JSON"
+            description="คัดลอก JSON นี้เพื่อเก็บประวัติการเล่นภายในเครื่อง"
+            textareaLabel="ข้อมูล JSON สำหรับส่งออก"
+            onClose={() => setExportText(null)}
+          />
+        )}
+      </>
+    );
   }
 
   if (screen === "handoff" && match) {
@@ -798,7 +847,7 @@ export function ResultScreen({
         <div className="menu-actions vertical-actions">
           <button type="button" onClick={onNewGame}>เริ่มเกมใหม่</button>
           <button type="button" className="secondary-button" onClick={() => { void onExport(); }}>ส่งออกไฟล์เซฟ (คัดลอกลง Clipboard)</button>
-          <button type="button" className="secondary-button" onClick={onOpenPlaytestFeedback}>ส่งออกฟีดแบ็ก Playtest</button>
+          <button type="button" className="secondary-button" onClick={onOpenPlaytestFeedback}>ฟีดแบ็ก Human Playtest (ไม่บังคับ)</button>
           <button type="button" className="secondary-button" onClick={onBackToMenu}>กลับเมนูหลัก</button>
         </div>
       </section>
@@ -917,7 +966,25 @@ function formatDuration(ms: number): string {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
-function HistoryScreen({ onBack }: { onBack: () => void }) {
+function downloadJson(value: string, filename: string): void {
+  const blob = new Blob([value], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function HistoryScreen({
+  onBack,
+  onShowExport,
+  onMessage
+}: {
+  onBack: () => void;
+  onShowExport: (json: string) => void;
+  onMessage: (message: string) => void;
+}) {
   const [history, setHistory] = useState<MatchResult[]>([]);
 
   useEffect(() => {
@@ -939,13 +1006,39 @@ function HistoryScreen({ onBack }: { onBack: () => void }) {
     }
   }
 
+  function handleExportAll() {
+    const timestamp = Date.now();
+    const result = exportAllMatchHistory(timestamp);
+    if (!result.ok) {
+      alert(`ส่งออกประวัติทั้งหมดล้มเหลว: ${storageErrorMessage(result.error)}`);
+      return;
+    }
+    downloadJson(result.value, matchHistoryFilename(timestamp));
+    onShowExport(result.value);
+    onMessage("ส่งออกประวัติการเล่นทั้งหมดแล้ว");
+  }
+
+  function handleExportOne(result: MatchResult) {
+    const exportResult = exportSingleMatchHistoryRecord(result);
+    if (!exportResult.ok) {
+      alert(`ส่งออกประวัติ match ล้มเหลว: ${storageErrorMessage(exportResult.error)}`);
+      return;
+    }
+    downloadJson(exportResult.value, singleMatchHistoryFilename(result.matchId));
+    onShowExport(exportResult.value);
+    onMessage(`ส่งออกประวัติ ${result.matchId} แล้ว`);
+  }
+
   return (
     <main className="page-shell scroll-page">
       <header className="page-header split-header">
         <h1>ประวัติการเล่น</h1>
         <div className="inline-actions">
           {history.length > 0 && (
-            <button type="button" className="danger-button" onClick={handleClear}>ลบประวัติทั้งหมด</button>
+            <>
+              <button type="button" className="secondary-button" onClick={handleExportAll}>ส่งออกประวัติทั้งหมด</button>
+              <button type="button" className="danger-button" onClick={handleClear}>ลบประวัติทั้งหมด</button>
+            </>
           )}
           <button type="button" className="secondary-button" onClick={onBack}>กลับเมนู</button>
         </div>
@@ -984,6 +1077,9 @@ function HistoryScreen({ onBack }: { onBack: () => void }) {
                     <strong>การ์ดทำคะแนนสูงสุด:</strong> {result.highestScoringCard.nameTh} ({result.highestScoringCard.cardId}) — {result.highestScoringCard.score} คะแนน (ของ {playerName(result.highestScoringCard.ownerId)})
                   </div>
                 )}
+                <div className="history-actions">
+                  <button type="button" className="secondary-button" onClick={() => handleExportOne(result)}>ส่งออก match นี้</button>
+                </div>
               </section>
             );
           })}
@@ -1048,6 +1144,8 @@ function PlaytestFeedbackModal({
   error: string | null;
 }) {
   const firstInputRef = useRef<HTMLInputElement>(null);
+  const [testerCode, setTesterCode] = useState("");
+  const [playerSeat, setPlayerSeat] = useState<PlayerSeat>("BOTH");
   const [ratings, setRatings] = useState<Record<FeedbackRatingKey, string>>({
     rulesClarity: "",
     gameFun: "",
@@ -1059,6 +1157,7 @@ function PlaytestFeedbackModal({
     confusingMoments: "",
     strongestCard: "",
     weakestCard: "",
+    bugDescription: "",
     additionalComments: ""
   });
 
@@ -1075,11 +1174,16 @@ function PlaytestFeedbackModal({
   }
 
   function submit() {
-    const input: PlaytestFeedbackInput = {};
-    for (const key of Object.keys(ratings) as FeedbackRatingKey[]) {
-      if (ratings[key].trim()) {
-        input[key] = Number(ratings[key]);
-      }
+    const input: PlaytestFeedbackInput = {
+      playerSeat,
+      rulesClarity: Number(ratings.rulesClarity),
+      gameFun: Number(ratings.gameFun),
+      gameLength: Number(ratings.gameLength),
+      balance: Number(ratings.balance),
+      uiClarity: Number(ratings.uiClarity)
+    };
+    if (testerCode.trim()) {
+      input.testerCode = testerCode;
     }
     for (const key of Object.keys(texts) as FeedbackTextKey[]) {
       if (texts[key].trim()) {
@@ -1092,10 +1196,31 @@ function PlaytestFeedbackModal({
   return (
     <div className="modal-backdrop modal-top" role="dialog" aria-modal="true" aria-label="ฟีดแบ็ก Playtest">
       <section className="modal-panel import-export-panel playtest-panel">
-        <h2>ฟีดแบ็ก Playtest</h2>
-        <p className="muted-copy">กรอกเฉพาะช่องที่ต้องการ ข้อมูลจะอยู่ในเครื่องจนกว่าจะส่งออกเอง</p>
+        <h2>ฟีดแบ็ก Human Playtest (ไม่บังคับ)</h2>
+        <p className="muted-copy">กรอกเฉพาะรหัสนิรนามถ้าต้องการ ห้ามใส่ชื่อ อีเมล เบอร์โทร หรือข้อมูลส่วนตัว</p>
         <div className="feedback-grid">
-          <RatingInput id="rulesClarity" label="ความชัดเจนของกติกา" value={ratings.rulesClarity} onChange={(value) => updateRating("rulesClarity", value)} inputRef={firstInputRef} />
+          <label className="feedback-field" htmlFor="testerCode">
+            <span>รหัสผู้ทดสอบนิรนาม (ไม่บังคับ)</span>
+            <input
+              ref={firstInputRef}
+              id="testerCode"
+              type="text"
+              value={testerCode}
+              onChange={(event) => setTesterCode(event.target.value)}
+            />
+          </label>
+          <label className="feedback-field" htmlFor="playerSeat">
+            <span>บทบาทผู้ให้ฟีดแบ็ก</span>
+            <select id="playerSeat" value={playerSeat} onChange={(event) => setPlayerSeat(event.target.value as PlayerSeat)}>
+              <option value="P1">P1</option>
+              <option value="P2">P2</option>
+              <option value="BOTH">BOTH</option>
+              <option value="OBSERVER">OBSERVER</option>
+            </select>
+          </label>
+        </div>
+        <div className="feedback-grid">
+          <RatingInput id="rulesClarity" label="ความชัดเจนของกติกา" value={ratings.rulesClarity} onChange={(value) => updateRating("rulesClarity", value)} />
           <RatingInput id="gameFun" label="ความสนุก" value={ratings.gameFun} onChange={(value) => updateRating("gameFun", value)} />
           <RatingInput id="gameLength" label="ความยาวเกม" value={ratings.gameLength} onChange={(value) => updateRating("gameLength", value)} />
           <RatingInput id="balance" label="สมดุลเกม" value={ratings.balance} onChange={(value) => updateRating("balance", value)} />
@@ -1104,11 +1229,12 @@ function PlaytestFeedbackModal({
         <TextFeedback id="confusingMoments" label="จุดที่สับสน" value={texts.confusingMoments} onChange={(value) => updateText("confusingMoments", value)} />
         <TextFeedback id="strongestCard" label="การ์ดที่รู้สึกว่าแข็งที่สุด" value={texts.strongestCard} onChange={(value) => updateText("strongestCard", value)} />
         <TextFeedback id="weakestCard" label="การ์ดที่รู้สึกว่าอ่อนที่สุด" value={texts.weakestCard} onChange={(value) => updateText("weakestCard", value)} />
+        <TextFeedback id="bugDescription" label="รายละเอียดบั๊กที่พบ" value={texts.bugDescription} onChange={(value) => updateText("bugDescription", value)} />
         <TextFeedback id="additionalComments" label="ความคิดเห็นเพิ่มเติม" value={texts.additionalComments} onChange={(value) => updateText("additionalComments", value)} />
         {error && <p className="error-copy">{error}</p>}
         <div className="modal-actions">
           <button type="button" className="secondary-button" onClick={onClose}>ปิด</button>
-          <button type="button" onClick={submit}>ส่งออก JSON</button>
+          <button type="button" onClick={submit}>บันทึกและส่งออก JSON</button>
         </div>
       </section>
     </div>

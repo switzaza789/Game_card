@@ -1,9 +1,21 @@
 import type { MatchState } from "../types/game";
-import type { PersistedActiveMatch, MatchResult, MatchStats, ScreenType, StorageResult, StorageError } from "./types";
+import type {
+  HumanFeedbackStore,
+  HistoryExportPayload,
+  PersistedActiveMatch,
+  MatchResult,
+  MatchStats,
+  ScreenType,
+  SingleHistoryExportPayload,
+  StorageResult,
+  StorageError
+} from "./types";
 import { validateStoredMatch } from "./validator";
+import { validatePlaytestFeedbackPayload, type PlaytestFeedbackPayload } from "../playtest/playtestFeedback";
 
 const ACTIVE_MATCH_KEY = "animal_score_saved_match";
 const MATCH_HISTORY_KEY = "animal_score_match_history";
+export const HUMAN_FEEDBACK_KEY = "animal_score_human_feedback";
 
 function isStorageAvailable(): boolean {
   try {
@@ -188,6 +200,65 @@ export function clearMatchHistory(): StorageResult<void> {
   }
 }
 
+export function saveHumanFeedback(feedback: PlaytestFeedbackPayload): StorageResult<void> {
+  if (!isStorageAvailable()) {
+    return { ok: false, error: { type: "StorageUnavailable", message: "Local Storage is not available" } };
+  }
+
+  try {
+    const store = readHumanFeedbackStore();
+    if (!store.entries.some((entry) => entry.feedbackId === feedback.feedbackId)) {
+      store.entries.push(feedback);
+    }
+    window.localStorage.setItem(HUMAN_FEEDBACK_KEY, JSON.stringify(store));
+    return { ok: true, value: undefined };
+  } catch (e: unknown) {
+    return { ok: false, error: mapError(e) };
+  }
+}
+
+export function listHumanFeedback(): StorageResult<PlaytestFeedbackPayload[]> {
+  if (!isStorageAvailable()) {
+    return { ok: false, error: { type: "StorageUnavailable", message: "Local Storage is not available" } };
+  }
+
+  try {
+    return { ok: true, value: readHumanFeedbackStore().entries };
+  } catch (e: unknown) {
+    return { ok: false, error: mapError(e) };
+  }
+}
+
+export function exportAllMatchHistory(timestamp = Date.now()): StorageResult<string> {
+  const history = listMatchHistory();
+  if (!history.ok) {
+    return { ok: false, error: history.error };
+  }
+
+  const payload: HistoryExportPayload = {
+    schemaVersion: "1",
+    exportType: "MATCH_HISTORY_SUMMARY",
+    exportedAt: new Date(timestamp).toISOString(),
+    recordCount: history.value.length,
+    records: history.value,
+    note: "This export contains saved match history summary records only. Full match action logs are not included unless they were separately exported as match logs."
+  };
+
+  return stringifyExport(payload);
+}
+
+export function exportSingleMatchHistoryRecord(record: MatchResult, timestamp = Date.now()): StorageResult<string> {
+  const payload: SingleHistoryExportPayload = {
+    schemaVersion: "1",
+    exportType: "MATCH_HISTORY_RECORD",
+    exportedAt: new Date(timestamp).toISOString(),
+    record,
+    note: "This export contains one saved match history summary record only. It is not a full match action log."
+  };
+
+  return stringifyExport(payload);
+}
+
 export function exportMatchLog(state: MatchState, screen: ScreenType, stats: MatchStats): StorageResult<string> {
   try {
     const timestamp = Date.now();
@@ -218,6 +289,46 @@ export function importMatchLog(jsonStr: string): StorageResult<PersistedActiveMa
   }
 }
 
+export function matchHistoryFilename(timestamp = Date.now()): string {
+  return `animal-score-match-history-${timestamp}.json`;
+}
+
+export function singleMatchHistoryFilename(matchId: string): string {
+  return `animal-score-match-${safeFilenamePart(matchId)}.json`;
+}
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function readHumanFeedbackStore(): HumanFeedbackStore {
+  const data = window.localStorage.getItem(HUMAN_FEEDBACK_KEY);
+  if (!data) {
+    return { schemaVersion: "1", entries: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(data) as Partial<HumanFeedbackStore>;
+    const entries = Array.isArray(parsed.entries)
+      ? parsed.entries.filter((entry): entry is PlaytestFeedbackPayload => validatePlaytestFeedbackPayload(entry).ok)
+      : [];
+    return {
+      schemaVersion: "1",
+      entries
+    };
+  } catch {
+    return { schemaVersion: "1", entries: [] };
+  }
+}
+
+function stringifyExport(payload: HistoryExportPayload | SingleHistoryExportPayload): StorageResult<string> {
+  try {
+    return { ok: true, value: JSON.stringify(payload, null, 2) };
+  } catch (e: unknown) {
+    return { ok: false, error: { type: "UnknownError", message: errorMessage(e, "Failed to export history") } };
+  }
+}
+
+function safeFilenamePart(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, "-");
 }

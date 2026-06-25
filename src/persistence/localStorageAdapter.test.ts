@@ -8,11 +8,19 @@ import {
   listMatchHistory,
   clearMatchHistory,
   exportMatchLog,
-  importMatchLog
+  importMatchLog,
+  saveHumanFeedback,
+  listHumanFeedback,
+  exportAllMatchHistory,
+  exportSingleMatchHistoryRecord,
+  matchHistoryFilename,
+  singleMatchHistoryFilename,
+  HUMAN_FEEDBACK_KEY
 } from "./localStorageAdapter";
 import { initStats } from "./statsTracker";
 import type { MatchResult } from "./types";
 import { createMatch } from "../engine/state/match";
+import type { PlaytestFeedbackPayload } from "../playtest/playtestFeedback";
 
 function makeMatchResult(overrides?: Partial<MatchResult>): MatchResult {
   return {
@@ -28,6 +36,29 @@ function makeMatchResult(overrides?: Partial<MatchResult>): MatchResult {
     highestScoringCard: { cardId: "A001", nameTh: "สุนัขจอมซน", score: 6, ownerId: "P1" },
     finishReason: "TARGET_SCORE",
     ...overrides
+  };
+}
+
+function makeFeedback(overrides?: Partial<PlaytestFeedbackPayload>): PlaytestFeedbackPayload {
+  return {
+    ...makeFeedbackBase(),
+    ...overrides
+  };
+}
+
+function makeFeedbackBase(): PlaytestFeedbackPayload {
+  return {
+    schemaVersion: "1",
+    feedbackId: "feedback-1",
+    matchId: "feedback-match",
+    submittedAt: new Date(123456).toISOString(),
+    playerSeat: "P1" as const,
+    rulesClarity: 5,
+    gameFun: 4,
+    gameLength: 3,
+    balance: 4,
+    uiClarity: 5,
+    bugDescription: "ไม่มี"
   };
 }
 
@@ -168,6 +199,134 @@ describe("localStorageAdapter — Match History", () => {
 
   it("listMatchHistory returns empty array when no history", () => {
     const result = listMatchHistory();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual([]);
+  });
+
+  it("keeps old match-match history records readable", () => {
+    const oldRecord = makeMatchResult({ matchId: "match-match-12345" });
+    localStorage.setItem("animal_score_match_history", JSON.stringify([oldRecord]));
+
+    const result = listMatchHistory();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value[0]).toEqual(oldRecord);
+  });
+
+  it("exports all history as summary records without mutating stored records", () => {
+    const first = makeMatchResult({ matchId: "history-1" });
+    const second = makeMatchResult({ matchId: "match-match-legacy" });
+    saveMatchResult(first);
+    saveMatchResult(second);
+
+    const result = exportAllMatchHistory(123456);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const parsed = JSON.parse(result.value) as Record<string, unknown>;
+
+    expect(parsed).toMatchObject({
+      schemaVersion: "1",
+      exportType: "MATCH_HISTORY_SUMMARY",
+      recordCount: 2
+    });
+    expect(parsed).toHaveProperty("note");
+    expect(parsed).not.toHaveProperty("actionLog");
+    expect(JSON.parse(localStorage.getItem("animal_score_match_history") ?? "[]")).toEqual([first, second]);
+  });
+
+  it("exports empty history gracefully", () => {
+    const result = exportAllMatchHistory(123456);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const parsed = JSON.parse(result.value) as { recordCount: number; records: unknown[] };
+    expect(parsed.recordCount).toBe(0);
+    expect(parsed.records).toEqual([]);
+  });
+
+  it("exports one selected history record", () => {
+    const record = makeMatchResult({ matchId: "selected-match" });
+    const result = exportSingleMatchHistoryRecord(record, 123456);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const parsed = JSON.parse(result.value) as { exportType: string; record: MatchResult; note: string };
+    expect(parsed.exportType).toBe("MATCH_HISTORY_RECORD");
+    expect(parsed.record).toEqual(record);
+    expect(parsed.note).toContain("summary record");
+  });
+
+  it("builds requested history export filenames", () => {
+    expect(matchHistoryFilename(123)).toBe("animal-score-match-history-123.json");
+    expect(singleMatchHistoryFilename("match-match-123")).toBe("animal-score-match-match-match-123.json");
+    expect(singleMatchHistoryFilename("match:/unsafe")).toBe("animal-score-match-match--unsafe.json");
+  });
+});
+
+describe("localStorageAdapter — Human Feedback", () => {
+  it("saves and lists human feedback entries without altering history", () => {
+    const history = makeMatchResult({ matchId: "feedback-match" });
+    saveMatchResult(history);
+    const feedback = makeFeedback();
+
+    expect(saveHumanFeedback(feedback).ok).toBe(true);
+    expect(saveHumanFeedback(feedback).ok).toBe(true);
+
+    const feedbackResult = listHumanFeedback();
+    expect(feedbackResult.ok).toBe(true);
+    if (!feedbackResult.ok) return;
+    expect(feedbackResult.value).toEqual([feedback]);
+    expect(JSON.parse(localStorage.getItem(HUMAN_FEEDBACK_KEY) ?? "{}")).toMatchObject({ schemaVersion: "1" });
+
+    const historyResult = listMatchHistory();
+    expect(historyResult.ok).toBe(true);
+    if (!historyResult.ok) return;
+    expect(historyResult.value).toEqual([history]);
+  });
+
+  it("allows multiple feedback records for one match", () => {
+    const first = makeFeedback({ feedbackId: "feedback-1", matchId: "same-match" });
+    const second = makeFeedback({ feedbackId: "feedback-2", matchId: "same-match", playerSeat: "P2" });
+
+    expect(saveHumanFeedback(first).ok).toBe(true);
+    expect(saveHumanFeedback(second).ok).toBe(true);
+
+    const result = listHumanFeedback();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual([first, second]);
+  });
+
+  it("returns an empty feedback list for malformed localStorage JSON", () => {
+    localStorage.setItem(HUMAN_FEEDBACK_KEY, "{bad json");
+
+    const result = listHumanFeedback();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual([]);
+  });
+
+  it("filters invalid entries inside a valid feedback store", () => {
+    const valid = makeFeedback({ feedbackId: "feedback-valid" });
+    localStorage.setItem(HUMAN_FEEDBACK_KEY, JSON.stringify({
+      schemaVersion: "1",
+      entries: [
+        valid,
+        { ...valid, feedbackId: "feedback-invalid-rating", rulesClarity: 6 },
+        { ...valid, feedbackId: "feedback-invalid-seat", playerSeat: "PLAYER" },
+        { ...valid, feedbackId: "feedback-invalid-field", email: "person@example.com" }
+      ]
+    }));
+
+    const result = listHumanFeedback();
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual([valid]);
+  });
+
+  it("returns an empty feedback list when the store has no entries array", () => {
+    localStorage.setItem(HUMAN_FEEDBACK_KEY, JSON.stringify({ schemaVersion: "1" }));
+
+    const result = listHumanFeedback();
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value).toEqual([]);
