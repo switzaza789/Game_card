@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatch } from "../engine/state/match";
 import { App, ResultScreen } from "./App";
-import { exportMatchLog, saveActiveMatch, saveMatchResult } from "../persistence/localStorageAdapter";
+import { exportMatchLog, saveActiveMatch, saveMatchResult, listHumanFeedback } from "../persistence/localStorageAdapter";
 import { initStats } from "../persistence/statsTracker";
 import type { MatchResult } from "../persistence/types";
 
@@ -13,6 +13,14 @@ beforeEach(() => {
   // Suppress JSDOM "Not implemented: confirm" warnings by default
   vi.spyOn(window, "confirm").mockReturnValue(false);
   vi.spyOn(window, "alert").mockImplementation(() => undefined);
+  if (!URL.createObjectURL) {
+    Object.defineProperty(URL, "createObjectURL", { value: () => "blob:mock", configurable: true });
+  }
+  if (!URL.revokeObjectURL) {
+    Object.defineProperty(URL, "revokeObjectURL", { value: () => undefined, configurable: true });
+  }
+  vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:mock");
+  vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
 });
 
 afterEach(() => {
@@ -32,6 +40,8 @@ describe("App Phase 4 UI", () => {
     expect(screen.getByText(/TURN 1/)).toBeInTheDocument();
     expect(screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน")).toBeInTheDocument();
     expect(screen.getByLabelText("มือผู้เล่นปัจจุบัน")).toBeInTheDocument();
+    expect(localStorage.getItem("animal_score_saved_match")).toContain('"matchId":"match-');
+    expect(localStorage.getItem("animal_score_saved_match")).not.toContain('"matchId":"match-match-');
   });
 
   it("shows how to play and card library screens", async () => {
@@ -299,7 +309,45 @@ describe("App Phase 5 persistence UI", () => {
     expect(screen.getByText(/ผู้เล่น 1 ชนะ/)).toBeInTheDocument();
   });
 
-  it("opens playtest feedback and exports required JSON through clipboard fallback", async () => {
+  it("exports all history and a selected history record", async () => {
+    const user = userEvent.setup();
+    saveMatchResult(makeMatchResult({ matchId: "history-ui-1" }));
+    saveMatchResult(makeMatchResult({ matchId: "match-match-legacy", startedAt: 2000, endedAt: 4000 }));
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "ประวัติการเล่น" }));
+    await user.click(screen.getByRole("button", { name: "ส่งออกประวัติทั้งหมด" }));
+
+    let exportTextArea = await screen.findByRole("textbox", { name: "ข้อมูล JSON สำหรับส่งออก" });
+    let json = JSON.parse((exportTextArea as HTMLTextAreaElement).value) as Record<string, unknown>;
+    expect(json).toMatchObject({ exportType: "MATCH_HISTORY_SUMMARY", recordCount: 2 });
+    expect((json.records as Array<{ matchId: string }>)[1].matchId).toBe("match-match-legacy");
+
+    await user.click(screen.getByRole("button", { name: "ปิด" }));
+    await user.click(screen.getAllByRole("button", { name: "ส่งออก match นี้" })[0]);
+
+    exportTextArea = await screen.findByRole("textbox", { name: "ข้อมูล JSON สำหรับส่งออก" });
+    json = JSON.parse((exportTextArea as HTMLTextAreaElement).value) as Record<string, unknown>;
+    expect(json).toMatchObject({ exportType: "MATCH_HISTORY_RECORD" });
+  });
+
+  it("requires confirmation before clearing all history", async () => {
+    const user = userEvent.setup();
+    saveMatchResult(makeMatchResult({ matchId: "history-clear" }));
+
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "ประวัติการเล่น" }));
+
+    await user.click(screen.getByRole("button", { name: "ลบประวัติทั้งหมด" }));
+    expect(screen.getByText(/history-clear/)).toBeInTheDocument();
+
+    vi.mocked(window.confirm).mockReturnValue(true);
+    await user.click(screen.getByRole("button", { name: "ลบประวัติทั้งหมด" }));
+    expect(screen.getByText("ไม่มีประวัติการเล่น")).toBeInTheDocument();
+  });
+
+  it("opens human playtest feedback, saves locally, and exports required JSON through clipboard fallback", async () => {
     const originalClipboard = navigator.clipboard;
     Object.defineProperty(navigator, "clipboard", {
       get: () => undefined,
@@ -322,24 +370,39 @@ describe("App Phase 5 persistence UI", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "ข้อมูล JSON สำหรับนำเข้า" }), { target: { value: exported.value } });
     await user.click(screen.getByRole("button", { name: "นำเข้า" }));
 
-    await user.click(screen.getByRole("button", { name: "ส่งออกฟีดแบ็ก Playtest" }));
+    await user.click(screen.getByRole("button", { name: "ฟีดแบ็ก Human Playtest (ไม่บังคับ)" }));
     expect(screen.getByRole("dialog", { name: "ฟีดแบ็ก Playtest" })).toBeInTheDocument();
 
+    await user.type(screen.getByLabelText("รหัสผู้ทดสอบนิรนาม (ไม่บังคับ)"), "T01");
     await user.type(screen.getByLabelText("ความชัดเจนของกติกา (1-5)"), "5");
-    await user.click(screen.getByRole("button", { name: "ส่งออก JSON" }));
+    await user.type(screen.getByLabelText("ความสนุก (1-5)"), "4");
+    await user.type(screen.getByLabelText("ความยาวเกม (1-5)"), "3");
+    await user.type(screen.getByLabelText("สมดุลเกม (1-5)"), "4");
+    await user.type(screen.getByLabelText("ความชัดเจนของ UI (1-5)"), "5");
+    await user.type(screen.getByLabelText("รายละเอียดบั๊กที่พบ"), "ไม่มี");
+    await user.click(screen.getByRole("button", { name: "บันทึกและส่งออก JSON" }));
 
     const exportTextArea = await screen.findByRole("textbox", { name: "ข้อมูล JSON สำหรับส่งออก" });
     const json = JSON.parse((exportTextArea as HTMLTextAreaElement).value) as Record<string, unknown>;
     expect(json).toMatchObject({
       schemaVersion: "1",
-      applicationVersion: "v0.3.0-prototype",
+      testerCode: "T01",
       matchId: finishedMatch.matchId,
-      winner: "P1",
-      finishReason: "TARGET_SCORE"
+      playerSeat: "BOTH",
+      rulesClarity: 5,
+      bugDescription: "ไม่มี"
     });
     expect(json).not.toHaveProperty("email");
     expect(json).not.toHaveProperty("walletAddress");
     expect(json).not.toHaveProperty("ipAddress");
+    expect(json).not.toHaveProperty("name");
+
+    const feedbackStore = listHumanFeedback();
+    expect(feedbackStore.ok).toBe(true);
+    if (feedbackStore.ok) {
+      expect(feedbackStore.value).toHaveLength(1);
+      expect(feedbackStore.value[0].matchId).toBe(finishedMatch.matchId);
+    }
 
     Object.defineProperty(navigator, "clipboard", {
       value: originalClipboard,
@@ -364,9 +427,13 @@ describe("App Phase 5 persistence UI", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "ข้อมูล JSON สำหรับนำเข้า" }), { target: { value: exported.value } });
     await user.click(screen.getByRole("button", { name: "นำเข้า" }));
 
-    await user.click(screen.getByRole("button", { name: "ส่งออกฟีดแบ็ก Playtest" }));
+    await user.click(screen.getByRole("button", { name: "ฟีดแบ็ก Human Playtest (ไม่บังคับ)" }));
     await user.type(screen.getByLabelText("ความชัดเจนของกติกา (1-5)"), "6");
-    await user.click(screen.getByRole("button", { name: "ส่งออก JSON" }));
+    await user.type(screen.getByLabelText("ความสนุก (1-5)"), "4");
+    await user.type(screen.getByLabelText("ความยาวเกม (1-5)"), "3");
+    await user.type(screen.getByLabelText("สมดุลเกม (1-5)"), "4");
+    await user.type(screen.getByLabelText("ความชัดเจนของ UI (1-5)"), "5");
+    await user.click(screen.getByRole("button", { name: "บันทึกและส่งออก JSON" }));
 
     expect(screen.getByText(/rulesClarity ต้องเป็นจำนวนเต็ม 1 ถึง 5/)).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "ข้อมูล JSON สำหรับส่งออก" })).not.toBeInTheDocument();
