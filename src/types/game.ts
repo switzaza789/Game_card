@@ -186,9 +186,82 @@ export type ActionLogEntry = {
   actor: PlayerId;
   validation: ValidationResult;
   result: string;
+  outcomes?: EffectOutcome[];
   rng: RngState;
   timestamp: number;
 };
+
+export type EffectOutcome =
+  | {
+      code: "CARD_PLAYED";
+      cardInstanceId: string;
+      definitionId: string;
+      playerId: PlayerId;
+      targetInstanceId?: string;
+    }
+  | {
+      code: "ANIMAL_ENTERED_BOARD";
+      cardInstanceId: string;
+      slotNo: 1 | 2 | 3;
+    }
+  | {
+      code: "CARD_ATTACHED";
+      sourceCardInstanceId: string;
+      targetInstanceId: string;
+    }
+  | {
+      code: "LEVEL_CHANGED";
+      targetInstanceId: string;
+      fromLevel: 1 | 2 | 3;
+      toLevel: 1 | 2 | 3;
+    }
+  | {
+      code: "STATUS_APPLIED";
+      targetInstanceId: string;
+      statusCode: StatusEffectCode;
+      expiresAt: StatusEffect["expiresAt"];
+    }
+  | {
+      code: "STATUS_REMOVED";
+      targetInstanceId: string;
+      statusCode: StatusEffectCode;
+    }
+  | {
+      code: "CARD_MOVED";
+      cardInstanceId: string;
+      definitionId: string;
+      fromZone: Zone;
+      toZone: Zone;
+    }
+  | {
+      code: "CARD_DRAWN";
+      playerId: PlayerId;
+      count: number;
+    }
+  | {
+      code: "SCORE_CHANGED";
+      playerId: PlayerId;
+      amount: number;
+      fromScore: number;
+      toScore: number;
+    }
+  | {
+      code: "EVOLUTION_POINT_GAINED";
+      targetInstanceId: string;
+      current: 1 | 2;
+      required: 2;
+    }
+  | {
+      code: "EVOLVED";
+      targetInstanceId: string;
+      fromLevel: 1 | 2;
+      toLevel: 3;
+    }
+  | {
+      code: "REMOVAL_PREVENTED";
+      targetInstanceId: string;
+      statusCode: "REMOVAL_SHIELD";
+    };
 
 export type GameConfig = {
   game_title: string;

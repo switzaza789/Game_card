@@ -24,6 +24,7 @@ import {
 } from "../persistence/localStorageAdapter";
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
+import { renderOutcomeLines, statusLabel, summarizeOutcomes } from "../ui/effectFeedback";
 import {
   buildPlaytestFeedbackPayload,
   humanFeedbackFilename,
@@ -69,6 +70,7 @@ export function App() {
   const [exportText, setExportText] = useState<string | null>(null);
   const [playtestFeedbackOpen, setPlaytestFeedbackOpen] = useState(false);
   const [playtestError, setPlaytestError] = useState<string | null>(null);
+  const [effectFeedback, setEffectFeedback] = useState<string[] | null>(null);
   const lastFeedbackExportRef = useRef<string | null>(null);
   const aiExecutionRef = useRef<string | null>(null);
   const humanTurnPrepRef = useRef<string | null>(null);
@@ -475,6 +477,7 @@ export function App() {
       setMessage(result.validation.errors.join(", "));
     } else {
       setMessage(`${definition.name_th} สำเร็จ`);
+      setEffectFeedback(renderOutcomeLines(result.state, result.state.actionLog[result.state.actionLog.length - 1]?.outcomes));
       if (result.state.status === "FINISHED") {
         setScreen("result");
       }
@@ -575,6 +578,8 @@ export function App() {
         onCloseModal={() => setModal(null)}
         onResetMatch={resetMatch}
         controlsDisabled={(match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2") || match.phase !== "ACTION"}
+        effectFeedback={effectFeedback}
+        onDismissFeedback={() => setEffectFeedback(null)}
       />
     );
   }
@@ -731,6 +736,8 @@ function BattleScreen(props: {
   onCloseModal: () => void;
   onResetMatch: () => void;
   controlsDisabled?: boolean;
+  effectFeedback: string[] | null;
+  onDismissFeedback: () => void;
 }) {
   const { match, activePlayerId, opponentId, selectedCardId, selectedDefinition } = props;
   const controlsDisabled = Boolean(props.controlsDisabled);
@@ -781,7 +788,7 @@ function BattleScreen(props: {
         <div className="log" role="status">
           <strong>Action Log</strong>
           <p>{props.message}</p>
-          <small>{match.actionLog[match.actionLog.length - 1]?.result ?? "ยังไม่มี action"}</small>
+          <small>{summarizeOutcomes(match, match.actionLog[match.actionLog.length - 1]?.outcomes) || match.actionLog[match.actionLog.length - 1]?.result || "ยังไม่มี action"}</small>
         </div>
         <div className="buttons">
           <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || needsTarget(selectedDefinition)}>
@@ -793,7 +800,26 @@ function BattleScreen(props: {
           <button type="button" className="secondary-button" onClick={props.onResetMatch}>รีเซ็ตเกม</button>
           <button type="button" className="danger-button" onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")}>จบเทิร์น</button>
         </div>
+        {selectedDefinition && (
+          <div className="effect-preview" aria-label="ผลที่จะเกิดขึ้น">
+            <strong>ผลที่จะเกิดขึ้น</strong>
+            <ul>
+              {previewLines(selectedDefinition).map((line) => <li key={line}>{line}</li>)}
+            </ul>
+          </div>
+        )}
       </section>
+      {props.effectFeedback && props.effectFeedback.length > 0 && (
+        <section className="effect-feedback" role="status" aria-live="polite" aria-label="สรุปผลของการ์ด">
+          <div>
+            <strong>ผลที่ได้รับ</strong>
+            <ul>
+              {props.effectFeedback.map((line) => <li key={line}>{line}</li>)}
+            </ul>
+          </div>
+          <button type="button" className="secondary-button" onClick={props.onDismissFeedback}>ปิด</button>
+        </section>
+      )}
       <Modal modal={props.modal} match={match} onClose={props.onCloseModal} />
     </main>
   );
@@ -837,7 +863,7 @@ function BoardRow({
               {animal.attachedSupportIds.map((supportId) => (
                 <span className="attached-support" key={supportId}>{getCardDefinition(match.cardsByInstanceId[supportId].definitionId).name_th}</span>
               ))}
-              {animal.statuses.length > 0 && <small className="statuses">{animal.statuses.map((status) => status.code).join(", ")}</small>}
+              {animal.statuses.length > 0 && <small className="statuses">{animal.statuses.map((status) => statusLabel(status.code)).join(", ")}</small>}
             </button>
           );
         })}
@@ -997,6 +1023,32 @@ function Modal({ modal, match, onClose }: { modal: ModalState; match?: MatchStat
 
 function needsTarget(card: CardDefinition): boolean {
   return card.category === "Support" || card.category === "Weakness" || ["X001", "X003", "X004"].includes(card.card_id);
+}
+
+function previewLines(card: CardDefinition): string[] {
+  if (card.category === "Animal") {
+    return ["ลง Animal ที่ Level 1", "ใช้ Animal Action ของเทิร์นนี้"];
+  }
+  if (card.category === "Support") {
+    return [
+      "ถ้า Support ตรงชนิด: เพิ่ม Animal เป็น Level 2",
+      "อาจได้รับสถานะหรือผลเพิ่มเติมตามการ์ด",
+      "ใช้ Utility Action ของเทิร์นนี้"
+    ];
+  }
+  if (card.category === "Weakness") {
+    return [
+      "หากใช้กับเป้าหมายที่แพ้ทาง: ลด Level หรือนำออกจากสนาม",
+      "หากใช้ผิดเป้าหมาย: ลดคะแนนรอบถัดไป",
+      "อาจถูกป้องกันด้วย Weakness Shield"
+    ];
+  }
+  if (card.card_id === "X001") return ["ทำให้เป้าหมายข้ามการคิดคะแนนครั้งถัดไป", "ใช้ Utility Action ของเทิร์นนี้"];
+  if (card.card_id === "X002") return ["ใช้เป็น Reaction เพื่อป้องกัน Weakness", "ไม่สามารถเล่นโดยตรงได้"];
+  if (card.card_id === "X003") return ["คืน Animal ของตัวเองขึ้นมือและลง Animal จากมือแทน", "แต้มวิวัฒนาการของตัวที่ออกจากสนามจะหายไป"];
+  if (card.card_id === "X004") return ["คืน Animal Level 1 ของคู่ต่อสู้ขึ้นมือ", "โล่ป้องกันการนำออกอาจป้องกันผลนี้"];
+  if (card.card_id === "X005") return ["ใช้ได้เมื่อคะแนนตามหลัง", "คุณได้ +1 คะแนน และคู่ต่อสู้เสีย 1 คะแนน"];
+  return ["ใช้ Utility Action ของเทิร์นนี้"];
 }
 
 function canTarget(card: CardDefinition, ownerId: PlayerId, viewerId: PlayerId, level: number): boolean {

@@ -17,6 +17,7 @@ import {
   otherPlayerId
 } from "../state/selectors";
 import { calculateScorePhase, resolveEffect } from "../effects/effectEngine";
+import { buildEffectOutcomes } from "../effects/effectOutcomes";
 import { validateAction } from "../validation/validation";
 
 export type DispatchResult = {
@@ -30,14 +31,15 @@ export function dispatchAction(state: MatchState, envelope: ActionEnvelope): Dis
 
   if (!validation.valid) {
     return {
-      state: appendLog(state, action, validation, "Action rejected", timestamp),
+      state: appendLog(state, action, validation, "Action rejected", timestamp, []),
       validation
     };
   }
 
   const resolved = resolveValidAction(state, action);
+  const outcomes = buildEffectOutcomes(state, resolved, action);
   return {
-    state: appendLog(resolved, action, validation, resultText(action, state, resolved), timestamp),
+    state: appendLog(resolved, action, validation, resultText(action, state, resolved, outcomes), timestamp, outcomes),
     validation
   };
 }
@@ -312,7 +314,8 @@ function appendLog(
   action: Action,
   validation: ValidationResult,
   result: string,
-  timestamp: number
+  timestamp: number,
+  outcomes = buildEffectOutcomes(state, state, action)
 ): MatchState {
   const entry: ActionLogEntry = {
     seq: state.actionLog.length + 1,
@@ -322,6 +325,7 @@ function appendLog(
     actor: action.playerId,
     validation,
     result,
+    outcomes,
     rng: state.rng,
     timestamp
   };
@@ -332,9 +336,10 @@ function appendLog(
   };
 }
 
-function resultText(action: Action, before: MatchState, after: MatchState): string {
+function resultText(action: Action, before: MatchState, after: MatchState, outcomes = buildEffectOutcomes(before, after, action)): string {
   const evolutionMessages = action.type === "ADVANCE_PHASE" ? evolutionResultText(before, after) : [];
-  return [`${action.type} resolved`, ...evolutionMessages].join(" | ");
+  const outcomeMessages = outcomes.map((outcome) => outcome.code).filter((code) => code !== "CARD_PLAYED");
+  return [`${action.type} resolved`, ...outcomeMessages, ...evolutionMessages].join(" | ");
 }
 
 function evolutionResultText(before: MatchState, after: MatchState): string[] {
