@@ -101,7 +101,7 @@ describe("App Phase 4 UI", () => {
     }
     await user.click(enabledSlot);
 
-    expect(screen.getByText(/สำเร็จ/)).toBeInTheDocument();
+    expect(screen.getAllByText(/สำเร็จ/).length).toBeGreaterThan(0);
   });
 
   it("validates Recycle and shows player handoff privacy screen", async () => {
