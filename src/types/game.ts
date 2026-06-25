@@ -198,6 +198,10 @@ export type EffectOutcome =
       definitionId: string;
       playerId: PlayerId;
       targetInstanceId?: string;
+      targetPlayerId?: PlayerId;
+      actionKind?: "PLAY_ANIMAL" | "SUPPORT" | "WEAKNESS" | "PROTECT" | "STEAL_SCORE" | "STATUS_CHANGE" | "REMOVE_FROM_BOARD" | "RETURN_TO_HAND" | "DRAW_CARD" | "EVOLUTION" | "SPECIAL";
+      effectResult?: "FULL_EFFECT" | "PARTIAL_EFFECT" | "NO_EFFECT" | "PREVENTED";
+      reasonCode?: "MATCHING_WEAKNESS" | "NON_MATCHING_WEAKNESS" | "TARGET_PROTECTED" | "NO_VALID_TARGET";
     }
   | {
       code: "ANIMAL_ENTERED_BOARD";

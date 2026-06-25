@@ -61,6 +61,20 @@ describe("App Phase 4 UI", () => {
     expect(screen.getByRole("button", { name: "จบเทิร์น" })).toBeInTheDocument();
   });
 
+  it("shows both PvE scores, active player, and playability reasons", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "เริ่ม PvE กับคอมพิวเตอร์" }));
+
+    const scoreboard = screen.getByLabelText("คะแนนผู้เล่น");
+    expect(within(scoreboard).getByText("คุณ")).toBeInTheDocument();
+    expect(within(scoreboard).getByText("Bot")).toBeInTheDocument();
+    expect(scoreboard.querySelector(".scoreboard-player.active")).toHaveTextContent("คุณ");
+    expect(screen.getAllByText(/ใช้ได้ทันที|ต้องเลือกเป้าหมาย|ใช้ได้แบบผลอ่อน|ยังไม่ถึงช่วงที่ใช้ได้/).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "เล่นการ์ด" })).toBeInTheDocument();
+  });
+
   it("shows how to play and card library screens", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -158,7 +172,7 @@ describe("App Phase 4 UI", () => {
 
     await user.click(findFirstHandCardByCategory("สัตว์"));
     await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
-    expect(screen.getByText(/สำเร็จ/)).toBeInTheDocument();
+    expect(screen.getAllByText(/สำเร็จ/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/PLAY_CARD is only valid during ACTION phase/)).not.toBeInTheDocument();
   }, 10000);
 
