@@ -128,6 +128,7 @@ export class PersistenceCoordinator {
 
     return {
       matchId: state.matchId,
+      gameMode: state.gameMode ?? "LOCAL_PVP",
       winner: state.winner ?? "DRAW",
       finalScores: {
         P1: state.players.P1.score,

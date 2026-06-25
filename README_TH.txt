@@ -2,6 +2,22 @@ ANIMAL SCORE CARD GAME - v0.3.0-prototype
 
 เกมการ์ด Local Hot-seat สำหรับผู้เล่น 2 คนบนเครื่องเดียวกัน
 
+โหมดการเล่น
+- Local PvP: โหมดเดิมสำหรับผู้เล่น 2 คนสลับกันเล่นบนเครื่องเดียวกัน มีหน้าจอส่งเครื่องเพื่อซ่อนมือของอีกฝ่าย
+- PvE vs Computer: ผู้เล่นมนุษย์เป็น P1 และคอมพิวเตอร์ Normal AI เป็น P2 ไม่มีหน้าจอส่งเครื่องก่อนตา AI
+
+Normal AI เป็น heuristic แบบกำหนดตายตัว ไม่ใช่ machine learning และไม่ได้ใช้ออนไลน์เซอร์วิสใด ๆ AI ส่งคำสั่งผ่าน engine, validator, reducer, effect, RNG และ log เดียวกับผู้เล่นมนุษย์ จึงไม่แก้ state โดยตรงและไม่ข้ามกติกา
+
+AI เห็นเฉพาะข้อมูลที่ใช้เล่นได้อย่างยุติธรรม เช่น มือของตัวเอง สนาม สุสาน คะแนน สถานะสาธารณะ และการ์ดบนบอร์ดของคู่ต่อสู้ AI ไม่ใช้ตัวตนการ์ดในมือ P1, ลำดับ deck ของ P1, หรือผล RNG ในอนาคตเพื่อเลือก action
+
+วิธีเริ่ม PvE: ที่เมนูหลักเลือก "PvE vs Computer / Normal AI" เกมจะเริ่มที่ P1 ก่อน เมื่อ P1 จบเทิร์น ระบบจะแสดงสถานะ "AI Turn" และให้ P2 เล่นอัตโนมัติ จากนั้นกลับมาที่ P1
+
+Save/Resume: เซฟที่เป็น PvE จะบันทึก gameMode ไปพร้อม active match ถ้าโหลดเซฟเก่าที่ไม่มี gameMode ระบบจะถือว่าเป็น Local PvP เพื่อความเข้ากันได้ย้อนหลัง ถ้า resume ตอนเป็นตา AI ระบบจะเล่นต่ออัตโนมัติโดยมี guard กัน loop ซ้ำ
+
+ข้อจำกัดที่ทราบ: Normal AI เน้นตัดสินใจแบบ heuristic เช่น ชนะทันทีถ้าทำได้ กันคู่ต่อสู้ทำคะแนน ใช้ Support/Weakness ที่คุ้มค่า และ recycle เมื่อไม่มี action ดี ๆ จึงยังไม่ใช่ AI ขั้นสูงหรือ adaptive
+
+Simulation: คำสั่ง npm run playtest:pve100 รัน PvE 100 match เพื่อเช็กเสถียรภาพและ stuck state เท่านั้น ไม่ใช่หลักฐานสรุป balance สำหรับมนุษย์
+
 วิธีติดตั้งและรันในเครื่อง
 1. npm ci
 2. npm run dev
@@ -13,6 +29,7 @@ ANIMAL SCORE CARD GAME - v0.3.0-prototype
 - npm run test:coverage
 - npm run build
 - npm audit --audit-level=moderate
+- npm run playtest:pve100
 
 Production preview
 1. npm run build

@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "test": "vitest run",
     "playtest:auto10": "vitest run playtest/automatedAuto10.test.ts",
+    "playtest:pve100": "vitest run playtest/pveNormal100.test.ts",
     "preview": "vite preview",
     "test:coverage": "vitest run --coverage"
   },

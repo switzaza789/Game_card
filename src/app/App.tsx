@@ -1,10 +1,11 @@
 import { useMemo, useState, useEffect, useRef, type RefObject } from "react";
+import { chooseNormalAiAction, MAX_AI_ACTIONS_PER_TURN } from "../ai/normalAi";
 import { cardCatalog } from "../data/cardsSeed";
 import { gameConfig } from "../data/gameConfig";
 import { getCardDefinition, isAnimalInstance } from "../engine/cards/deck";
 import { createMatch } from "../engine/state/match";
 import { otherPlayerId } from "../engine/state/selectors";
-import type { Action, CardCategory, CardDefinition, MatchState, PlayerId, Target } from "../types/game";
+import type { Action, CardCategory, CardDefinition, GameMode, MatchState, PlayerId, Target } from "../types/game";
 import { PersistenceCoordinator } from "../persistence/persistenceCoordinator";
 import {
   loadActiveMatch,
@@ -68,6 +69,7 @@ export function App() {
   const [playtestFeedbackOpen, setPlaytestFeedbackOpen] = useState(false);
   const [playtestError, setPlaytestError] = useState<string | null>(null);
   const lastFeedbackExportRef = useRef<string | null>(null);
+  const aiRunningRef = useRef(false);
 
   useEffect(() => {
     const loadResult = loadActiveMatch();
@@ -96,13 +98,13 @@ export function App() {
     }
   }, [coordinator]);
 
-  function startGame() {
+  function startGame(gameMode: GameMode = "LOCAL_PVP") {
     if (hasSavedGame && !window.confirm("คุณมีเกมที่เล่นค้างอยู่ ต้องการเริ่มเกมใหม่และลบเซฟเดิมหรือไม่?")) {
       return;
     }
 
     const timestamp = Date.now();
-    const freshMatch = createMatch({ matchId: `match-${timestamp}`, seed: `match-${timestamp}` });
+    const freshMatch = createMatch({ matchId: `match-${timestamp}`, seed: `match-${timestamp}`, gameMode });
     coordinator.initialize(freshMatch, "battle", initStats());
 
     const dispatchResult = coordinator.dispatch({
@@ -124,7 +126,7 @@ export function App() {
 
     setMatch(currentMatch);
     setSelectedCardId(null);
-    setMessage("เริ่มเกมแล้ว ผู้เล่น 1 พร้อมเล่น");
+    setMessage(gameMode === "PVE_NORMAL" ? "เริ่ม PvE แล้ว คุณคือผู้เล่น 1" : "เริ่มเกมแล้ว ผู้เล่น 1 พร้อมเล่น");
     setScreen("battle");
     setHasSavedGame(false);
   }
@@ -135,7 +137,7 @@ export function App() {
       const persisted = loadResult.value;
       coordinator.initialize(persisted.state, persisted.screen, persisted.stats);
       setMatch(persisted.state);
-      setScreen(persisted.screen);
+      setScreen(persisted.state.gameMode === "PVE_NORMAL" && persisted.state.currentPlayerId === "P2" && persisted.screen === "handoff" ? "battle" : persisted.screen);
       setSelectedCardId(null);
       setMessage(`กู้คืนเกมสำเร็จ! ถึงตา ${playerName(persisted.state.currentPlayerId)}`);
     } else {
@@ -295,6 +297,8 @@ export function App() {
       setMessage("จบเทิร์นแล้ว");
       if (result.state.status === "FINISHED") {
         setScreen("result");
+      } else if (result.state.gameMode === "PVE_NORMAL" && result.state.currentPlayerId === "P2") {
+        setScreen("battle");
       } else {
         setScreen("handoff");
       }
@@ -305,6 +309,47 @@ export function App() {
       setMessage((prev) => `${prev} (บันทึกเซฟล้มเหลว: ${storageErrorMessage(sr1.error)})`);
     }
   }
+
+  useEffect(() => {
+    if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.currentPlayerId !== "P2" || match.status === "FINISHED") {
+      return;
+    }
+    if (aiRunningRef.current) {
+      return;
+    }
+    aiRunningRef.current = true;
+    const timer = window.setTimeout(() => {
+      let currentMatch = coordinator.getState() ?? match;
+      let actionsTaken = 0;
+      while (currentMatch.status !== "FINISHED" && currentMatch.currentPlayerId === "P2" && currentMatch.phase !== "ACTION") {
+        const result = coordinator.dispatch({ type: "ADVANCE_PHASE", playerId: "P2", payload: {} }, Date.now());
+        currentMatch = result.state;
+      }
+      while (currentMatch.status !== "FINISHED" && currentMatch.currentPlayerId === "P2" && currentMatch.phase === "ACTION") {
+        const decision = chooseNormalAiAction({ state: currentMatch, playerId: "P2" });
+        if (!decision || actionsTaken >= MAX_AI_ACTIONS_PER_TURN) {
+          const result = coordinator.dispatch({ type: "END_TURN", playerId: "P2", payload: {} }, Date.now());
+          currentMatch = result.state;
+          break;
+        }
+        const result = coordinator.dispatch(decision.action, Date.now());
+        currentMatch = result.state;
+        actionsTaken += 1;
+        if (!result.validation.valid) {
+          break;
+        }
+      }
+      setMatch(currentMatch);
+      setSelectedCardId(null);
+      setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
+      setMessage(currentMatch.status === "FINISHED" ? "เกมจบแล้ว" : "คอมพิวเตอร์จบเทิร์นแล้ว ถึงตาคุณ");
+      aiRunningRef.current = false;
+    }, 350);
+    return () => {
+      window.clearTimeout(timer);
+      aiRunningRef.current = false;
+    };
+  }, [coordinator, match, screen]);
 
   function recycleSelected() {
     if (!match || !selectedCardId) {
@@ -430,7 +475,7 @@ export function App() {
     );
   }
 
-  if (screen === "handoff" && match) {
+  if (screen === "handoff" && match && !(match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2")) {
     return <HandoffScreen nextPlayerId={match.currentPlayerId} onContinue={continueFromHandoff} />;
   }
 
@@ -486,6 +531,7 @@ export function App() {
         onOpenGraveyard={(playerId) => setModal({ type: "graveyard", playerId })}
         onCloseModal={() => setModal(null)}
         onResetMatch={resetMatch}
+        controlsDisabled={match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2"}
       />
     );
   }
@@ -535,7 +581,7 @@ function MainMenu({
   onViewHistory,
   onOpenImport
 }: {
-  onStart: () => void;
+  onStart: (gameMode?: GameMode) => void;
   onHowToPlay: () => void;
   onLibrary: () => void;
   hasSavedGame: boolean;
@@ -562,8 +608,11 @@ function MainMenu({
               <button type="button" className="danger-button" onClick={onClearSave} aria-label="ลบไฟล์เซฟ">ลบเซฟ</button>
             </>
           )}
-          <button type="button" onClick={onStart} aria-label="เริ่มเกมใหม่">
-            {hasSavedGame ? "เริ่มเกมใหม่" : "เริ่มเกม"}
+          <button type="button" onClick={() => onStart("LOCAL_PVP")} aria-label="เริ่มเกมใหม่">
+            {hasSavedGame ? "เริ่ม Local PvP ใหม่" : "Local PvP"}
+          </button>
+          <button type="button" onClick={() => onStart("PVE_NORMAL")} aria-label="เริ่ม PvE กับคอมพิวเตอร์">
+            PvE vs Computer <small>Normal AI</small>
           </button>
           <button type="button" className="secondary-button" onClick={onViewHistory}>ประวัติการเล่น</button>
           <button type="button" className="secondary-button" onClick={onOpenImport}>นำเข้าไฟล์เซฟ</button>
@@ -638,8 +687,10 @@ function BattleScreen(props: {
   onOpenGraveyard: (playerId: PlayerId) => void;
   onCloseModal: () => void;
   onResetMatch: () => void;
+  controlsDisabled?: boolean;
 }) {
   const { match, activePlayerId, opponentId, selectedCardId, selectedDefinition } = props;
+  const controlsDisabled = Boolean(props.controlsDisabled);
 
   return (
     <main className="battle-app">
@@ -659,17 +710,18 @@ function BattleScreen(props: {
       </section>
 
       <section className="board" aria-label="สนามต่อสู้">
+        {controlsDisabled && <div className="ai-banner" role="status" aria-live="polite">AI Turn — Computer is thinking...</div>}
         <HiddenHand count={match.players[opponentId].hand.length} />
         <div className="zone-label">มือคู่ต่อสู้</div>
-        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={selectedDefinition} onTarget={props.onPlaySelected} onOpenGraveyard={props.onOpenGraveyard} />
+        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onOpenGraveyard={props.onOpenGraveyard} />
         <div className="divider" />
-        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={selectedDefinition} onTarget={props.onPlaySelected} onOpenGraveyard={props.onOpenGraveyard} />
+        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onOpenGraveyard={props.onOpenGraveyard} />
         <div className="zone-label">Animal Zone ของคุณ — คะแนน {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
         <div className="player-hand" aria-label="มือผู้เล่นปัจจุบัน">
           {match.players[activePlayerId].hand.map((id) => {
             const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
             return (
-              <button key={id} type="button" className={`hand-card ${categoryClass(definition.category)} ${selectedCardId === id ? "selected" : ""}`} onClick={() => props.onSelectCard(id)}>
+              <button key={id} type="button" className={`hand-card ${categoryClass(definition.category)} ${selectedCardId === id ? "selected" : ""}`} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled}>
                 <span>{definition.card_id}</span>
                 <strong>{definition.name_th}</strong>
                 <small>{categoryLabels[definition.category]}</small>
@@ -686,14 +738,14 @@ function BattleScreen(props: {
           <small>{match.actionLog[match.actionLog.length - 1]?.result ?? "ยังไม่มี action"}</small>
         </div>
         <div className="buttons">
-          <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={!selectedDefinition || needsTarget(selectedDefinition)}>
+          <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || needsTarget(selectedDefinition)}>
             เล่นการ์ด
           </button>
-          <button type="button" className="secondary-button" onClick={props.onRecycle}>Recycle</button>
+          <button type="button" className="secondary-button" onClick={props.onRecycle} disabled={controlsDisabled}>Recycle</button>
           <button type="button" className="secondary-button" onClick={() => props.onOpenGraveyard(activePlayerId)}>ดูสุสาน</button>
           <button type="button" className="secondary-button" onClick={() => selectedDefinition && props.onOpenCard(selectedDefinition)} disabled={!selectedDefinition}>รายละเอียด</button>
           <button type="button" className="secondary-button" onClick={props.onResetMatch}>รีเซ็ตเกม</button>
-          <button type="button" className="danger-button" onClick={props.onEndTurn}>จบเทิร์น</button>
+          <button type="button" className="danger-button" onClick={props.onEndTurn} disabled={controlsDisabled}>จบเทิร์น</button>
         </div>
       </section>
       <Modal modal={props.modal} match={match} onClose={props.onCloseModal} />
@@ -779,7 +831,7 @@ export function ResultScreen({
 }: {
   match: MatchState;
   stats?: MatchStats;
-  onNewGame: () => void;
+  onNewGame: (gameMode?: GameMode) => void;
   onBackToMenu?: () => void;
   onExport?: () => void;
   onOpenPlaytestFeedback?: () => void;
@@ -845,7 +897,7 @@ export function ResultScreen({
         )}
 
         <div className="menu-actions vertical-actions">
-          <button type="button" onClick={onNewGame}>เริ่มเกมใหม่</button>
+          <button type="button" onClick={() => onNewGame("LOCAL_PVP")}>เริ่มเกมใหม่</button>
           <button type="button" className="secondary-button" onClick={() => { void onExport(); }}>ส่งออกไฟล์เซฟ (คัดลอกลง Clipboard)</button>
           <button type="button" className="secondary-button" onClick={onOpenPlaytestFeedback}>ฟีดแบ็ก Human Playtest (ไม่บังคับ)</button>
           <button type="button" className="secondary-button" onClick={onBackToMenu}>กลับเมนูหลัก</button>
