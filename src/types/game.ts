@@ -110,6 +110,14 @@ export type MatchState = {
   winner?: PlayerId | "DRAW";
   finishReason?: "TARGET_SCORE" | "TURN_LIMIT";
   actionLog: ActionLogEntry[];
+  undoSnapshot?: UndoSnapshot;
+};
+
+export type UndoSnapshot = {
+  state: Omit<MatchState, "undoSnapshot">;
+  actor: PlayerId;
+  summary: string;
+  blockedReason?: string;
 };
 
 export type Target = {
@@ -155,6 +163,11 @@ export type Action =
     }
   | {
       type: "ADVANCE_PHASE";
+      playerId: PlayerId;
+      payload: Record<string, never>;
+    }
+  | {
+      type: "UNDO_LAST_REVERSIBLE_ACTION";
       playerId: PlayerId;
       payload: Record<string, never>;
     };

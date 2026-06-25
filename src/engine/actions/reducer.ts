@@ -36,8 +36,9 @@ export function dispatchAction(state: MatchState, envelope: ActionEnvelope): Dis
     };
   }
 
-  const resolved = resolveValidAction(state, action);
+  let resolved = resolveValidAction(state, action);
   const outcomes = buildEffectOutcomes(state, resolved, action);
+  resolved = withUndoSnapshot(state, resolved, action, outcomes);
   return {
     state: appendLog(resolved, action, validation, resultText(action, state, resolved, outcomes), timestamp, outcomes),
     validation
@@ -58,7 +59,57 @@ function resolveValidAction(state: MatchState, action: Action): MatchState {
       return recycle(state, action.playerId, action.payload.cardInstanceId);
     case "END_TURN":
       return endTurn(state);
+    case "UNDO_LAST_REVERSIBLE_ACTION":
+      return undoLastReversibleAction(state, action.playerId);
   }
+}
+
+function withUndoSnapshot(before: MatchState, after: MatchState, action: Action, outcomes: ReturnType<typeof buildEffectOutcomes>): MatchState {
+  if (action.type === "END_TURN" || action.type === "ADVANCE_PHASE" || action.type === "RECYCLE") {
+    return withoutUndo(after);
+  }
+  if (action.type !== "PLAY_CARD" || action.payload.reactionCardInstanceId || outcomes.some((outcome) => outcome.code === "CARD_DRAWN")) {
+    return withoutUndo(after);
+  }
+  const definition = getCardDefinition(before.cardsByInstanceId[action.payload.cardInstanceId].definitionId);
+  if (definition.category !== "Animal" && definition.category !== "Support") {
+    return withoutUndo(after);
+  }
+  const snapshot = withoutUndo(before);
+  return {
+    ...after,
+    undoSnapshot: {
+      state: snapshot,
+      actor: action.playerId,
+      summary: `${definition.category === "Animal" ? "ลง" : "แนบ"} ${definition.name_th}`
+    }
+  };
+}
+
+function withoutUndo(state: MatchState): Omit<MatchState, "undoSnapshot"> {
+  const copy = { ...state };
+  delete copy.undoSnapshot;
+  return copy;
+}
+
+function undoLastReversibleAction(state: MatchState, playerId: PlayerId): MatchState {
+  const undo = state.undoSnapshot;
+  if (!undo) return state;
+  const entry: ActionLogEntry = {
+    seq: state.actionLog.length + 1,
+    action: { type: "UNDO_LAST_REVERSIBLE_ACTION", playerId, payload: {} },
+    phase: state.phase,
+    turnNumber: state.turnNumber,
+    actor: playerId,
+    validation: { valid: true },
+    result: `ผู้เล่นย้อนกลับการกระทำ: ${undo.summary}`,
+    rng: state.rng,
+    timestamp: Date.now()
+  };
+  return {
+    ...undo.state,
+    actionLog: [...state.actionLog, entry]
+  };
 }
 
 export function advancePhase(state: MatchState): MatchState {

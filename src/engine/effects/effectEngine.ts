@@ -183,16 +183,16 @@ export function calculateScorePhase(state: MatchState, playerId: PlayerId): Matc
 }
 
 function resolveAnimalOnPlay(state: MatchState, action: Extract<Action, { type: "PLAY_CARD" }>): MatchState {
-  return playAnimalToBoard(state, action.playerId, action.payload.cardInstanceId);
+  return playAnimalToBoard(state, action.playerId, action.payload.cardInstanceId, action.payload.target?.slotNo);
 }
 
 function resolveBirdPeek(state: MatchState, action: Extract<Action, { type: "PLAY_CARD" }>): MatchState {
-  const withBird = playAnimalToBoard(state, action.playerId, action.payload.cardInstanceId);
+  const withBird = playAnimalToBoard(state, action.playerId, action.payload.cardInstanceId, action.payload.target?.slotNo);
   return maybeMoveDeckTopToBottom(withBird, action.playerId, Boolean(action.payload.moveTopCardToBottom));
 }
 
 function resolveMonkeyReturnSupport(state: MatchState, action: Extract<Action, { type: "PLAY_CARD" }>): MatchState {
-  let nextState = playAnimalToBoard(state, action.playerId, action.payload.cardInstanceId);
+  let nextState = playAnimalToBoard(state, action.playerId, action.payload.cardInstanceId, action.payload.target?.slotNo);
   const selectedSupportId = action.payload.selectedSupportInstanceId;
 
   /* v8 ignore next -- optional Monkey choice is validated by UI in later phases. */
@@ -509,9 +509,11 @@ function getTargetAnimal(state: MatchState, target: Target | undefined): AnimalI
   return animal;
 }
 
-function playAnimalToBoard(state: MatchState, playerId: PlayerId, cardInstanceId: string): MatchState {
+function playAnimalToBoard(state: MatchState, playerId: PlayerId, cardInstanceId: string, preferredSlotNo?: 1 | 2 | 3): MatchState {
   const player = state.players[playerId];
-  const slotIndex = player.board.findIndex((slot) => slot === null);
+  const slotIndex = preferredSlotNo && player.board[preferredSlotNo - 1] === null
+    ? preferredSlotNo - 1
+    : player.board.findIndex((slot) => slot === null);
   return playAnimalToSpecificSlot(state, playerId, cardInstanceId, (slotIndex + 1) as 1 | 2 | 3);
 }
 

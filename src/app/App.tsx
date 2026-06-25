@@ -25,7 +25,7 @@ import {
 } from "../persistence/localStorageAdapter";
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
-import { formatActionLogEntry, renderCombatOutcomeLines, renderOutcomeLines, statusLabel } from "../ui/effectFeedback";
+import { formatActionLogEntry, renderCombatOutcomeLines, statusLabel } from "../ui/effectFeedback";
 import {
   buildPlaytestFeedbackPayload,
   humanFeedbackFilename,
@@ -72,6 +72,8 @@ export function App() {
   const [playtestFeedbackOpen, setPlaytestFeedbackOpen] = useState(false);
   const [playtestError, setPlaytestError] = useState<string | null>(null);
   const [effectFeedback, setEffectFeedback] = useState<string[] | null>(null);
+  const [pendingAnimalSlot, setPendingAnimalSlot] = useState<Target | null>(null);
+  const [endTurnConfirmOpen, setEndTurnConfirmOpen] = useState(false);
   const lastFeedbackExportRef = useRef<string | null>(null);
   const aiExecutionRef = useRef<string | null>(null);
   const humanTurnPrepRef = useRef<string | null>(null);
@@ -401,9 +403,13 @@ export function App() {
 
   function recycleSelected() {
     if (!match || !selectedCardId) {
-      setMessage("เลือกการ์ดในมือก่อนใช้ Recycle");
+      const reason = "ต้องเลือกการ์ดในมือก่อน Recycle";
+      setMessage(reason);
+      setEffectFeedback(["รีไซเคิลไม่สำเร็จ", reason]);
       return;
     }
+    const before = match;
+    const recycledName = getCardDefinition(before.cardsByInstanceId[selectedCardId].definitionId).name_th;
 
     const result = coordinator.dispatch({
       type: "RECYCLE",
@@ -414,9 +420,20 @@ export function App() {
     setMatch(result.state);
     setSelectedCardId(null);
     if (!result.validation.valid) {
-      setMessage(result.validation.errors.join(", "));
+      const reason = result.validation.errors.map(translateValidationReason).join(", ");
+      setMessage(reason);
+      setEffectFeedback(["รีไซเคิลไม่สำเร็จ", reason]);
     } else {
       setMessage("Recycle สำเร็จ: ทิ้ง 1 ใบ แล้วจั่ว 1 ใบ");
+      const drawnId = result.state.players[match.currentPlayerId].hand.find((id) => !before.players[match.currentPlayerId].hand.includes(id));
+      const drawnName = drawnId ? getCardDefinition(result.state.cardsByInstanceId[drawnId].definitionId).name_th : "การ์ดใหม่";
+      setEffectFeedback([
+        "รีไซเคิลสำเร็จ",
+        `ส่ง ${recycledName} จากมือไปสุสาน`,
+        `จั่ว ${drawnName} ขึ้นมือ`,
+        `กองจั่วเหลือ ${result.state.players[match.currentPlayerId].deck.length} ใบ`,
+        "ใช้ Recycle ของเทิร์นนี้แล้ว"
+      ]);
     }
 
     const sr2 = result.storageResult;
@@ -429,17 +446,19 @@ export function App() {
     if (!match || !selectedCardId) {
       return;
     }
+    playCardFromHand(selectedCardId, target);
+  }
 
-    const card = match.cardsByInstanceId[selectedCardId];
-    const definition = getCardDefinition(card.definitionId);
-
-    if (isImportantCard(definition) && !window.confirm(`ยืนยันการเล่น ${definition.name_th}?`)) {
-      setMessage("ยกเลิกการเล่นการ์ด");
+  function playCardFromHand(cardInstanceId: string, target?: Target) {
+    if (!match) {
       return;
     }
 
+    const card = match.cardsByInstanceId[cardInstanceId];
+    const definition = getCardDefinition(card.definitionId);
+
     const payload: Extract<Action, { type: "PLAY_CARD" }>["payload"] = {
-      cardInstanceId: selectedCardId,
+      cardInstanceId,
       target
     };
 
@@ -454,7 +473,7 @@ export function App() {
 
     if (definition.card_id === "X003") {
       const replacement = match.players[match.currentPlayerId].hand.find((id) => {
-        if (id === selectedCardId) {
+        if (id === cardInstanceId) {
           return false;
         }
         return getCardDefinition(match.cardsByInstanceId[id].definitionId).category === "Animal";
@@ -466,7 +485,7 @@ export function App() {
       payload.selectedSupportInstanceId = findOwnAttachedSupport(match, match.currentPlayerId);
     }
 
-    payload.bottomCardInstanceId = match.players[match.currentPlayerId].hand.find((id) => id !== selectedCardId);
+    payload.bottomCardInstanceId = match.players[match.currentPlayerId].hand.find((id) => id !== cardInstanceId);
 
     const result = coordinator.dispatch({
       type: "PLAY_CARD",
@@ -476,11 +495,14 @@ export function App() {
 
     setMatch(result.state);
     setSelectedCardId(null);
+    setPendingAnimalSlot(null);
     if (!result.validation.valid) {
-      setMessage(result.validation.errors.join(", "));
+      const reason = result.validation.errors.map(translateValidationReason).join(", ");
+      setMessage(reason);
+      setEffectFeedback([`ใช้ ${definition.name_th} ไม่สำเร็จ`, reason]);
     } else {
       setMessage(`${definition.name_th} สำเร็จ`);
-      setEffectFeedback(renderOutcomeLines(result.state, result.state.actionLog[result.state.actionLog.length - 1]?.outcomes));
+      setEffectFeedback(renderCombatOutcomeLines(result.state, result.state.actionLog[result.state.actionLog.length - 1]));
       if (result.state.status === "FINISHED") {
         setScreen("result");
       }
@@ -490,6 +512,30 @@ export function App() {
     if (!sr3.ok) {
       setMessage((prev) => `${prev} (บันทึกเซฟล้มเหลว: ${storageErrorMessage(sr3.error)})`);
     }
+  }
+
+  function selectCard(id: string) {
+    if (match && pendingAnimalSlot) {
+      const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
+      if (definition.category === "Animal") {
+        playCardFromHand(id, pendingAnimalSlot);
+        return;
+      }
+    }
+    setSelectedCardId(id);
+  }
+
+  function requestEndTurn() {
+    setEndTurnConfirmOpen(true);
+  }
+
+  function undoLastAction() {
+    if (!match) return;
+    const result = coordinator.dispatch({ type: "UNDO_LAST_REVERSIBLE_ACTION", playerId: match.currentPlayerId, payload: {} }, Date.now());
+    setMatch(result.state);
+    const text = result.validation.valid ? "ย้อนกลับสำเร็จ" : result.validation.errors.map(translateValidationReason).join(", ");
+    setMessage(text);
+    setEffectFeedback([text, result.state.actionLog[result.state.actionLog.length - 1]?.result ?? ""]);
   }
 
   const selectedDefinition = useMemo(() => {
@@ -572,10 +618,19 @@ export function App() {
         selectedDefinition={selectedDefinition}
         message={message}
         modal={modal}
-        onSelectCard={setSelectedCardId}
+        onSelectCard={selectCard}
         onPlaySelected={playSelected}
+        onSelectEmptySlot={(target) => {
+          if (selectedDefinition?.category === "Animal") {
+            playSelected(target);
+          } else {
+            setPendingAnimalSlot(target);
+            setMessage("เลือก Animal จากมือเพื่อลงช่องนี้");
+          }
+        }}
         onRecycle={recycleSelected}
-        onEndTurn={endTurn}
+        onEndTurn={requestEndTurn}
+        onUndo={undoLastAction}
         onOpenCard={(card) => setModal({ type: "card", card })}
         onOpenGraveyard={(playerId) => setModal({ type: "graveyard", playerId })}
         onCloseModal={() => setModal(null)}
@@ -583,6 +638,12 @@ export function App() {
         controlsDisabled={(match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2") || match.phase !== "ACTION"}
         effectFeedback={effectFeedback}
         onDismissFeedback={() => setEffectFeedback(null)}
+        endTurnConfirmOpen={endTurnConfirmOpen}
+        onCancelEndTurn={() => setEndTurnConfirmOpen(false)}
+        onConfirmEndTurn={() => {
+          setEndTurnConfirmOpen(false);
+          endTurn();
+        }}
       />
     );
   }
@@ -732,8 +793,10 @@ function BattleScreen(props: {
   modal: ModalState;
   onSelectCard: (id: string) => void;
   onPlaySelected: (target?: Target) => void;
+  onSelectEmptySlot: (target: Target) => void;
   onRecycle: () => void;
   onEndTurn: () => void;
+  onUndo: () => void;
   onOpenCard: (card: CardDefinition) => void;
   onOpenGraveyard: (playerId: PlayerId) => void;
   onCloseModal: () => void;
@@ -741,6 +804,9 @@ function BattleScreen(props: {
   controlsDisabled?: boolean;
   effectFeedback: string[] | null;
   onDismissFeedback: () => void;
+  endTurnConfirmOpen: boolean;
+  onCancelEndTurn: () => void;
+  onConfirmEndTurn: () => void;
 }) {
   const { match, activePlayerId, opponentId, selectedCardId, selectedDefinition } = props;
   const controlsDisabled = Boolean(props.controlsDisabled);
@@ -783,9 +849,9 @@ function BattleScreen(props: {
         {isPreparingHumanTurn && <div className="ai-banner" role="status" aria-live="polite">กำลังจั่วและคิดคะแนน...</div>}
         <HiddenHand count={match.players[opponentId].hand.length} />
         <div className="zone-label">มือคู่ต่อสู้</div>
-        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onOpenGraveyard={props.onOpenGraveyard} />
+        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} />
         <div className="divider" />
-        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onOpenGraveyard={props.onOpenGraveyard} />
+        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} />
         <div className="zone-label">Animal Zone ของคุณ — คะแนน {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
         <div className="player-hand" aria-label="มือผู้เล่นปัจจุบัน" tabIndex={0}>
           {match.players[activePlayerId].hand.map((id) => {
@@ -817,6 +883,7 @@ function BattleScreen(props: {
           <button type="button" className="secondary-button" onClick={() => props.onOpenGraveyard(activePlayerId)}>ดูสุสาน</button>
           <button type="button" className="secondary-button" onClick={() => selectedDefinition && props.onOpenCard(selectedDefinition)} disabled={!selectedDefinition}>รายละเอียด</button>
           <button type="button" className="secondary-button" onClick={props.onResetMatch}>รีเซ็ตเกม</button>
+          <button type="button" className="secondary-button" onClick={props.onUndo} disabled={!match.undoSnapshot}>ย้อนกลับ</button>
           <button type="button" className="danger-button" onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")}>จบเทิร์น</button>
         </div>
         {selectedDefinition && (
@@ -839,6 +906,18 @@ function BattleScreen(props: {
           <button type="button" className="secondary-button" onClick={props.onDismissFeedback}>ปิด</button>
         </section>
       )}
+      {props.endTurnConfirmOpen && (
+        <section className="action-modal" role="dialog" aria-modal="true" aria-label="ยืนยันจบเทิร์น">
+          <div className="action-modal-panel">
+            <strong>จบเทิร์นหรือไม่</strong>
+            <p>ตรวจสอบการ์ดที่ยังใช้ได้, Recycle และ Undo ก่อนจบเทิร์น</p>
+            <div className="modal-actions">
+              <button type="button" className="danger-button" onClick={props.onConfirmEndTurn}>จบเทิร์น</button>
+              <button type="button" className="secondary-button" onClick={props.onCancelEndTurn}>เล่นต่อ</button>
+            </div>
+          </div>
+        </section>
+      )}
       <Modal modal={props.modal} match={match} onClose={props.onCloseModal} />
     </main>
   );
@@ -850,6 +929,7 @@ function BoardRow({
   viewerId,
   selectedDefinition,
   onTarget,
+  onSelectEmptySlot,
   onOpenGraveyard
 }: {
   match: MatchState;
@@ -857,6 +937,7 @@ function BoardRow({
   viewerId: PlayerId;
   selectedDefinition: CardDefinition | null;
   onTarget: (target?: Target) => void;
+  onSelectEmptySlot: (target: Target) => void;
   onOpenGraveyard: (playerId: PlayerId) => void;
 }) {
   const player = match.players[ownerId];
@@ -866,7 +947,11 @@ function BoardRow({
       <div className="animal-zone">
         {player.board.map((instanceId, index) => {
           if (!instanceId) {
-            return <div key={index} className="slot" aria-label={`ช่อง Animal ${index + 1}`}>สัตว์ {index + 1}</div>;
+            const slotNo = (index + 1) as 1 | 2 | 3;
+            const canPlace = ownerId === viewerId && (!selectedDefinition || selectedDefinition.category === "Animal");
+            return canPlace
+              ? <button key={index} type="button" className={`slot empty-slot ${selectedDefinition?.category === "Animal" ? "targetable" : ""}`} aria-label={`ช่อง Animal ${index + 1} ว่าง`} onClick={() => onSelectEmptySlot({ playerId: ownerId, zone: "BOARD", slotNo })}>สัตว์ {index + 1}</button>
+              : <div key={index} className="slot" aria-label={`ช่อง Animal ${index + 1}`}>สัตว์ {index + 1}</div>;
           }
           const animal = match.cardsByInstanceId[instanceId];
           if (!isAnimalInstance(animal)) {
@@ -1190,10 +1275,6 @@ function canTarget(card: CardDefinition, ownerId: PlayerId, viewerId: PlayerId, 
     return ownerId !== viewerId && level === 1;
   }
   return false;
-}
-
-function isImportantCard(card: CardDefinition): boolean {
-  return card.category === "Weakness" || ["X003", "X004", "X005"].includes(card.card_id);
 }
 
 function findHandCard(match: MatchState, playerId: PlayerId, definitionId: string): string | undefined {
