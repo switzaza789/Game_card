@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createMatch } from "../engine/state/match";
@@ -134,7 +134,14 @@ describe("App Phase 4 UI", () => {
     expect(screen.getByText(/AI Turn/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "จบเทิร์น" })).toBeDisabled();
 
-    expect(await screen.findByText(/ถึงตาคุณ|เกมจบแล้ว/, undefined, { timeout: 1500 })).toBeInTheDocument();
+    expect(await screen.findByText(/ถึงตาคุณ/, undefined, { timeout: 1500 })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "จบเทิร์น" })).not.toBeDisabled());
+    expect(screen.getByText((_content, element) => element?.textContent === "TURN 2 — เล่นการ์ด")).toBeInTheDocument();
+
+    await user.click(findFirstHandCardByCategory("สัตว์"));
+    await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
+    expect(screen.getByText(/สำเร็จ/)).toBeInTheDocument();
+    expect(screen.queryByText(/PLAY_CARD is only valid during ACTION phase/)).not.toBeInTheDocument();
   }, 10000);
 
   it("uses Recycle successfully after the first turn", async () => {
