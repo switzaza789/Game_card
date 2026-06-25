@@ -3,20 +3,44 @@
   "generatedAt": "2026-06-25T00:00:00.000+07:00",
   "testerType": "AUTOMATED_AGENT",
   "applicationVersion": "v0.3.0-prototype",
-  "commitHash": "38e739c51486be25e7183912a40588055a45e1f2",
+  "commitHash": "test-hash",
   "totalMatches": 10,
   "completedMatches": 10,
   "failedMatches": 0,
   "targetScoreFinishes": 10,
   "turnLimitFinishes": 0,
   "stuckMatches": 0,
-  "P1Wins": 8,
-  "P2Wins": 2,
+  "P1Wins": 9,
+  "P2Wins": 1,
   "draws": 0,
   "averageTurns": 6.8,
   "medianTurns": 7,
-  "averageDurationMs": 68700,
+  "averageDurationMs": 68200,
   "averageRecycleCount": 2,
+  "totalLevel3Evolutions": 14,
+  "averageEvolutionsPerMatch": 1.4,
+  "evolutionTurns": [
+    4,
+    5,
+    6,
+    5,
+    4,
+    6,
+    5,
+    6,
+    4,
+    5,
+    6,
+    5,
+    5,
+    7
+  ],
+  "cardsMostFrequentlyReachingLevel3": {
+    "A001": 7,
+    "A003": 5,
+    "A002": 2
+  },
+  "matchesEndingBeforeAnyEvolution": 3,
   "totalCardUsage": {
     "S001": 14,
     "S003": 10,
@@ -30,7 +54,7 @@
     "S005": 5,
     "W002": 6,
     "W004": 4,
-    "X003": 4,
+    "X003": 3,
     "A005": 1,
     "A006": 7,
     "W001": 6,
@@ -42,10 +66,10 @@
     "X001": 2
   },
   "scoreContribution": {
-    "A001": 90,
-    "A002": 72,
-    "A003": 63,
-    "A004": 20,
+    "A001": 96,
+    "A002": 74,
+    "A003": 62,
+    "A004": 18,
     "A005": 8,
     "A006": 13,
     "A007": 7,
@@ -55,7 +79,7 @@
   "bugs": [],
   "objectiveObservations": [
     "Preliminary usage signal: A001 20, A002 18, A003 17.",
-    "Preliminary score-contribution signal: A001 90, A002 72, A003 63; requires human verification."
+    "Preliminary score-contribution signal: A001 96, A002 74, A003 62; requires human verification."
   ],
   "seeds": [
     "automated-playtest-001",
@@ -127,6 +151,16 @@
         "Food Thief": 0
       },
       "recycleCount": 2,
+      "level3Evolutions": 3,
+      "evolutionTurns": [
+        4,
+        5,
+        6
+      ],
+      "cardsReachingLevel3": {
+        "A001": 2,
+        "A003": 1
+      },
       "animalsSentToGraveyard": {
         "A004": 1,
         "A003": 1
@@ -134,7 +168,7 @@
       "animalsReturnedToHand": {},
       "voluntarySwaps": {},
       "scoreContributionByCard": {
-        "A001": 14,
+        "A001": 16,
         "A002": 8,
         "A003": 5,
         "A004": 2
@@ -142,7 +176,7 @@
       "highestScoringCard": {
         "cardId": "A001",
         "nameTh": "สุนัขจอมซน",
-        "score": 9,
+        "score": 11,
         "ownerId": "P1"
       },
       "noUsefulLegalActionTurns": 10,
@@ -214,6 +248,13 @@
         "Food Thief": 0
       },
       "recycleCount": 2,
+      "level3Evolutions": 1,
+      "evolutionTurns": [
+        5
+      ],
+      "cardsReachingLevel3": {
+        "A003": 1
+      },
       "animalsSentToGraveyard": {
         "A008": 1,
         "A002": 1,
@@ -226,16 +267,16 @@
       "scoreContributionByCard": {
         "A001": 5,
         "A002": 5,
-        "A003": 9,
+        "A003": 10,
         "A004": 1,
         "A005": 3,
         "A006": 2
       },
       "highestScoringCard": {
-        "cardId": "A001",
-        "nameTh": "สุนัขจอมซน",
-        "score": 5,
-        "ownerId": "P1"
+        "cardId": "A003",
+        "nameTh": "กระต่ายว่องไว",
+        "score": 6,
+        "ownerId": "P2"
       },
       "noUsefulLegalActionTurns": 12,
       "onlyRecycleOrEndTurnTurns": 12,
@@ -308,6 +349,9 @@
         "Food Thief": 0
       },
       "recycleCount": 3,
+      "level3Evolutions": 0,
+      "evolutionTurns": [],
+      "cardsReachingLevel3": {},
       "animalsSentToGraveyard": {
         "A005": 1,
         "A004": 1,
@@ -398,6 +442,15 @@
         "Food Thief": 1
       },
       "recycleCount": 2,
+      "level3Evolutions": 2,
+      "evolutionTurns": [
+        4,
+        6
+      ],
+      "cardsReachingLevel3": {
+        "A001": 1,
+        "A003": 1
+      },
       "animalsSentToGraveyard": {
         "A007": 1,
         "A002": 1,
@@ -406,7 +459,7 @@
       "animalsReturnedToHand": {},
       "voluntarySwaps": {},
       "scoreContributionByCard": {
-        "A001": 13,
+        "A001": 15,
         "A002": 5,
         "A003": 7,
         "X005": 1
@@ -414,7 +467,7 @@
       "highestScoringCard": {
         "cardId": "A001",
         "nameTh": "สุนัขจอมซน",
-        "score": 9,
+        "score": 11,
         "ownerId": "P1"
       },
       "noUsefulLegalActionTurns": 10,
@@ -480,6 +533,15 @@
         "Food Thief": 0
       },
       "recycleCount": 2,
+      "level3Evolutions": 2,
+      "evolutionTurns": [
+        5,
+        6
+      ],
+      "cardsReachingLevel3": {
+        "A001": 1,
+        "A003": 1
+      },
       "animalsSentToGraveyard": {
         "A005": 2
       },
@@ -560,20 +622,31 @@
         "Food Thief": 0
       },
       "recycleCount": 1,
+      "level3Evolutions": 3,
+      "evolutionTurns": [
+        4,
+        5,
+        6
+      ],
+      "cardsReachingLevel3": {
+        "A001": 1,
+        "A002": 1,
+        "A003": 1
+      },
       "animalsSentToGraveyard": {
         "A006": 1
       },
       "animalsReturnedToHand": {},
       "voluntarySwaps": {},
       "scoreContributionByCard": {
-        "A001": 13,
+        "A001": 15,
         "A002": 9,
         "A003": 7
       },
       "highestScoringCard": {
         "cardId": "A001",
         "nameTh": "สุนัขจอมซน",
-        "score": 9,
+        "score": 11,
         "ownerId": "P1"
       },
       "noUsefulLegalActionTurns": 10,
@@ -592,13 +665,13 @@
       "completed": true,
       "failed": false,
       "stuck": false,
-      "winner": "P2",
+      "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 7,
-      "acceptedActions": 76,
+      "acceptedActions": 71,
       "rejectedActionCount": 0,
       "repeatedRejectedActionReason": {},
-      "durationMs": 76000,
+      "durationMs": 71000,
       "animalsPlayed": {
         "P1": {
           "A001": 2,
@@ -636,17 +709,23 @@
       },
       "specialCardsUsed": {
         "X004": 1,
-        "X001": 1,
-        "X003": 1
+        "X001": 1
       },
       "namedSpecialUses": {
         "Lullaby": 1,
         "Weakness Shield": 0,
-        "Quick Swap": 1,
+        "Quick Swap": 0,
         "Strong Wind": 1,
         "Food Thief": 0
       },
       "recycleCount": 1,
+      "level3Evolutions": 1,
+      "evolutionTurns": [
+        5
+      ],
+      "cardsReachingLevel3": {
+        "A002": 1
+      },
       "animalsSentToGraveyard": {
         "A004": 1,
         "A002": 1
@@ -654,23 +733,20 @@
       "animalsReturnedToHand": {
         "A001": 1
       },
-      "voluntarySwaps": {
-        "A001": 1
-      },
+      "voluntarySwaps": {},
       "scoreContributionByCard": {
-        "A002": 12,
-        "A003": 9,
-        "A001": 7,
-        "A004": 2
+        "A002": 14,
+        "A003": 7,
+        "A001": 6
       },
       "highestScoringCard": {
         "cardId": "A002",
         "nameTh": "แมวขี้สงสัย",
-        "score": 9,
+        "score": 11,
         "ownerId": "P1"
       },
-      "noUsefulLegalActionTurns": 13,
-      "onlyRecycleOrEndTurnTurns": 13,
+      "noUsefulLegalActionTurns": 12,
+      "onlyRecycleOrEndTurnTurns": 12,
       "persistenceScenario": "history save failure leaves active save recoverable",
       "persistenceResult": "PASS",
       "bugs": []
@@ -737,6 +813,14 @@
         "Food Thief": 0
       },
       "recycleCount": 2,
+      "level3Evolutions": 2,
+      "evolutionTurns": [
+        5,
+        7
+      ],
+      "cardsReachingLevel3": {
+        "A001": 2
+      },
       "animalsSentToGraveyard": {
         "A004": 1,
         "A005": 1,
@@ -747,7 +831,7 @@
       },
       "voluntarySwaps": {},
       "scoreContributionByCard": {
-        "A001": 14,
+        "A001": 15,
         "A002": 9,
         "A003": 4,
         "A006": 1
@@ -755,7 +839,7 @@
       "highestScoringCard": {
         "cardId": "A001",
         "nameTh": "สุนัขจอมซน",
-        "score": 7,
+        "score": 8,
         "ownerId": "P2"
       },
       "noUsefulLegalActionTurns": 12,
@@ -822,6 +906,9 @@
         "Food Thief": 0
       },
       "recycleCount": 3,
+      "level3Evolutions": 0,
+      "evolutionTurns": [],
+      "cardsReachingLevel3": {},
       "animalsSentToGraveyard": {
         "A003": 2,
         "A006": 1
@@ -912,6 +999,9 @@
         "Food Thief": 1
       },
       "recycleCount": 2,
+      "level3Evolutions": 0,
+      "evolutionTurns": [],
+      "cardsReachingLevel3": {},
       "animalsSentToGraveyard": {
         "A004": 1,
         "A005": 1

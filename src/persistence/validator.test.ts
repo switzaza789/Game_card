@@ -131,6 +131,7 @@ describe("validator — validateStoredMatch", () => {
           ...animal,
           zone: "BOARD",
           level: 1,
+          evolutionPoints: 0,
           slotNo: 1,
           enteredTurn: 1,
           attachedSupportIds: [support.instanceId],
@@ -148,5 +149,44 @@ describe("validator — validateStoredMatch", () => {
     const result = validateStoredMatch({ ...payload, state });
 
     expect(result.ok).toBe(true);
+  });
+
+  it("defaults old saved board Animals without evolutionPoints to zero", () => {
+    const payload = makeValidPayload();
+    const animalId = payload.state.players.P1.hand.find((id) => getCardDefinition(payload.state.cardsByInstanceId[id].definitionId).category === "Animal");
+    if (!animalId) throw new Error("Fixture needs P1 Animal");
+    const animal = payload.state.cardsByInstanceId[animalId];
+    const oldAnimal = {
+      ...animal,
+      zone: "BOARD" as const,
+      level: 2 as const,
+      slotNo: 1 as const,
+      enteredTurn: 1,
+      attachedSupportIds: [],
+      statuses: [],
+      onceFlags: []
+    };
+    const state = {
+      ...payload.state,
+      players: {
+        ...payload.state.players,
+        P1: {
+          ...payload.state.players.P1,
+          hand: payload.state.players.P1.hand.filter((id) => id !== animalId),
+          board: [animalId, null, null]
+        }
+      },
+      cardsByInstanceId: {
+        ...payload.state.cardsByInstanceId,
+        [animalId]: oldAnimal
+      }
+    };
+
+    const result = validateStoredMatch({ ...payload, state });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const restored = result.value.state.cardsByInstanceId[animalId];
+      expect("evolutionPoints" in restored ? restored.evolutionPoints : undefined).toBe(0);
+    }
   });
 });

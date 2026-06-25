@@ -53,6 +53,28 @@ describe("Normal PvE AI", () => {
     expect(validateAction(state, decision.action).valid).toBe(true);
   });
 
+  it("values protecting and disrupting Animals close to Level 3 evolution", () => {
+    let protectState = p2ActionState("ai-evolution-protect");
+    protectState = forceBoardAnimal(protectState, "P2", "A001", 2, 1);
+    protectState = forceToHand(protectState, "P2", "S001");
+    protectState = { ...protectState, players: { ...protectState.players, P2: { ...protectState.players.P2, animalActionUsed: true, utilityActionUsed: false } } };
+    const protect = chooseNormalAiAction({ state: protectState, playerId: "P2" });
+    expect(protect?.action.type).toBe("PLAY_CARD");
+    if (protect?.action.type !== "PLAY_CARD") throw new Error("expected play");
+    expect(protect.action.payload.cardInstanceId).toBe("P2-S001-1");
+    expect(protect.action.payload.target?.instanceId).toBe("P2-A001-1");
+
+    let disruptState = p2ActionState("ai-evolution-disrupt");
+    disruptState = forceBoardAnimal(disruptState, "P1", "A001", 2, 1);
+    disruptState = forceToHand(disruptState, "P2", "W001");
+    disruptState = { ...disruptState, players: { ...disruptState.players, P2: { ...disruptState.players.P2, animalActionUsed: true, utilityActionUsed: false } } };
+    const disrupt = chooseNormalAiAction({ state: disruptState, playerId: "P2" });
+    expect(disrupt?.action.type).toBe("PLAY_CARD");
+    if (disrupt?.action.type !== "PLAY_CARD") throw new Error("expected play");
+    expect(disrupt.action.payload.cardInstanceId).toBe("P2-W001-1");
+    expect(disrupt.action.payload.target?.instanceId).toBe("P1-A001-1");
+  });
+
   it("recycles when no useful legal action exists and ends when no legal action exists", () => {
     let state = p2ActionState("ai-recycle");
     state = {
@@ -112,6 +134,42 @@ function forceToHand(state: MatchState, playerId: PlayerId, definitionId: string
     cardsByInstanceId: {
       ...state.cardsByInstanceId,
       [instanceId]: { ...card, zone: "HAND" }
+    }
+  };
+}
+
+function forceBoardAnimal(
+  state: MatchState,
+  playerId: PlayerId,
+  definitionId: string,
+  level: 1 | 2 | 3,
+  evolutionPoints: 0 | 1 | 2
+): MatchState {
+  const withHand = forceToHand(state, playerId, definitionId);
+  const instanceId = `${playerId}-${definitionId}-1`;
+  return {
+    ...withHand,
+    players: {
+      ...withHand.players,
+      [playerId]: {
+        ...withHand.players[playerId],
+        hand: withHand.players[playerId].hand.filter((id) => id !== instanceId),
+        board: [instanceId, ...withHand.players[playerId].board.slice(1)]
+      }
+    },
+    cardsByInstanceId: {
+      ...withHand.cardsByInstanceId,
+      [instanceId]: {
+        ...withHand.cardsByInstanceId[instanceId],
+        zone: "BOARD",
+        level,
+        evolutionPoints,
+        slotNo: 1,
+        enteredTurn: 1,
+        attachedSupportIds: [],
+        statuses: [],
+        onceFlags: []
+      }
     }
   };
 }

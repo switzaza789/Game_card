@@ -18,7 +18,7 @@ This was automated synthetic playtesting, not human playtesting. No human opinio
 | 4 | automated-playtest-004 | P1 | TARGET_SCORE | 6 | 2 | PASS | 0 |
 | 5 | automated-playtest-005 | P1 | TARGET_SCORE | 6 | 2 | PASS | 0 |
 | 6 | automated-playtest-006 | P1 | TARGET_SCORE | 6 | 1 | PASS | 0 |
-| 7 | automated-playtest-007 | P2 | TARGET_SCORE | 7 | 1 | PASS | 0 |
+| 7 | automated-playtest-007 | P1 | TARGET_SCORE | 7 | 1 | PASS | 0 |
 | 8 | automated-playtest-008 | P1 | TARGET_SCORE | 7 | 2 | PASS | 0 |
 | 9 | automated-playtest-009 | P1 | TARGET_SCORE | 8 | 3 | PASS | 0 |
 | 10 | automated-playtest-010 | P2 | TARGET_SCORE | 7 | 2 | PASS | 0 |
@@ -26,12 +26,12 @@ This was automated synthetic playtesting, not human playtesting. No human opinio
 ## 4. Aggregate statistics
 
 - Completed matches: 10/10
-- P1 win rate: 80%
-- P2 win rate: 20%
+- P1 win rate: 90%
+- P2 win rate: 10%
 - Draw rate: 0%
 - Average turns: 6.8
 - Median turns: 7
-- Average deterministic duration: 68700 ms
+- Average deterministic duration: 68200 ms
 
 ## 5. Card usage frequency
 
@@ -52,7 +52,7 @@ This was automated synthetic playtesting, not human playtesting. No human opinio
 | Premium Seeds | S005 | 5 |
 | Ground Trap | W003 | 5 |
 | Bird Cage | W004 | 4 |
-| Quick Swap | X003 | 4 |
+| Quick Swap | X003 | 3 |
 | Strong Wind | X004 | 3 |
 | Armored Turtle | A007 | 2 |
 | Special Fish Food | S006 | 2 |
@@ -62,10 +62,10 @@ This was automated synthetic playtesting, not human playtesting. No human opinio
 
 | Card | ID | Score contribution |
 | --- | --- | ---: |
-| Playful Dog | A001 | 90 |
-| Curious Cat | A002 | 72 |
-| Swift Rabbit | A003 | 63 |
-| Gentle Bear | A004 | 20 |
+| Playful Dog | A001 | 96 |
+| Curious Cat | A002 | 74 |
+| Swift Rabbit | A003 | 62 |
+| Gentle Bear | A004 | 18 |
 | Energetic Fish | A006 | 13 |
 | Messenger Bird | A005 | 8 |
 | Armored Turtle | A007 | 7 |
@@ -79,14 +79,27 @@ This was automated synthetic playtesting, not human playtesting. No human opinio
 
 ## 8. P1/P2 result distribution
 
-- P1 wins: 8
-- P2 wins: 2
+- P1 wins: 9
+- P2 wins: 1
 - Draws: 0
 
 ## 9. Recycle usage
 
 - Average recycle count: 2
 - Total recycle count: 20
+
+## 9.1 Evolution usage
+
+- Level 3 evolutions: 14
+- Average evolutions per match: 1.4
+- Evolution turns: 4, 5, 6, 5, 4, 6, 5, 6, 4, 5, 6, 5, 5, 7
+- Matches ending before any evolution: 3
+
+| Card | ID | Level 3 evolutions |
+| --- | --- | ---: |
+| Playful Dog | A001 | 7 |
+| Swift Rabbit | A003 | 5 |
+| Curious Cat | A002 | 2 |
 
 ## 10. Stuck-state analysis
 
@@ -120,7 +133,7 @@ No repeated rejected-action pattern was recorded.
 ## 14. Repeated objective anomalies
 
 - Preliminary usage signal: A001 20, A002 18, A003 17.
-- Preliminary score-contribution signal: A001 90, A002 72, A003 63; requires human verification.
+- Preliminary score-contribution signal: A001 96, A002 74, A003 62; requires human verification.
 
 ## 15. Potential balance signals requiring human verification
 

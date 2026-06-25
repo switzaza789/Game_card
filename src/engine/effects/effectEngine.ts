@@ -129,6 +129,7 @@ export function calculateScorePhase(state: MatchState, playerId: PlayerId): Matc
     }
 
     let animalScore: number = freshAnimal.level;
+    const scoreLevel = freshAnimal.level;
 
     if (hasStatus(freshAnimal, "SKIP_NEXT_SCORE")) {
       animalScore = 0;
@@ -157,6 +158,14 @@ export function calculateScorePhase(state: MatchState, playerId: PlayerId): Matc
     }
 
     scoreGain += animalScore;
+
+    if (scoreLevel === 2 && animalScore > 0) {
+      const nextPoints = Math.min(2, (freshAnimal.evolutionPoints ?? 0) + 1) as 0 | 1 | 2;
+      nextState = updateAnimal(nextState, freshAnimal.instanceId, {
+        evolutionPoints: nextPoints,
+        level: nextPoints >= 2 ? 3 : freshAnimal.level
+      });
+    }
   }
 
   nextState = {
@@ -521,6 +530,7 @@ function playAnimalToSpecificSlot(
     ...card,
     zone: "BOARD",
     level: 1,
+    evolutionPoints: 0,
     slotNo,
     enteredTurn: state.turnNumber,
     attachedSupportIds: [],
@@ -776,6 +786,12 @@ function removeAnimalToGraveyard(state: MatchState, animalId: string): MatchStat
 
   let nextState = discardAttachedSupports(state, animalId);
   const player = nextState.players[animal.ownerId];
+  const graveyardCard: CardInstance = {
+    instanceId: animal.instanceId,
+    definitionId: animal.definitionId,
+    ownerId: animal.ownerId,
+    zone: "GRAVEYARD"
+  };
 
   nextState = {
     ...nextState,
@@ -790,8 +806,7 @@ function removeAnimalToGraveyard(state: MatchState, animalId: string): MatchStat
     cardsByInstanceId: {
       ...nextState.cardsByInstanceId,
       [animalId]: {
-        ...nextState.cardsByInstanceId[animalId],
-        zone: "GRAVEYARD"
+        ...graveyardCard
       }
     }
   };
@@ -919,7 +934,7 @@ function drawAndBottom(state: MatchState, playerId: PlayerId, bottomCardInstance
 export function updateAnimal(
   state: MatchState,
   animalId: string,
-  patch: Partial<Pick<AnimalInstance, "level" | "statuses" | "onceFlags" | "attachedSupportIds">>
+  patch: Partial<Pick<AnimalInstance, "level" | "evolutionPoints" | "statuses" | "onceFlags" | "attachedSupportIds">>
 ): MatchState {
   const animal = state.cardsByInstanceId[animalId];
 

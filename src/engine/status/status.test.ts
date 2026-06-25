@@ -64,6 +64,7 @@ function withAnimal(state: MatchState): MatchState {
     ownerId: "P1",
     zone: "BOARD",
     level: 1,
+    evolutionPoints: 0,
     slotNo: 1,
     enteredTurn: 0,
     attachedSupportIds: [],

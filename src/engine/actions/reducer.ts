@@ -9,6 +9,7 @@ import type {
   ValidationResult
 } from "../../types/game";
 import { engineConfig } from "../config/config";
+import { getCardDefinition } from "../cards/deck";
 import { drawCards } from "../state/match";
 import {
   getBoardAnimalCount,
@@ -36,7 +37,7 @@ export function dispatchAction(state: MatchState, envelope: ActionEnvelope): Dis
 
   const resolved = resolveValidAction(state, action);
   return {
-    state: appendLog(resolved, action, validation, resultText(action), timestamp),
+    state: appendLog(resolved, action, validation, resultText(action, state, resolved), timestamp),
     validation
   };
 }
@@ -331,8 +332,28 @@ function appendLog(
   };
 }
 
-function resultText(action: Action): string {
-  return `${action.type} resolved`;
+function resultText(action: Action, before: MatchState, after: MatchState): string {
+  const evolutionMessages = action.type === "ADVANCE_PHASE" ? evolutionResultText(before, after) : [];
+  return [`${action.type} resolved`, ...evolutionMessages].join(" | ");
+}
+
+function evolutionResultText(before: MatchState, after: MatchState): string[] {
+  const messages: string[] = [];
+  for (const [instanceId, afterCard] of Object.entries(after.cardsByInstanceId)) {
+    const beforeCard = before.cardsByInstanceId[instanceId];
+    if (!beforeCard || beforeCard.zone !== "BOARD" || afterCard.zone !== "BOARD" || !("evolutionPoints" in afterCard)) {
+      continue;
+    }
+    const beforePoints = "evolutionPoints" in beforeCard ? beforeCard.evolutionPoints ?? 0 : 0;
+    const cardName = getCardDefinition(afterCard.definitionId).name_th;
+    if (afterCard.evolutionPoints > beforePoints) {
+      messages.push(`${cardName} ได้แต้มวิวัฒนาการ ${afterCard.evolutionPoints}/2`);
+    }
+    if ("level" in beforeCard && beforeCard.level < 3 && afterCard.level === 3) {
+      messages.push(`${cardName} (${afterCard.definitionId}) วิวัฒนาการเป็น Level 3`);
+    }
+  }
+  return messages;
 }
 
 export function forcePhase(state: MatchState, phase: Phase): MatchState {

@@ -57,6 +57,11 @@ export interface AutomatedPlaytestSummary {
   medianTurns: number;
   averageDurationMs: number;
   averageRecycleCount: number;
+  totalLevel3Evolutions: number;
+  averageEvolutionsPerMatch: number;
+  evolutionTurns: number[];
+  cardsMostFrequentlyReachingLevel3: Record<string, number>;
+  matchesEndingBeforeAnyEvolution: number;
   totalCardUsage: Record<string, number>;
   scoreContribution: Record<string, number>;
   repeatedRejectedActions: Record<string, number>;
@@ -96,6 +101,9 @@ export interface MatchPlaytestResult {
   specialCardsUsed: Record<string, number>;
   namedSpecialUses: Record<"Lullaby" | "Weakness Shield" | "Quick Swap" | "Strong Wind" | "Food Thief", number>;
   recycleCount: number;
+  level3Evolutions: number;
+  evolutionTurns: number[];
+  cardsReachingLevel3: Record<string, number>;
   animalsSentToGraveyard: Record<string, number>;
   animalsReturnedToHand: Record<string, number>;
   voluntarySwaps: Record<string, number>;
@@ -202,6 +210,7 @@ export function runOneMatch(seed: string, matchIndex: number): MatchPlaytestResu
   runtime.observations.turns = runtime.state.turnNumber;
   runtime.observations.durationMs = runtime.timestamp - matchIndex * 1_000_000;
   runtime.observations.recycleCount = runtime.stats.recycleCount.P1 + runtime.stats.recycleCount.P2;
+  recordEvolutionStats(runtime);
   runtime.observations.scoreContributionByCard = mergePlayerMaps(runtime.stats.scoreContribution);
   runtime.observations.highestScoringCard = getHighestScoringCard(runtime.stats, runtime.state.actionLog);
   copyBoardExitStats(runtime);
@@ -216,11 +225,13 @@ export function aggregateResults(results: MatchPlaytestResult[], commitHash: str
   const totalCardUsage: Record<string, number> = {};
   const scoreContribution: Record<string, number> = {};
   const repeatedRejectedActions: Record<string, number> = {};
+  const cardsMostFrequentlyReachingLevel3: Record<string, number> = {};
 
   for (const result of results) {
     addMaps(totalCardUsage, mergeMaps(result.supportCardsUsed, result.weaknessCardsUsed, result.specialCardsUsed, result.animalsPlayed.P1, result.animalsPlayed.P2));
     addMaps(scoreContribution, result.scoreContributionByCard);
     addMaps(repeatedRejectedActions, result.repeatedRejectedActionReason);
+    addMaps(cardsMostFrequentlyReachingLevel3, result.cardsReachingLevel3);
   }
 
   return {
@@ -242,6 +253,11 @@ export function aggregateResults(results: MatchPlaytestResult[], commitHash: str
     medianTurns: median(turns),
     averageDurationMs: average(completed.map((result) => result.durationMs)),
     averageRecycleCount: average(completed.map((result) => result.recycleCount)),
+    totalLevel3Evolutions: results.reduce((sum, result) => sum + result.level3Evolutions, 0),
+    averageEvolutionsPerMatch: average(results.map((result) => result.level3Evolutions)),
+    evolutionTurns: results.flatMap((result) => result.evolutionTurns),
+    cardsMostFrequentlyReachingLevel3,
+    matchesEndingBeforeAnyEvolution: results.filter((result) => result.level3Evolutions === 0).length,
     totalCardUsage,
     scoreContribution,
     repeatedRejectedActions,
@@ -636,6 +652,9 @@ function emptyMatchResult(seed: string, matchIndex: number, strategies: Record<P
     specialCardsUsed: {},
     namedSpecialUses: { Lullaby: 0, "Weakness Shield": 0, "Quick Swap": 0, "Strong Wind": 0, "Food Thief": 0 },
     recycleCount: 0,
+    level3Evolutions: 0,
+    evolutionTurns: [],
+    cardsReachingLevel3: {},
     animalsSentToGraveyard: {},
     animalsReturnedToHand: {},
     voluntarySwaps: {},
@@ -692,6 +711,20 @@ function median(values: number[]): number {
   return values.length % 2 ? values[middle] : Number(((values[middle - 1] + values[middle]) / 2).toFixed(2));
 }
 
+function recordEvolutionStats(runtime: RuntimeMatch): void {
+  for (const entry of runtime.state.actionLog) {
+    if (!entry.result.includes("วิวัฒนาการเป็น Level 3")) {
+      continue;
+    }
+    runtime.observations.level3Evolutions += 1;
+    runtime.observations.evolutionTurns.push(entry.turnNumber);
+    const cardIds = [...entry.result.matchAll(/\(([APSWX]\d{3})\) วิวัฒนาการเป็น Level 3/g)].map((match) => match[1]);
+    for (const cardId of cardIds) {
+      increment(runtime.observations.cardsReachingLevel3, cardId);
+    }
+  }
+}
+
 function buildObjectiveObservations(results: MatchPlaytestResult[], usage: Record<string, number>, scores: Record<string, number>, rejected: Record<string, number>): string[] {
   const observations: string[] = [];
   for (const [reason, count] of Object.entries(rejected)) {
@@ -718,6 +751,7 @@ function buildReport(summary: AutomatedPlaytestSummary): string {
   ).join("\n");
   const usageRows = topEntries(summary.totalCardUsage, 20).map(([card, count]) => `| ${cardName(card)} | ${card} | ${count} |`).join("\n");
   const scoreRows = topEntries(summary.scoreContribution, 20).map(([card, score]) => `| ${cardName(card)} | ${card} | ${score} |`).join("\n");
+  const evolutionRows = topEntries(summary.cardsMostFrequentlyReachingLevel3, 20).map(([card, count]) => `| ${cardName(card)} | ${card} | ${count} |`).join("\n") || "| - | - | 0 |";
   const bugRows = summary.bugs.length
     ? summary.bugs.map((bug) => `| ${bug.severity} | ${bug.matchId ?? "-"} | ${bug.description} | ${bug.evidence} |`).join("\n")
     : "| - | - | No confirmed automated bugs. | - |";
@@ -777,6 +811,17 @@ ${scoreRows}
 
 - Average recycle count: ${summary.averageRecycleCount}
 - Total recycle count: ${summary.perMatchResults.reduce((sum, result) => sum + result.recycleCount, 0)}
+
+## 9.1 Evolution usage
+
+- Level 3 evolutions: ${summary.totalLevel3Evolutions}
+- Average evolutions per match: ${summary.averageEvolutionsPerMatch}
+- Evolution turns: ${summary.evolutionTurns.length ? summary.evolutionTurns.join(", ") : "-"}
+- Matches ending before any evolution: ${summary.matchesEndingBeforeAnyEvolution}
+
+| Card | ID | Level 3 evolutions |
+| --- | --- | ---: |
+${evolutionRows}
 
 ## 10. Stuck-state analysis
 

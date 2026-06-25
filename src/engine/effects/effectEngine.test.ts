@@ -248,7 +248,7 @@ describe("card effects", () => {
 
   it("resolves Quick Swap with a replacement Animal in the same slot", () => {
     let state = setupActionState();
-    state = forceAnimalToBoard(state, "P1", "A001", 1);
+    state = forceAnimalToBoard(state, "P1", "A001", 2, 1);
     state = forceCardToHand(state, "P1", "X003");
     state = forceCardToHand(state, "P1", "A002");
 
@@ -265,6 +265,8 @@ describe("card effects", () => {
     expect(result.validation.valid).toBe(true);
     expect(result.state.players.P1.hand).toContain("P1-A001-1");
     expect(result.state.players.P1.board[0]).toBe("P1-A002-1");
+    expect("evolutionPoints" in result.state.cardsByInstanceId["P1-A001-1"]).toBe(false);
+    expect(getBoardAnimal(result.state, "P1", "A002").evolutionPoints).toBe(0);
   });
 
   it("rejects invalid Quick Swap and Strong Wind targets", () => {
@@ -336,6 +338,40 @@ describe("card effects", () => {
     const scored = dispatchAction(state, { type: "ADVANCE_PHASE", playerId: "P1", payload: {} }).state;
 
     expect(scored.players.P1.score).toBe(2);
+  });
+
+  it("adds Evolution Points to Level 2 Animals after successful scoring and evolves after the second point", () => {
+    let state = setupActionState();
+    state = forceAnimalToBoard(state, "P1", "A001", 2);
+    state = { ...state, turnNumber: 2, phase: "DRAW" };
+
+    let scored = dispatchAction(state, { type: "ADVANCE_PHASE", playerId: "P1", payload: {} }).state;
+    expect(scored.players.P1.score).toBe(2);
+    expect(getBoardAnimal(scored, "P1", "A001").level).toBe(2);
+    expect(getBoardAnimal(scored, "P1", "A001").evolutionPoints).toBe(1);
+
+    scored = { ...scored, phase: "DRAW", turnNumber: 3 };
+    scored = dispatchAction(scored, { type: "ADVANCE_PHASE", playerId: "P1", payload: {} }).state;
+    expect(scored.players.P1.score).toBe(4);
+    expect(getBoardAnimal(scored, "P1", "A001").level).toBe(3);
+    expect(getBoardAnimal(scored, "P1", "A001").evolutionPoints).toBe(2);
+
+    scored = { ...scored, phase: "DRAW", turnNumber: 4 };
+    scored = dispatchAction(scored, { type: "ADVANCE_PHASE", playerId: "P1", payload: {} }).state;
+    expect(scored.players.P1.score).toBe(7);
+    expect(getBoardAnimal(scored, "P1", "A001").evolutionPoints).toBe(2);
+  });
+
+  it("does not award Evolution Points for Level 1 or fully skipped score contribution", () => {
+    let state = setupActionState();
+    state = forceAnimalToBoard(state, "P1", "A001", 1);
+    state = forceAnimalToBoard(state, "P1", "A002", 2);
+    state = addStatus(state, "P1-A002-1", { code: "SKIP_NEXT_SCORE", expiresAt: "NEXT_SCORE" });
+    state = { ...state, turnNumber: 2, phase: "DRAW" };
+
+    const scored = dispatchAction(state, { type: "ADVANCE_PHASE", playerId: "P1", payload: {} }).state;
+    expect(getBoardAnimal(scored, "P1", "A001").evolutionPoints).toBe(0);
+    expect(getBoardAnimal(scored, "P1", "A002").evolutionPoints).toBe(0);
   });
 
   it("returns attached Support with Monkey and lowers the supported Animal level", () => {
@@ -489,7 +525,8 @@ function forceAnimalToBoard(
   state: MatchState,
   playerId: PlayerId,
   definitionId: string,
-  level: 1 | 2 | 3
+  level: 1 | 2 | 3,
+  evolutionPoints: 0 | 1 | 2 = 0
 ): MatchState {
   const instanceId = `${playerId}-${definitionId}-1`;
   const player = state.players[playerId];
@@ -502,6 +539,7 @@ function forceAnimalToBoard(
     ownerId: playerId,
     zone: "BOARD",
     level,
+    evolutionPoints,
     slotNo: (slotIndex + 1) as 1 | 2 | 3,
     enteredTurn: 0,
     attachedSupportIds: [],

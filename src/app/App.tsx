@@ -787,6 +787,7 @@ function BoardRow({
             <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : ""}`} disabled={!legal} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
               <span className="level">Lv.{animal.level}</span>
               <strong>{definition.name_th}</strong>
+              {animal.level >= 2 && <small className="statuses">{evolutionLabel(animal.level, animal.evolutionPoints ?? 0)}</small>}
               {animal.attachedSupportIds.map((supportId) => (
                 <span className="attached-support" key={supportId}>{getCardDefinition(match.cardsByInstanceId[supportId].definitionId).name_th}</span>
               ))}
@@ -1006,6 +1007,15 @@ function phaseLabel(phase: MatchState["phase"]) {
     END: "จบเทิร์น"
   };
   return labels[phase];
+}
+
+function evolutionLabel(level: number, points: number): string {
+  if (level >= 3) {
+    return "วิวัฒนาการสำเร็จ ★★";
+  }
+  return points >= 1
+    ? "วิวัฒนาการ ★☆ 1/2 — ทำคะแนนสำเร็จอีก 1 ครั้งเพื่อขึ้น Level 3"
+    : "วิวัฒนาการ ☆☆ 0/2 — ทำคะแนนสำเร็จอีก 2 ครั้งเพื่อขึ้น Level 3";
 }
 
 function formatDuration(ms: number): string {

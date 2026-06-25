@@ -20,6 +20,11 @@ export interface PveNormal100Summary {
   stuckMatches: number;
   invalidAiActions: number;
   aiActionLimitFallbacks: number;
+  level3Evolutions: number;
+  averageEvolutionsPerMatch: number;
+  evolutionTurns: number[];
+  cardsMostFrequentlyReachingLevel3: Record<string, number>;
+  matchesEndingBeforeAnyEvolution: number;
   mostUsedAiCards: Record<string, number>;
   highestAiScoreContributionCards: Record<string, number>;
 }
@@ -42,6 +47,11 @@ export function runPveNormal100(outputRoot = process.cwd()): PveNormal100Summary
     stuckMatches: results.filter((result) => result.stuck).length,
     invalidAiActions: results.reduce((sum, result) => sum + result.invalidAiActions, 0),
     aiActionLimitFallbacks: results.reduce((sum, result) => sum + result.aiActionLimitFallbacks, 0),
+    level3Evolutions: results.reduce((sum, result) => sum + result.level3Evolutions, 0),
+    averageEvolutionsPerMatch: average(results.map((result) => result.level3Evolutions)),
+    evolutionTurns: results.flatMap((result) => result.evolutionTurns),
+    cardsMostFrequentlyReachingLevel3: mergeCounts(results.map((result) => result.cardsReachingLevel3)),
+    matchesEndingBeforeAnyEvolution: results.filter((result) => result.level3Evolutions === 0).length,
     mostUsedAiCards: mergeCounts(results.map((result) => result.aiCardUsage)),
     highestAiScoreContributionCards: mergeCounts(results.map((result) => result.aiCardUsage))
   };
@@ -106,7 +116,8 @@ function runPveMatch(seed: string) {
     turns: state.turnNumber,
     invalidAiActions,
     aiActionLimitFallbacks,
-    aiCardUsage
+    aiCardUsage,
+    ...evolutionStats(state)
   };
 }
 
@@ -137,6 +148,24 @@ function mergeCounts(maps: Array<Record<string, number>>): Record<string, number
   return Object.fromEntries(Object.entries(merged).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])));
 }
 
+function evolutionStats(state: MatchState): { level3Evolutions: number; evolutionTurns: number[]; cardsReachingLevel3: Record<string, number> } {
+  const cardsReachingLevel3: Record<string, number> = {};
+  const evolutionTurns: number[] = [];
+  for (const entry of state.actionLog) {
+    if (!entry.result.includes("วิวัฒนาการเป็น Level 3")) continue;
+    evolutionTurns.push(entry.turnNumber);
+    const cardIds = [...entry.result.matchAll(/\(([APSWX]\d{3})\) วิวัฒนาการเป็น Level 3/g)].map((match) => match[1]);
+    for (const cardId of cardIds) {
+      cardsReachingLevel3[cardId] = (cardsReachingLevel3[cardId] ?? 0) + 1;
+    }
+  }
+  return {
+    level3Evolutions: Object.values(cardsReachingLevel3).reduce((sum, count) => sum + count, 0),
+    evolutionTurns,
+    cardsReachingLevel3
+  };
+}
+
 function buildReport(summary: PveNormal100Summary): string {
   return `# PvE Normal 100-Match Simulation
 
@@ -152,6 +181,9 @@ This deterministic simulation checks stability only. It is not human balance evi
 - Invalid AI actions: ${summary.invalidAiActions}
 - AI action-limit fallbacks: ${summary.aiActionLimitFallbacks}
 - Finish reasons: ${JSON.stringify(summary.finishReasons)}
+- Level 3 evolutions: ${summary.level3Evolutions}
+- Average evolutions per match: ${summary.averageEvolutionsPerMatch}
+- Matches ending before any evolution: ${summary.matchesEndingBeforeAnyEvolution}
 `;
 }
 
