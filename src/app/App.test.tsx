@@ -1608,6 +1608,102 @@ describe("invalid-use reason localization", () => {
     const eng = formatActionLogEntry(state, entry, "en");
     expect(eng).toContain("You");
   });
+
+  it("shows Thai Animal placement preview when an Animal card is selected", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const animalCard = findFirstHandCardByCategory("สัตว์");
+    await user.click(animalCard);
+    const preview = screen.getByLabelText("ผลที่จะเกิดขึ้น");
+    expect(preview.textContent).toContain("ลง Animal ที่ Level 1");
+  });
+
+  it("shows English Animal placement preview when an Animal card is selected", async () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("Current player hand");
+    const animalCard = Array.from(hand.querySelectorAll("button")).find((btn) => btn.querySelector("small")?.textContent === "Animal") as HTMLButtonElement;
+    if (!animalCard) return;
+    await user.click(animalCard);
+    const preview = screen.getByLabelText("Effect preview");
+    expect(preview.textContent).toContain("Place Animal at Level 1");
+  });
+
+  it("shows Thai preview with localized category label for any selected card", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const anyCard = hand.querySelector("button") as HTMLButtonElement;
+    await user.click(anyCard);
+    const preview = screen.getByLabelText("ผลที่จะเกิดขึ้น");
+    expect(preview.textContent).toContain("ประเภท:");
+    expect(preview.textContent).not.toContain("undefined");
+  });
+
+  it("shows English preview with localized category label for any selected card", async () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("Current player hand");
+    const anyCard = hand.querySelector("button") as HTMLButtonElement;
+    await user.click(anyCard);
+    const preview = screen.getByLabelText("Effect preview");
+    expect(preview.textContent).toContain("Type:");
+    expect(preview.textContent).not.toContain("undefined");
+  });
+
+  it("switches effect preview language when locale changes", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const animalCard = findFirstHandCardByCategory("สัตว์");
+    await user.click(animalCard);
+    const preview = screen.getByLabelText("ผลที่จะเกิดขึ้น");
+    expect(preview.textContent).toContain("Level 1");
+    await user.click(screen.getAllByRole("button", { name: /English/ })[0]);
+    expect(preview.textContent).toContain("Place Animal at Level 1");
+  });
+
+  it("shows preview without mutating match state", async () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const before = localStorage.getItem("animal_score_saved_match");
+    const hand = screen.getByLabelText("Current player hand");
+    const anyCard = hand.querySelector("button") as HTMLButtonElement;
+    await user.click(anyCard);
+    expect(screen.getByLabelText("Effect preview")).toBeInTheDocument();
+    expect(localStorage.getItem("animal_score_saved_match")).toBe(before);
+  });
+
+  it("shows NOT_PLAYABLE preview with localized reason for empty hand selection", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const card = hand.querySelector("button") as HTMLButtonElement;
+    await user.click(card);
+    const preview = screen.getByLabelText("ผลที่จะเกิดขึ้น");
+    expect(preview.textContent).not.toContain("undefined");
+  });
+
+  it("shows existing Action Log localization still works after preview tests", () => {
+    const state = createMatch({ seed: "preview-log-test" });
+    const entry: ActionLogEntry = {
+      seq: 1, action: { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: state.players.P1.hand[0] } },
+      phase: "ACTION", turnNumber: 1, actor: "P1", validation: { valid: true }, result: "ok",
+      outcomes: [{ code: "CARD_PLAYED", cardInstanceId: state.players.P1.hand[0], definitionId: state.cardsByInstanceId[state.players.P1.hand[0]].definitionId, playerId: "P1", actionKind: "PLAY_ANIMAL", effectResult: "FULL_EFFECT" }],
+      rng: state.rng, timestamp: 1
+    };
+    expect(formatActionLogEntry(state, entry, "th")).toContain("เทิร์น");
+    expect(formatActionLogEntry(state, entry, "en")).toContain("Turn");
+  });
 });
 
 async function startBattle(user: ReturnType<typeof userEvent.setup>) {

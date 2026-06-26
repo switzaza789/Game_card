@@ -333,4 +333,59 @@ describe("card localization data layer", () => {
     const enOther = t("en", "log.owner.other", { player: "Bot" });
     expect(enOther).toContain("Bot");
   });
+
+  /* ------------------------------------------------------------------ */
+  /*  Effect Preview localization                                        */
+  /* ------------------------------------------------------------------ */
+
+  const PREVIEW_KEYS = [
+    "preview.category.animal", "preview.category.support", "preview.category.weakness",
+    "preview.category.stealScore", "preview.category.returnToHand", "preview.category.protect",
+    "preview.category.statusChange", "preview.type", "preview.notPlayable", "preview.needsTarget",
+    "preview.partialEffect", "preview.animal.place", "preview.animal.usesAction",
+    "preview.support.target", "preview.support.levelUp", "preview.support.additionalEffect",
+    "preview.weakness.target", "preview.weakness.fullEffect", "preview.weakness.offTarget",
+    "preview.weakness.mayBeBlocked", "preview.usesUtility",
+    "preview.x001.target", "preview.x001.effect",
+    "preview.x002.effect", "preview.x002.reactionOnly",
+    "preview.x003.target", "preview.x003.effect", "preview.x003.evolutionLoss",
+    "preview.x004.target", "preview.x004.effect", "preview.x004.mayBeBlocked",
+    "preview.x005.effect"
+  ];
+
+  it("has all preview keys in Thai dictionary", () => {
+    for (const key of PREVIEW_KEYS) {
+      expect(th).toHaveProperty(key);
+      expect((th as Record<string, string>)[key].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("has all preview keys in English dictionary", () => {
+    for (const key of PREVIEW_KEYS) {
+      expect(en).toHaveProperty(key);
+      expect((en as Record<string, string>)[key].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("provides localized preview type label in both locales", () => {
+    const thType = t("th", "preview.type", { category: "ลงสัตว์" });
+    expect(thType).toContain("ลงสัตว์");
+    const enType = t("en", "preview.type", { category: "Play Animal" });
+    expect(enType).toContain("Play Animal");
+  });
+
+  it("provides localized preview animal placement in both locales", () => {
+    expect(t("th", "preview.animal.place")).toBe("ลง Animal ที่ Level 1");
+    expect(t("en", "preview.animal.place")).toContain("Level 1");
+  });
+
+  it("provides localized preview support level-up in both locales", () => {
+    expect(t("th", "preview.support.levelUp")).toContain("เพิ่ม Level");
+    expect(t("en", "preview.support.levelUp")).toContain("Level");
+  });
+
+  it("provides localized preview weakness full-effect in both locales", () => {
+    expect(t("th", "preview.weakness.fullEffect")).toContain("ลด Level");
+    expect(t("en", "preview.weakness.fullEffect")).toContain("reduces Level");
+  });
 });

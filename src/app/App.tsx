@@ -995,7 +995,7 @@ function BattleScreen(props: {
           <div className="effect-preview" aria-label={t(props.locale, "label.effectPreview")}>
             <strong>{t(props.locale, "label.effectPreview")}</strong>
             <ul>
-              {previewLines(selectedDefinition, getCardPlayability(match, activePlayerId, selectedCardId ?? "")).map((line) => <li key={line}>{line}</li>)}
+              {previewLines(selectedDefinition, getCardPlayability(match, activePlayerId, selectedCardId ?? ""), props.locale).map((line) => <li key={line}>{line}</li>)}
             </ul>
           </div>
         )}
@@ -1374,45 +1374,45 @@ type PlayabilityInfo = {
   reason?: string;
 };
 
-function previewLines(card: CardDefinition, playability?: PlayabilityInfo): string[] {
-  const lines = [`ประเภท: ${actionCategoryLabel(card)}`];
+function previewLines(card: CardDefinition, playability: PlayabilityInfo | undefined, locale: Locale): string[] {
+  const lines = [t(locale, "preview.type", { category: actionCategoryLabel(card, locale) })];
   if (playability?.state === "NOT_PLAYABLE") {
-    lines.push("ยังใช้ไม่ได้", playability.reason ?? playability.label);
+    lines.push(t(locale, "preview.notPlayable"), localizePlayabilityReason(playability.reason ?? playability.label, locale));
     return lines;
   }
   if (playability?.state === "PLAYABLE_AFTER_TARGET") {
-    lines.push("ต้องเลือกเป้าหมายก่อนยืนยันผล");
+    lines.push(t(locale, "preview.needsTarget"));
   }
   if (playability?.state === "PARTIAL_EFFECT_ONLY") {
-    lines.push("ผลอ่อน: ใช้ได้ แต่ผลจะลดลง");
+    lines.push(t(locale, "preview.partialEffect"));
   }
   if (card.category === "Animal") {
-    return [...lines, "ลง Animal ที่ Level 1", "ใช้ Animal Action ของเทิร์นนี้"];
+    return [...lines, t(locale, "preview.animal.place"), t(locale, "preview.animal.usesAction")];
   }
   if (card.category === "Support") {
     return [
       ...lines,
-      "เลือกสัตว์ของคุณ 1 ใบ",
-      "ถ้า Support ตรงชนิด: เพิ่ม Level ตามที่การ์ดกำหนด",
-      "บางใบอาจมีสถานะหรือผลเพิ่มเติมตามการ์ด",
-      "ใช้ Utility Action ของเทิร์นนี้"
+      t(locale, "preview.support.target"),
+      t(locale, "preview.support.levelUp"),
+      t(locale, "preview.support.additionalEffect"),
+      t(locale, "preview.usesUtility")
     ];
   }
   if (card.category === "Weakness") {
     return [
       ...lines,
-      "เลือกสัตว์ฝ่ายตรงข้าม 1 ใบ",
-      "หากใช้กับเป้าหมายที่แพ้ทาง: ลด Level หรือนำออกจากสนาม",
-      "หากใช้ผิดเป้าหมาย: ลดคะแนนรอบถัดไป",
-      "อาจถูกป้องกันด้วย Weakness Shield"
+      t(locale, "preview.weakness.target"),
+      t(locale, "preview.weakness.fullEffect"),
+      t(locale, "preview.weakness.offTarget"),
+      t(locale, "preview.weakness.mayBeBlocked")
     ];
   }
-  if (card.card_id === "X001") return [...lines, "เลือกสัตว์ฝ่ายตรงข้าม 1 ใบ", "ทำให้เป้าหมายข้ามการคิดคะแนนครั้งถัดไป", "ใช้ Utility Action ของเทิร์นนี้"];
-  if (card.card_id === "X002") return [...lines, "ใช้เป็น Reaction เพื่อป้องกัน Weakness", "ไม่สามารถเล่นโดยตรงได้"];
-  if (card.card_id === "X003") return [...lines, "เลือกสัตว์ของคุณ 1 ใบ", "คืน Animal ของตัวเองขึ้นมือและลง Animal จากมือแทน", "แต้มวิวัฒนาการของตัวที่ออกจากสนามจะหายไป"];
-  if (card.card_id === "X004") return [...lines, "เลือกสัตว์ Level 1 ฝ่ายตรงข้าม", "คืน Animal Level 1 ของคู่ต่อสู้ขึ้นมือ", "โล่ป้องกันการนำออกอาจป้องกันผลนี้"];
-  if (card.card_id === "X005") return [...lines, "คุณได้ +1 คะแนน และคู่ต่อสู้เสีย 1 คะแนน"];
-  return [...lines, "ใช้ Utility Action ของเทิร์นนี้"];
+  if (card.card_id === "X001") return [...lines, t(locale, "preview.x001.target"), t(locale, "preview.x001.effect"), t(locale, "preview.usesUtility")];
+  if (card.card_id === "X002") return [...lines, t(locale, "preview.x002.effect"), t(locale, "preview.x002.reactionOnly")];
+  if (card.card_id === "X003") return [...lines, t(locale, "preview.x003.target"), t(locale, "preview.x003.effect"), t(locale, "preview.x003.evolutionLoss")];
+  if (card.card_id === "X004") return [...lines, t(locale, "preview.x004.target"), t(locale, "preview.x004.effect"), t(locale, "preview.x004.mayBeBlocked")];
+  if (card.card_id === "X005") return [...lines, t(locale, "preview.x005.effect")];
+  return [...lines, t(locale, "preview.usesUtility")];
 }
 
 function getCardPlayability(match: MatchState, playerId: PlayerId, cardInstanceId: string): PlayabilityInfo {
@@ -1521,6 +1521,12 @@ function localizeValidationReason(error: string | undefined, locale: Locale): st
   return t(locale, "playability.reason.fallback");
 }
 
+function localizePlayabilityReason(reason: string, locale: Locale): string {
+  const key = PLAYABILITY_LABEL_TH_TO_KEY[reason];
+  if (key) return t(locale, key);
+  return reason;
+}
+
 const STATUS_KEY_MAP: Record<StatusEffectCode, { label: TranslationKey; description: TranslationKey; duration: TranslationKey }> = {
   SKIP_NEXT_SCORE: { label: "status.skipNextScore.label", description: "status.skipNextScore.description", duration: "status.skipNextScore.duration" },
   NEXT_SCORE_MINUS_1: { label: "status.nextScoreMinus1.label", description: "status.nextScoreMinus1.description", duration: "status.nextScoreMinus1.duration" },
@@ -1581,14 +1587,14 @@ function weaknessMatches(cardId: string, subtype: string): boolean {
   );
 }
 
-function actionCategoryLabel(card: CardDefinition): string {
-  if (card.category === "Weakness") return "ใช้จุดอ่อน";
-  if (card.category === "Support") return "สนับสนุน";
-  if (card.category === "Animal") return "ลงสัตว์";
-  if (card.card_id === "X005") return "ขโมยคะแนน";
-  if (card.card_id === "X004") return "ส่งกลับขึ้นมือ";
-  if (card.card_id === "X002") return "ป้องกัน";
-  return "เปลี่ยนสถานะ";
+function actionCategoryLabel(card: CardDefinition, locale: Locale): string {
+  if (card.category === "Weakness") return t(locale, "preview.category.weakness");
+  if (card.category === "Support") return t(locale, "preview.category.support");
+  if (card.category === "Animal") return t(locale, "preview.category.animal");
+  if (card.card_id === "X005") return t(locale, "preview.category.stealScore");
+  if (card.card_id === "X004") return t(locale, "preview.category.returnToHand");
+  if (card.card_id === "X002") return t(locale, "preview.category.protect");
+  return t(locale, "preview.category.statusChange");
 }
 
 function canTarget(card: CardDefinition, ownerId: PlayerId, viewerId: PlayerId, level: number): boolean {
