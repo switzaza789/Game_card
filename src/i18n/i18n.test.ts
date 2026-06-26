@@ -237,4 +237,100 @@ describe("card localization data layer", () => {
       expect(value).not.toMatch(/^playability\.reason\./);
     }
   });
+
+  /* ------------------------------------------------------------------ */
+  /*  Action Log localization                                             */
+  /* ------------------------------------------------------------------ */
+
+  const LOG_KEYS = [
+    "log.uses", "log.header", "log.noAction", "log.oldResult", "log.noDetails",
+    "log.undone", "log.playedNoTarget", "log.cardPlayedSuccess",
+    "log.animalEntered", "log.cardAttached", "log.levelChanged",
+    "log.statusApplied", "log.statusRemoved", "log.cardMoved", "log.cardDrawn",
+    "log.scoreChanged", "log.evolutionPoint", "log.evolved", "log.removalPrevented"
+  ] as const;
+
+  const LOG_ACTION_KEYS = [
+    "log.action.weakness", "log.action.support", "log.action.protect",
+    "log.action.stealScore", "log.action.returnToHand", "log.action.statusChange",
+    "log.action.removeFromBoard", "log.action.drawCard", "log.action.evolution",
+    "log.action.default"
+  ] as const;
+
+  const LOG_RESULT_KEYS = [
+    "log.result.partialOffTarget", "log.result.partial", "log.result.prevented",
+    "log.result.noEffect", "log.result.fullMatching", "log.result.full"
+  ] as const;
+
+  const LOG_OWNER_KEYS = [
+    "log.owner.you", "log.owner.self", "log.owner.other"
+  ] as const;
+
+  it("has all log keys in Thai dictionary", () => {
+    for (const key of [...LOG_KEYS, ...LOG_ACTION_KEYS, ...LOG_RESULT_KEYS, ...LOG_OWNER_KEYS]) {
+      expect(th).toHaveProperty(key);
+      expect(th[key].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("has all log keys in English dictionary", () => {
+    for (const key of [...LOG_KEYS, ...LOG_ACTION_KEYS, ...LOG_RESULT_KEYS, ...LOG_OWNER_KEYS]) {
+      expect(en).toHaveProperty(key);
+      if (key !== "log.action.default") {
+        expect(en[key].length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("provides localized action log header in both locales", () => {
+    const thHeader = t("th", "log.header", { turn: 1, player: "ผู้เล่น 1" });
+    expect(thHeader).toContain("1");
+    expect(thHeader).toContain("ผู้เล่น 1");
+    const enHeader = t("en", "log.header", { turn: 1, player: "Player 1" });
+    expect(enHeader).toContain("1");
+    expect(enHeader).toContain("Player 1");
+  });
+
+  it("provides localized score changed in both locales", () => {
+    const thScore = t("th", "log.scoreChanged", { player: "ผู้เล่น 1", from: 5, to: 7, delta: "+2" });
+    expect(thScore).toContain("ผู้เล่น 1");
+    expect(thScore).toContain("5");
+    expect(thScore).toContain("7");
+    expect(thScore).toContain("+2");
+    const enScore = t("en", "log.scoreChanged", { player: "Player 1", from: 5, to: 7, delta: "+2" });
+    expect(enScore).toContain("Player 1");
+    expect(enScore).toContain("5");
+    expect(enScore).toContain("7");
+    expect(enScore).toContain("+2");
+  });
+
+  it("provides localized evolution event in both locales", () => {
+    const thEvo = t("th", "log.evolved", { level: 3 });
+    expect(thEvo).toContain("3");
+    const enEvo = t("en", "log.evolved", { level: 3 });
+    expect(enEvo).toContain("3");
+  });
+
+  it("provides localized undo in both locales", () => {
+    const thUndo = t("th", "log.undone", { summary: "played a card" });
+    expect(thUndo).toContain("ย้อนกลับ");
+    const enUndo = t("en", "log.undone", { summary: "played a card" });
+    expect(enUndo).toContain("undid");
+  });
+
+  it("provides localized unknown-event fallback in both locales", () => {
+    expect(t("th", "log.oldResult", { result: "UNKNOWN" })).toBe("ผลลัพธ์เก่า: UNKNOWN");
+    expect(t("en", "log.oldResult", { result: "UNKNOWN" })).toBe("Old result: UNKNOWN");
+  });
+
+  it("provides localized owner suffixes in both locales", () => {
+    expect(t("th", "log.owner.you")).toBeTruthy();
+    expect(t("en", "log.owner.you")).toBeTruthy();
+    expect(t("th", "log.owner.self")).toBeTruthy();
+    expect(t("en", "log.owner.self")).toBeTruthy();
+    const thOther = t("th", "log.owner.other", { player: "Bot" });
+    expect(thOther).toContain("Bot");
+    const enOther = t("en", "log.owner.other", { player: "Bot" });
+    expect(enOther).toContain("Bot");
+  });
 });

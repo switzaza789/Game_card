@@ -382,7 +382,7 @@ export function App() {
         const botEntry = [...currentMatch.actionLog].reverse().find((entry) => entry.actor === "P2" && entry.action.type === "PLAY_CARD" && entry.validation.valid);
         setMatch(currentMatch);
         setSelectedCardId(null);
-        setEffectFeedback(botEntry ? renderCombatOutcomeLines(currentMatch, botEntry) : null);
+        setEffectFeedback(botEntry ? renderCombatOutcomeLines(currentMatch, botEntry, locale) : null);
         setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
         if (currentMatch.status === "FINISHED") {
           setMessage("เกมจบแล้ว");
@@ -549,7 +549,7 @@ export function App() {
       setEffectFeedback([`ใช้ ${definition.name_th} ไม่สำเร็จ`, reason]);
     } else {
       setMessage(`${definition.name_th} สำเร็จ`);
-      setEffectFeedback(renderCombatOutcomeLines(result.state, result.state.actionLog[result.state.actionLog.length - 1]));
+      setEffectFeedback(renderCombatOutcomeLines(result.state, result.state.actionLog[result.state.actionLog.length - 1], locale));
       if (result.state.status === "FINISHED") {
         setScreen("result");
       }
@@ -976,7 +976,7 @@ function BattleScreen(props: {
         <div className="log" role="status">
           <strong>{t(props.locale, "label.actionLog")}</strong>
           <p>{props.message}</p>
-          <small>{formatActionLogEntry(match, lastLog)}</small>
+          <small>{formatActionLogEntry(match, lastLog, props.locale)}</small>
         </div>
         <div className="utility-actions">
           <button type="button" className="destructive-button" onClick={props.onResetMatch}>{t(props.locale, "label.reset")}</button>

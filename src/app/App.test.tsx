@@ -7,6 +7,8 @@ import { exportMatchLog, saveActiveMatch, saveMatchResult, listHumanFeedback } f
 import { initStats } from "../persistence/statsTracker";
 import type { MatchResult } from "../persistence/types";
 import { LOCALE_STORAGE_KEY, getLocalizedCard, getStoredLocale, normalizeLocale, t } from "../i18n";
+import { formatActionLogEntry } from "../ui/effectFeedback";
+import type { ActionLogEntry } from "../types/game";
 
 beforeEach(() => {
   // Clear localStorage between tests so no saved-game state bleeds over
@@ -1544,6 +1546,67 @@ describe("invalid-use reason localization", () => {
     const allText = statusElements.map((el) => el.textContent ?? "").join(" ");
     expect(allText).not.toContain("first turn");
     expect(allText).not.toContain("Recycle is not allowed");
+  });
+
+  it("shows Thai Action Log entries in Thai mode", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const logRegion = screen.getByRole("status");
+    const logText = logRegion.textContent ?? "";
+    expect(logText).toContain("เทิร์น");
+    expect(logText).toContain("ผู้เล่น");
+    expect(logText).not.toContain("undefined");
+  });
+
+  it("shows English Action Log entries in English mode", async () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const logRegion = screen.getByRole("status");
+    const logText = logRegion.textContent ?? "";
+    expect(logText).toContain("Turn");
+    expect(logText).toContain("Player");
+    expect(logText).not.toContain("undefined");
+  });
+
+  it("switching locale updates visible Action Log entries while preserving match state", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const logRegion = screen.getByRole("status");
+    const thaiText = logRegion.textContent ?? "";
+    expect(thaiText).toContain("เทิร์น");
+    await user.click(screen.getAllByRole("button", { name: /English/ })[0]);
+    const engText = logRegion.textContent ?? "";
+    expect(engText).toContain("Turn");
+  });
+
+  it("shows localized card names in Action Log", () => {
+    const state = createMatch({ seed: "log-card-names" });
+    const lastEntry = state.actionLog[state.actionLog.length - 1];
+    const thai = formatActionLogEntry(state, lastEntry, "th");
+    const eng = formatActionLogEntry(state, lastEntry, "en");
+    expect(thai).not.toBe(eng);
+    expect(thai).not.toContain("undefined");
+    expect(eng).not.toContain("undefined");
+  });
+
+  it("shows localized player labels in Action Log", () => {
+    const state = createMatch({ seed: "log-player-labels", gameMode: "PVE_NORMAL" });
+    const entry: ActionLogEntry = {
+      seq: 1,
+      action: { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: state.players.P1.hand[0] } },
+      phase: "ACTION", turnNumber: 1, actor: "P1",
+      validation: { valid: true }, result: "played",
+      outcomes: [{ code: "CARD_PLAYED", cardInstanceId: state.players.P1.hand[0], definitionId: state.cardsByInstanceId[state.players.P1.hand[0]].definitionId, playerId: "P1", actionKind: "PLAY_ANIMAL", effectResult: "FULL_EFFECT" }],
+      rng: state.rng, timestamp: 1
+    };
+    const thai = formatActionLogEntry(state, entry, "th");
+    expect(thai).toContain("คุณ");
+    const eng = formatActionLogEntry(state, entry, "en");
+    expect(eng).toContain("You");
   });
 });
 
