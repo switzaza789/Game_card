@@ -1156,13 +1156,10 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     await startBattle(user);
     await user.click(findFirstHandCardByCategory("สัตว์"));
     await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
-    const board = screen.getByLabelText("สนามต่อสู้");
-    const beforeText = board.textContent ?? "";
     await user.click(screen.getByRole("button", { name: "English" }));
     const boardEn = screen.getByLabelText("Battlefield");
-    const afterText = boardEn.textContent ?? "";
-    // Board content should change after locale switch
-    expect(afterText.length).toBeGreaterThan(0);
+    const boardContent = boardEn.textContent ?? "";
+    expect(boardContent.length).toBeGreaterThan(0);
   });
 
   it("locale switching preserves match state with statuses", async () => {
