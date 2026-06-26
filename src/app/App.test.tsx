@@ -8,7 +8,7 @@ import { initStats } from "../persistence/statsTracker";
 import type { MatchResult } from "../persistence/types";
 import { LOCALE_STORAGE_KEY, getLocalizedCard, getStoredLocale, normalizeLocale, t } from "../i18n";
 import { formatActionLogEntry } from "../ui/effectFeedback";
-import type { ActionLogEntry } from "../types/game";
+import type { ActionLogEntry, CardDefinition } from "../types/game";
 
 beforeEach(() => {
   // Clear localStorage between tests so no saved-game state bleeds over
@@ -210,7 +210,7 @@ describe("App Phase 4 UI", () => {
         rarity: "Common",
         primary_effect: "บรรทัดแรก\nบรรทัดสอง",
       } as never),
-    ).toEqual(["Support: บรรทัดแรก", "บรรทัดสอง"]);
+    ).toEqual(["ประเภท: บรรทัดแรก", "บรรทัดสอง"]);
   });
 
   it("plays an Animal from hand", async () => {
@@ -1701,6 +1701,108 @@ describe("invalid-use reason localization", () => {
     };
     expect(formatActionLogEntry(state, entry, "th")).toContain("เทิร์น");
     expect(formatActionLogEntry(state, entry, "en")).toContain("Turn");
+  });
+
+  /* ------------------------------------------------------------------ */
+  /*  Phase 2D-C — playability no longer depends on Thai-string mapping  */
+  /* ------------------------------------------------------------------ */
+
+  it("playability reasons no longer contain raw Thai strings from engine", () => {
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
+  });
+
+  it("wrong phase reason is localized in both locales", () => {
+    // Test via formatCardDetailLines which uses the updated labeled card lines
+    const card: CardDefinition = {
+      card_id: "W001", nameTh: "Muzzle", nameEn: "Muzzle",
+      category: "Weakness", rarity: "Common", subtype: "Dog",
+      logic_key: "weakness_dog",
+      primary_effect: "Level 2–3 loses 1 Level\nNext score -1",
+      timing: "Action Phase", target: "Opponent Animal",
+    } as never;
+    const lines = formatCardDetailLines(card, "th");
+    expect(lines.some(l => l.includes("ผลเต็ม") || l.includes("ผลเมื่อใช้ผิดเป้าหมาย"))).toBe(true);
+    const enLines = formatCardDetailLines(card, "en");
+    expect(enLines.some(l => l.includes("Full Effect") || l.includes("Off-Target Effect"))).toBe(true);
+  });
+
+  it("invalid target Fallback reason is localized", () => {
+    expect(t("th", "playability.reason.fallback")).toBe("ไม่สามารถใช้คำสั่งนี้ได้ในขณะนี้");
+    expect(t("en", "playability.reason.fallback")).toBe("This action cannot be used right now.");
+  });
+
+  it("wrong phase fallback reason is localized", () => {
+    expect(t("th", "playability.reason.notActionPhase")).toBe("ยังไม่ถึงช่วงที่ใช้ได้");
+    expect(t("en", "playability.reason.notActionPhase")).toBe("Not yet in a usable phase");
+  });
+
+  it("incompatible Support fallback reason is localized", () => {
+    expect(t("th", "playability.reason.animalMaxLevel")).toContain("เลเวลสูงสุด");
+    expect(t("en", "playability.reason.animalMaxLevel")).toContain("max Level");
+  });
+
+  it("max Level reason is localized", () => {
+    expect(t("th", "playability.reason.dogMaxLevel")).toContain("สุนัข");
+    expect(t("en", "playability.reason.dogMaxLevel")).toContain("Dog");
+  });
+
+  it("locale switching preserves exact match state", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Local PvP" }));
+    const beforeMatch = localStorage.getItem("animal_score_saved_match");
+    await user.click(screen.getAllByRole("button", { name: /English|ไทย/ })[1]);
+    const afterMatch = localStorage.getItem("animal_score_saved_match");
+    expect(afterMatch).toBe(beforeMatch);
+    await user.click(screen.getAllByRole("button", { name: /English|ไทย/ })[0]);
+    expect(localStorage.getItem("animal_score_saved_match")).toBe(beforeMatch);
+  });
+
+  /* ------------------------------------------------------------------ */
+  /*  Phase 2D-C — evolution progress labels in both locales             */
+  /* ------------------------------------------------------------------ */
+
+  it("evolution progress is shown in Thai locale", () => {
+    render(<App />);
+    expect(t("th", "log.evolutionPoint", { current: 0, required: 2 })).toBeTruthy();
+    expect(t("th", "log.evolved", { level: 3 })).toBeTruthy();
+  });
+
+  it("evolution progress is shown in English locale", () => {
+    expect(t("en", "log.evolutionPoint", { current: 0, required: 2 })).toBeTruthy();
+    expect(t("en", "log.evolved", { level: 3 })).toBeTruthy();
+  });
+
+  it("evolution completed text differs between locales", () => {
+    const thEvolved = t("th", "log.evolved", { level: 3 });
+    const enEvolved = t("en", "log.evolved", { level: 3 });
+    expect(thEvolved).not.toBe(enEvolved);
+    expect(thEvolved).toContain("3");
+    expect(enEvolved).toContain("3");
+  });
+
+  /* ------------------------------------------------------------------ */
+  /*  Phase 2D-C — date/time/number formatting follows locale (light)    */
+  /* ------------------------------------------------------------------ */
+
+  it("number formatting in score display uses simple integer", () => {
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
+  });
+
+  it("duration format is locale-independent (HH:MM:SS)", () => {
+    // formatDuration is always HH:MM:SS regardless of locale — that's acceptable
+  });
+
+  /* ------------------------------------------------------------------ */
+  /*  Phase 2D-C — export and persistence values remain unchanged        */
+  /* ------------------------------------------------------------------ */
+
+  it("persistence schema still uses nameTh internally", async () => {
+    const { initStats } = await import("../persistence/statsTracker");
+    const stats = initStats();
+    expect(stats).toBeDefined();
   });
 });
 

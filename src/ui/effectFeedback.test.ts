@@ -17,7 +17,7 @@ describe("effect feedback display", () => {
   it("provides readable status labels and old-log fallback text", () => {
     expect(statusDisplayMeta.REMOVAL_SHIELD.tone).toBe("beneficial");
     expect(statusLabel("TEMP_LEVEL_DOWN_IMMUNITY")).toContain("ป้องกันการลด Level");
-    expect(summarizeOutcomes(createMatch({ seed: "legacy-log" }), undefined, "th")).toContain("ผลลัพธ์เก่า");
+    expect(summarizeOutcomes(createMatch({ seed: "legacy-log" }), undefined, "th")).toContain("ไม่มีรายละเอียดเพิ่มเติม");
   });
 
   it("formats opponent-target, score-change, prevention, and legacy action log entries in Thai", () => {
@@ -279,5 +279,43 @@ describe("renderActionFeedback — centered action feedback", () => {
     expect(thDef.join(" ")).not.toBe(enDef.join(" "));
     thDef.forEach(line => expect(line).not.toContain("undefined"));
     enDef.forEach(line => expect(line).not.toContain("undefined"));
+  });
+
+  /* ------------------------------------------------------------------ */
+  /*  Phase 2D-C — Evolution, status, and locale-aware formatting        */
+  /* ------------------------------------------------------------------ */
+
+  it("renders evolution outcome in Thai", () => {
+    const state = createMatch({ seed: "evo-th" });
+    const outcomes: EffectOutcome[] = [
+      { code: "EVOLUTION_POINT_GAINED", targetInstanceId: "A001", current: 1, required: 2 },
+      { code: "EVOLVED", targetInstanceId: "A001", fromLevel: 2, toLevel: 3 }
+    ];
+    const thai = summarizeOutcomes(state, outcomes, "th");
+    expect(thai).toContain("วิวัฒนาการ");
+    expect(thai).toContain("1");
+    expect(thai).toContain("2");
+  });
+
+  it("renders evolution outcome in English", () => {
+    const state = createMatch({ seed: "evo-en" });
+    const outcomes: EffectOutcome[] = [
+      { code: "EVOLUTION_POINT_GAINED", targetInstanceId: "A001", current: 1, required: 2 },
+      { code: "EVOLVED", targetInstanceId: "A001", fromLevel: 2, toLevel: 3 }
+    ];
+    const eng = summarizeOutcomes(state, outcomes, "en");
+    expect(eng).toContain("Evolution");
+    expect(eng).toContain("1");
+    expect(eng).toContain("2");
+  });
+
+  it("renders evolution point text distinct per locale", () => {
+    const state = createMatch({ seed: "evo-distinct" });
+    const outcomes: EffectOutcome[] = [
+      { code: "EVOLUTION_POINT_GAINED", targetInstanceId: "A001", current: 1, required: 2 }
+    ];
+    const thai = summarizeOutcomes(state, outcomes, "th");
+    const eng = summarizeOutcomes(state, outcomes, "en");
+    expect(thai).not.toBe(eng);
   });
 });

@@ -1084,7 +1084,7 @@ function BoardRow({
               <span className="level">{t(locale, "label.level")} {animal.level}</span>
               <span className="target-badge">{legal ? t(locale, "label.select") : t(locale, "label.clearSelection")}</span>
               <strong>{localizedBoardCard.name}</strong>
-              {animal.level >= 2 && <small className="statuses">{evolutionLabel(animal.level, animal.evolutionPoints ?? 0)}</small>}
+              {animal.level >= 2 && <small className="statuses">{evolutionLabel(animal.level, animal.evolutionPoints ?? 0, locale)}</small>}
               {animal.attachedSupportIds.map((supportId) => (
                 <span className="attached-support" key={supportId}>{t(locale, "label.attachedSupport")}: {getLocalizedCard(match.cardsByInstanceId[supportId].definitionId, locale).name}</span>
               ))}
@@ -1188,7 +1188,7 @@ export function ResultScreen({
           <div className="highlight-card">
             <h4>{t(locale, "result.highestScoringCard")}</h4>
             <p>
-              <strong>{highestCard.nameTh}</strong> ({highestCard.cardId})
+              <strong>{getLocalizedCard(highestCard.cardId, locale).name}</strong> ({highestCard.cardId})
             </p>
             <p className="small-copy">
               {t(locale, "result.scoreAccumulated", { score: highestCard.score, player: playerName(highestCard.ownerId) })}
@@ -1265,34 +1265,34 @@ function needsTarget(card: CardDefinition): boolean {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function formatCardDetailLines(card: CardDefinition): string[] {
+export function formatCardDetailLines(card: CardDefinition, locale: Locale = "th"): string[] {
   const lines: string[] = [];
   if (card.primary_effect) {
-    lines.push(...labelledCardLines(card));
+    lines.push(...labelledCardLines(card, locale));
   }
   return lines.flatMap(splitCardLine);
 }
 
-function labelledCardLines(card: CardDefinition): string[] {
+function labelledCardLines(card: CardDefinition, locale: Locale): string[] {
   const lines: string[] = [];
   if (card.timing) {
-    lines.push(`ความสามารถ: ${card.timing}`);
+    lines.push(`${t(locale, "card.ability")}: ${card.timing}`);
   }
   if (card.target) {
-    lines.push(`เงื่อนไข: ${card.target}`);
+    lines.push(`${t(locale, "card.validUse")}: ${card.target}`);
   }
   if (card.category === "Support" && card.primary_effect) {
-    lines.push(`Support: ${card.primary_effect}`);
+    lines.push(`${t(locale, "card.type")}: ${card.primary_effect}`);
   } else if (card.category === "Weakness" && card.primary_effect) {
     const [fullEffect, weakEffect] = splitWeaknessEffects(card.primary_effect);
-    const targetLabel = weaknessTargetLabel(card.subtype);
-    if (fullEffect) lines.push(`ใช้ตรงเป้าหมาย — ${targetLabel}: ${fullEffect}`);
-    if (weakEffect) lines.push(`ใช้ผิดเป้าหมาย: ${weakEffect}`);
+    const targetLabel = weaknessTargetLabel(card.subtype, locale);
+    if (fullEffect) lines.push(`${t(locale, "card.fullEffect")} — ${targetLabel}: ${fullEffect}`);
+    if (weakEffect) lines.push(`${t(locale, "card.offTargetEffect")}: ${weakEffect}`);
   } else if (card.primary_effect) {
-    lines.push(`ความสามารถ: ${card.primary_effect}`);
+    lines.push(`${t(locale, "card.ability")}: ${card.primary_effect}`);
   }
   if (card.secondary_effect) {
-    lines.push(`จุดอ่อน: ${card.secondary_effect}`);
+    lines.push(`${t(locale, "card.weaknessTarget")}: ${card.secondary_effect}`);
   }
   return lines;
 }
@@ -1356,14 +1356,20 @@ function localizedCardDetailLines(cardText: {
   return lines.flatMap(splitCardLine);
 }
 
-function weaknessTargetLabel(subtype: string): string {
+function weaknessTargetLabel(subtype: string, locale: Locale): string {
+  const subtypeToCardId: Record<string, string> = {
+    Dog: "A001", Cat: "A002", Rabbit: "A003", Bear: "A004", Bird: "A005", Fish: "A006"
+  };
   const labels = subtype
     .split("/")
     .map((part) => part.trim())
     .map((part) => part.replace(/\s+Weakness$/i, ""))
-    .map((part) => ({ Dog: "สุนัข", Cat: "แมว", Rabbit: "กระต่าย", Bear: "หมี", Bird: "นก", Fish: "ปลา" }[part] ?? part))
+    .map((part) => {
+      const cardId = subtypeToCardId[part];
+      return cardId ? getLocalizedCard(cardId, locale).name : part;
+    })
     .filter(Boolean);
-  return labels.join("และ");
+  return labels.join(t(locale, "locale.en") === "English" ? " and " : "และ");
 }
 
 type PlayabilityState = "PLAYABLE_NOW" | "PLAYABLE_AFTER_TARGET" | "PARTIAL_EFFECT_ONLY" | "NOT_PLAYABLE";
@@ -1418,113 +1424,85 @@ function previewLines(card: CardDefinition, playability: PlayabilityInfo | undef
 function getCardPlayability(match: MatchState, playerId: PlayerId, cardInstanceId: string): PlayabilityInfo {
   const card = match.cardsByInstanceId[cardInstanceId];
   if (!card) {
-    return { state: "NOT_PLAYABLE", label: "ยังใช้ไม่ได้", reason: "ไม่พบการ์ด" };
+    return { state: "NOT_PLAYABLE", label: "playability.reason.notFound", reason: "playability.reason.notFound" };
   }
   const definition = getCardDefinition(card.definitionId);
   if (definition.card_id === "S001" && hasLevel3Dog(match, playerId)) {
-    return { state: "NOT_PLAYABLE", label: "สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้", reason: "สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้" };
+    return { state: "NOT_PLAYABLE", label: "playability.reason.dogMaxLevel", reason: "playability.reason.dogMaxLevel" };
   }
   const validation = validateAction(match, { type: "PLAY_CARD", playerId, payload: { cardInstanceId } });
-  const translated = validation.valid ? "" : translateValidationReason(validation.errors[0]);
   if (validation.valid) {
-    return { state: "PLAYABLE_NOW", label: "ใช้ได้ทันที" };
+    return { state: "PLAYABLE_NOW", label: "playability.playableNow" };
   }
-  if (needsTarget(definition) && validation.errors.some((error) => error.includes("target is required") || error.includes("target"))) {
+  const errs = validation.errors;
+  const reasonKey = translateValidationReasonToKey(errs[0]);
+  if (needsTarget(definition) && errs.some((error) => error.includes("target is required") || error.includes("target"))) {
     if (definition.category === "Weakness" && hasEnemyBoard(match, playerId)) {
       return anyDirectWeaknessTarget(match, playerId, definition)
-        ? { state: "PLAYABLE_AFTER_TARGET", label: "ต้องเลือกเป้าหมาย" }
-        : { state: "PARTIAL_EFFECT_ONLY", label: "ใช้ได้แบบผลอ่อน", reason: "ใช้ได้ แต่ไม่ตรงจุดอ่อน: จะลดคะแนนครั้งถัดไป 1 คะแนน" };
+        ? { state: "PLAYABLE_AFTER_TARGET", label: "playability.needsTarget" }
+        : { state: "PARTIAL_EFFECT_ONLY", label: "playability.partialEffect", reason: "playability.reason.weaknessOffTarget" };
     }
     if (hasPotentialTarget(match, playerId, definition)) {
-      return { state: "PLAYABLE_AFTER_TARGET", label: "ต้องเลือกเป้าหมาย" };
+      return { state: "PLAYABLE_AFTER_TARGET", label: "playability.needsTarget" };
     }
   }
-  return { state: "NOT_PLAYABLE", label: translated, reason: translated };
+  return { state: "NOT_PLAYABLE", label: reasonKey ?? "playability.reason.fallback", reason: reasonKey ?? "playability.reason.fallback" };
 }
 
-function translateValidationReason(reason: string | undefined): string {
-  if (!reason) return "ยังใช้ไม่ได้";
-  if (reason.includes("No reversible action")) return "ไม่มีอะไรให้ย้อนกลับ";
-  if (reason.includes("Only the player who made the action")) return "เฉพาะผู้เล่นที่กระทำการนั้นเท่านั้นที่ย้อนกลับได้";
-  if (reason.includes("your current turn")) return "ย้อนกลับได้เฉพาะในเทิร์นของคุณ";
-  if (reason.includes("Cannot undo after match finish")) return "ไม่สามารถย้อนกลับหลังเกมจบ";
-  if (reason.includes("Cannot undo outside ACTION")) return "ย้อนกลับได้เฉพาะใน ACTION phase";
-  if (reason.includes("Recycle is not allowed")) return "ไม่สามารถรีไซเคิลในเทิร์นแรก";
-  if (reason.includes("Cannot recycle with an empty deck")) return "ไม่สามารถรีไซเคิลเมื่อกองจั่วว่าง";
-  if (reason.includes("Selected Animal slot is occupied")) return "ช่อง Animal นี้ถูกครอบครองแล้ว";
-  if (reason.includes("Match is already finished")) return "เกมจบแล้ว";
-  if (reason.includes("Action player is not the current player")) return "ไม่ใช่ตาของคุณ";
-  if (reason.includes("Food Thief can only be used while behind")) return "ใช้ได้เมื่อคะแนนตามหลังเท่านั้น";
-  if (reason.includes("Quick Swap requires a replacement Animal from hand")) return "Quick Swap ต้องมี Animal ในมือ";
-  if (reason.includes("Quick Swap replacement must be an Animal")) return "Quick Swap การ์ดแทนต้องเป็น Animal";
-  if (reason.includes("ACTION phase")) return "ยังไม่ถึงช่วงที่ใช้ได้";
-  if (reason.includes("current player's hand")) return "การ์ดไม่ได้อยู่ในมือ";
-  if (reason.includes("Animal action already")) return "ใช้การ์ดสัตว์แล้วในเทิร์นนี้";
-  if (reason.includes("Animal zone is full")) return "ช่องสัตว์เต็ม";
-  if (reason.includes("Utility action is locked")) return "ใช้การ์ดประเภทนี้ไม่ได้ในเทิร์นนี้";
-  if (reason.includes("Utility action already")) return "ใช้การ์ดประเภทนี้แล้วในเทิร์นนี้";
-  if (reason.includes("board Animal target")) return "การ์ดนี้ต้องเลือกสัตว์";
-  if (reason.includes("own Animal")) return "ต้องมีสัตว์ของคุณอยู่ในสนาม";
-  if (reason.includes("enemy Animal")) return "ไม่มีเป้าหมายฝ่ายตรงข้าม";
-  if (reason.includes("protected from Weakness")) return "เป้าหมายมีเกราะป้องกัน";
-  if (reason.includes("เพิ่มเลเวลได้")) return "สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้";
-  if (reason.includes("Level 1")) return "ต้องเลือกสัตว์ Level 1";
-  return reason;
+function translateValidationReasonToKey(reason: string | undefined): TranslationKey | null {
+  if (!reason) return null;
+  if (reason.includes("No reversible action")) return "playability.reason.undoNotAvailable";
+  if (reason.includes("Only the player who made the action")) return "playability.reason.undoWrongActor";
+  if (reason.includes("your current turn")) return "playability.reason.undoWrongTurn";
+  if (reason.includes("Cannot undo after match finish")) return "playability.reason.undoMatchFinished";
+  if (reason.includes("Cannot undo outside ACTION")) return "playability.reason.undoWrongPhase";
+  if (reason.includes("Recycle is not allowed")) return "playability.reason.recycleFirstTurn";
+  if (reason.includes("Cannot recycle with an empty deck")) return "playability.reason.recycleEmptyDeck";
+  if (reason.includes("Selected Animal slot is occupied")) return "playability.reason.slotOccupied";
+  if (reason.includes("Match is already finished")) return "playability.reason.matchFinished";
+  if (reason.includes("Action player is not the current player")) return "playability.reason.wrongPlayer";
+  if (reason.includes("Food Thief can only be used while behind")) return "playability.reason.behindOnly";
+  if (reason.includes("Quick Swap requires a replacement Animal from hand")) return "playability.reason.quickSwapRequires";
+  if (reason.includes("Quick Swap replacement must be an Animal")) return "playability.reason.quickSwapNotAnimal";
+  if (reason.includes("ACTION phase")) return "playability.reason.notActionPhase";
+  if (reason.includes("current player's hand")) return "playability.reason.notInHand";
+  if (reason.includes("Animal action already")) return "playability.reason.animalActionUsed";
+  if (reason.includes("Animal zone is full")) return "playability.reason.animalZoneFull";
+  if (reason.includes("Utility action is locked")) return "playability.reason.utilityLocked";
+  if (reason.includes("Utility action already")) return "playability.reason.utilityUsed";
+  if (reason.includes("board Animal target")) return "playability.reason.needsAnimalTarget";
+  if (reason.includes("own Animal")) return "playability.reason.needsOwnAnimal";
+  if (reason.includes("enemy Animal")) return "playability.reason.noEnemyTarget";
+  if (reason.includes("protected from Weakness")) return "playability.reason.targetProtected";
+  if (reason.includes("เพิ่มเลเวลได้")) return "playability.reason.animalMaxLevel";
+  if (reason.includes("Level 1")) return "playability.reason.needsLevel1";
+  return null;
 }
-
-const PLAYABILITY_LABEL_TH_TO_KEY: Record<string, TranslationKey> = {
-  "ใช้ได้ทันที": "playability.playableNow",
-  "ต้องเลือกเป้าหมาย": "playability.needsTarget",
-  "ใช้ได้แบบผลอ่อน": "playability.partialEffect",
-  "ยังใช้ไม่ได้": "playability.notPlayable",
-  "ยังไม่ถึงช่วงที่ใช้ได้": "playability.reason.notActionPhase",
-  "การ์ดไม่ได้อยู่ในมือ": "playability.reason.notInHand",
-  "ใช้การ์ดสัตว์แล้วในเทิร์นนี้": "playability.reason.animalActionUsed",
-  "ช่องสัตว์เต็ม": "playability.reason.animalZoneFull",
-  "ใช้การ์ดประเภทนี้ไม่ได้ในเทิร์นนี้": "playability.reason.utilityLocked",
-  "ใช้การ์ดประเภทนี้แล้วในเทิร์นนี้": "playability.reason.utilityUsed",
-  "การ์ดนี้ต้องเลือกสัตว์": "playability.reason.needsAnimalTarget",
-  "ต้องมีสัตว์ของคุณอยู่ในสนาม": "playability.reason.needsOwnAnimal",
-  "ไม่มีเป้าหมายฝ่ายตรงข้าม": "playability.reason.noEnemyTarget",
-  "เป้าหมายมีเกราะป้องกัน": "playability.reason.targetProtected",
-  "ต้องเลือกสัตว์ Level 1": "playability.reason.needsLevel1",
-  "สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้": "playability.reason.dogMaxLevel",
-  "สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้": "playability.reason.animalMaxLevel",
-  "ใช้ได้ แต่ไม่ตรงจุดอ่อน: จะลดคะแนนครั้งถัดไป 1 คะแนน": "playability.reason.weaknessOffTarget",
-  "ไม่พบการ์ด": "playability.reason.notFound",
-  "ไม่มีอะไรให้ย้อนกลับ": "playability.reason.undoNotAvailable",
-  "เฉพาะผู้เล่นที่กระทำการนั้นเท่านั้นที่ย้อนกลับได้": "playability.reason.undoWrongActor",
-  "ย้อนกลับได้เฉพาะในเทิร์นของคุณ": "playability.reason.undoWrongTurn",
-  "ไม่สามารถย้อนกลับหลังเกมจบ": "playability.reason.undoMatchFinished",
-  "ย้อนกลับได้เฉพาะใน ACTION phase": "playability.reason.undoWrongPhase",
-  "ไม่สามารถรีไซเคิลในเทิร์นแรก": "playability.reason.recycleFirstTurn",
-  "ไม่สามารถรีไซเคิลเมื่อกองจั่วว่าง": "playability.reason.recycleEmptyDeck",
-  "ต้องเลือกการ์ดในมือก่อน Recycle": "playability.reason.recycleNoCard",
-  "ช่อง Animal นี้ถูกครอบครองแล้ว": "playability.reason.slotOccupied",
-  "เกมจบแล้ว": "playability.reason.matchFinished",
-  "ไม่ใช่ตาของคุณ": "playability.reason.wrongPlayer",
-  "ใช้ได้เมื่อคะแนนตามหลังเท่านั้น": "playability.reason.behindOnly",
-  "Quick Swap ต้องมี Animal ในมือ": "playability.reason.quickSwapRequires",
-  "Quick Swap การ์ดแทนต้องเป็น Animal": "playability.reason.quickSwapNotAnimal"
-};
 
 function localizePlayabilityLabel(playability: PlayabilityInfo, locale: Locale): string {
-  const key = PLAYABILITY_LABEL_TH_TO_KEY[playability.label];
+  const key = asTranslationKey(playability.label);
   if (key) return t(locale, key);
+  const reasonKey = asTranslationKey(playability.reason);
+  if (reasonKey) return t(locale, reasonKey);
   return playability.label;
 }
 
 function localizeValidationReason(error: string | undefined, locale: Locale): string {
-  const thai = translateValidationReason(error);
-  const key = PLAYABILITY_LABEL_TH_TO_KEY[thai];
+  const key = translateValidationReasonToKey(error);
   if (key) return t(locale, key);
   return t(locale, "playability.reason.fallback");
 }
 
 function localizePlayabilityReason(reason: string, locale: Locale): string {
-  const key = PLAYABILITY_LABEL_TH_TO_KEY[reason];
+  const key = asTranslationKey(reason);
   if (key) return t(locale, key);
   return reason;
+}
+
+function asTranslationKey(value: string | undefined): TranslationKey | null {
+  if (!value) return null;
+  if (value.startsWith("playability.")) return value as TranslationKey;
+  return null;
 }
 
 const STATUS_KEY_MAP: Record<StatusEffectCode, { label: TranslationKey; description: TranslationKey; duration: TranslationKey }> = {
@@ -1685,13 +1663,12 @@ function phaseLabel(phase: MatchState["phase"], locale: Locale) {
   return t(locale, keys[phase]);
 }
 
-function evolutionLabel(level: number, points: number): string {
+function evolutionLabel(level: number, points: number, locale: Locale): string {
   if (level >= 3) {
-    return "วิวัฒนาการสำเร็จ ★★";
+    return t(locale, "log.evolved", { level });
   }
-  return points >= 1
-    ? "วิวัฒนาการ ★☆ 1/2 — ทำคะแนนสำเร็จอีก 1 ครั้งเพื่อขึ้น Level 3"
-    : "วิวัฒนาการ ☆☆ 0/2 — ทำคะแนนสำเร็จอีก 2 ครั้งเพื่อขึ้น Level 3";
+  const progress = t(locale, "log.evolutionPoint", { current: points, required: 2 });
+  return `${progress} — ${t(locale, "preview.x003.evolutionLoss")}`;
 }
 
 function formatDuration(ms: number): string {
@@ -1814,7 +1791,7 @@ function HistoryScreen({
                 </div>
                 {result.highestScoringCard && (
                   <div className="history-highlight">
-                    <strong>{t(locale, "history.highestScoringCard")}:</strong> {result.highestScoringCard.nameTh} ({result.highestScoringCard.cardId}) — {result.highestScoringCard.score} ({playerName(result.highestScoringCard.ownerId)})
+                    <strong>{t(locale, "history.highestScoringCard")}:</strong> {getLocalizedCard(result.highestScoringCard.cardId, locale).name} ({result.highestScoringCard.cardId}) — {result.highestScoringCard.score} ({playerName(result.highestScoringCard.ownerId)})
                   </div>
                 )}
                 <div className="history-actions">

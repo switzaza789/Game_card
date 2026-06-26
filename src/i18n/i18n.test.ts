@@ -729,4 +729,214 @@ describe("card localization data layer", () => {
     const enFail = t("en", "feedback.recoveryFailed", { reason: "timeout" });
     expect(enFail).toContain("timeout");
   });
+
+  /* ------------------------------------------------------------------ */
+  /*  Playability reason labels (Phase 2D-C)                            */
+  /* ------------------------------------------------------------------ */
+
+  it("provides all playability reason keys in both locales", () => {
+    const reasonKeys = [
+      "playability.reason.notFound", "playability.reason.dogMaxLevel",
+      "playability.reason.notActionPhase", "playability.reason.notInHand",
+      "playability.reason.animalActionUsed", "playability.reason.animalZoneFull",
+      "playability.reason.utilityLocked", "playability.reason.utilityUsed",
+      "playability.reason.needsAnimalTarget", "playability.reason.needsOwnAnimal",
+      "playability.reason.noEnemyTarget", "playability.reason.targetProtected",
+      "playability.reason.animalMaxLevel", "playability.reason.needsLevel1",
+      "playability.reason.weaknessOffTarget",
+      "playability.reason.undoNotAvailable", "playability.reason.undoWrongActor",
+      "playability.reason.undoWrongTurn", "playability.reason.undoMatchFinished",
+      "playability.reason.undoWrongPhase", "playability.reason.recycleFirstTurn",
+      "playability.reason.recycleEmptyDeck", "playability.reason.recycleNoCard",
+      "playability.reason.slotOccupied", "playability.reason.matchFinished",
+      "playability.reason.wrongPlayer", "playability.reason.behindOnly",
+      "playability.reason.quickSwapRequires", "playability.reason.quickSwapNotAnimal",
+      "playability.reason.fallback"
+    ];
+    for (const key of reasonKeys) {
+      expect(th).toHaveProperty(key);
+      expect(th[key as keyof typeof th].length).toBeGreaterThan(0);
+      expect(en).toHaveProperty(key);
+      expect(en[key as keyof typeof en].length).toBeGreaterThan(0);
+    }
+  });
+
+  /* ------------------------------------------------------------------ */
+  /*  Card detail labels (Phase 2D-C)                                   */
+  /* ------------------------------------------------------------------ */
+
+  it("provides card detail labels in both locales", () => {
+    const labelKeys = [
+      "card.type", "card.description", "card.ability", "card.validUse",
+      "card.target", "card.effectSummary", "card.supportCompatibility",
+      "card.levelUp", "card.additionalEffect", "card.weaknessTarget",
+      "card.fullEffect", "card.offTargetEffect", "card.immediateEffect",
+      "card.duration"
+    ];
+    for (const key of labelKeys) {
+      expect(th).toHaveProperty(key);
+      expect(th[key as keyof typeof th].length).toBeGreaterThan(0);
+      expect(en).toHaveProperty(key);
+      expect(en[key as keyof typeof en].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("card detail labels are distinct between Thai and English", () => {
+    const labelKeys = [
+      "card.type", "card.description", "card.ability", "card.validUse",
+      "card.target", "card.effectSummary", "card.supportCompatibility",
+      "card.levelUp", "card.additionalEffect", "card.weaknessTarget",
+      "card.fullEffect", "card.offTargetEffect", "card.immediateEffect",
+      "card.duration"
+    ];
+    for (const key of labelKeys) {
+      const thVal = t("th", key as never);
+      const enVal = t("en", key as never);
+      expect(thVal).not.toBe(enVal);
+    }
+  });
+
+  /* ------------------------------------------------------------------ */
+  /*  Weakness target names (Phase 2D-C)                                */
+  /* ------------------------------------------------------------------ */
+
+  it("weakness target names are localized in both locales", () => {
+    const wIds = ["W001", "W002", "W003", "W004", "W005"] as const;
+    for (const id of wIds) {
+      const thTarget = getLocalizedCard(id, "th").weaknessTarget;
+      const enTarget = getLocalizedCard(id, "en").weaknessTarget;
+      expect(thTarget).toBeTruthy();
+      expect(enTarget).toBeTruthy();
+      expect(thTarget).not.toBe(enTarget);
+    }
+  });
+
+  /* ------------------------------------------------------------------ */
+  /*  Evolution keys (Phase 2D-C)                                       */
+  /* ------------------------------------------------------------------ */
+
+  it("provides evolution-related keys in both locales", () => {
+    const evoKeys = ["log.evolutionPoint", "log.evolved"];
+    for (const key of evoKeys) {
+      expect(th).toHaveProperty(key);
+      expect(th[key as keyof typeof th].length).toBeGreaterThan(0);
+      expect(en).toHaveProperty(key);
+      expect(en[key as keyof typeof en].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("evolution progress text differs between locales", () => {
+    const thProgress = t("th", "log.evolutionPoint", { current: 1, required: 2 });
+    const enProgress = t("en", "log.evolutionPoint", { current: 1, required: 2 });
+    expect(thProgress).toContain("1");
+    expect(thProgress).toContain("2");
+    expect(enProgress).toContain("1");
+    expect(enProgress).toContain("2");
+    expect(thProgress).not.toBe(enProgress);
+  });
+
+  it("evolution completed text differs between locales", () => {
+    const thCompleted = t("th", "log.evolved", { level: 3 });
+    const enCompleted = t("en", "log.evolved", { level: 3 });
+    expect(thCompleted).toContain("3");
+    expect(enCompleted).toContain("3");
+    expect(thCompleted).not.toBe(enCompleted);
+  });
+
+  /* ------------------------------------------------------------------ */
+  /*  Playability no longer depends on Thai-string mapping (Phase 2D-C) */
+  /* ------------------------------------------------------------------ */
+
+  it("playability reason keys are stable and not derived from Thai strings", () => {
+    const reasonKeys = [
+      "playability.reason.dogMaxLevel",
+      "playability.reason.notActionPhase",
+      "playability.reason.notInHand",
+      "playability.reason.animalActionUsed",
+      "playability.reason.animalZoneFull",
+      "playability.reason.utilityLocked",
+      "playability.reason.utilityUsed",
+      "playability.reason.needsAnimalTarget",
+      "playability.reason.needsOwnAnimal",
+      "playability.reason.noEnemyTarget",
+      "playability.reason.targetProtected",
+      "playability.reason.animalMaxLevel",
+      "playability.reason.needsLevel1",
+      "playability.reason.weaknessOffTarget",
+      "playability.reason.undoNotAvailable",
+      "playability.reason.undoWrongActor",
+      "playability.reason.undoWrongTurn",
+      "playability.reason.undoMatchFinished",
+      "playability.reason.undoWrongPhase",
+      "playability.reason.recycleFirstTurn",
+      "playability.reason.recycleEmptyDeck",
+      "playability.reason.slotOccupied",
+      "playability.reason.matchFinished",
+      "playability.reason.wrongPlayer",
+      "playability.reason.behindOnly",
+      "playability.reason.quickSwapRequires",
+      "playability.reason.quickSwapNotAnimal",
+      "playability.reason.fallback"
+    ];
+    // All keys exist and are non-empty strings - no raw Thai in keys
+    for (const key of reasonKeys) {
+      expect(typeof t("th", key as never)).toBe("string");
+      expect(t("th", key as never).length).toBeGreaterThan(0);
+      expect(typeof t("en", key as never)).toBe("string");
+      expect(t("en", key as never).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("playability reason translations never contain undefined", () => {
+    const reasonKeys = Object.keys(th).filter((k) => k.startsWith("playability."));
+    for (const key of reasonKeys) {
+      expect(t("th", key as never)).not.toContain("undefined");
+      expect(t("en", key as never)).not.toContain("undefined");
+    }
+  });
+
+  it("playability reason translations never contain TranslationKey name", () => {
+    for (const value of Object.values(th)) {
+      expect(value).not.toMatch(/^playability\./);
+    }
+    for (const value of Object.values(en)) {
+      expect(value).not.toMatch(/^playability\./);
+    }
+  });
+
+  /* ------------------------------------------------------------------ */
+  /*  Locale-aware formatting (Phase 2D-C)                              */
+  /* ------------------------------------------------------------------ */
+
+  it("card type labels are distinct between locales", () => {
+    expect(t("th", "card.type")).toBe("ประเภท");
+    expect(t("en", "card.type")).toBe("Type");
+  });
+
+  /* ------------------------------------------------------------------ */
+  /*  Export and persistence values remain unchanged (Phase 2D-C)       */
+  /* ------------------------------------------------------------------ */
+
+  it("dictionary keys are identical between Thai and English", () => {
+    expect(Object.keys(th).sort()).toEqual(Object.keys(en).sort());
+  });
+
+  it("no raw TranslationKey value or undefined in dictionary values", () => {
+    for (const [key, value] of Object.entries(th)) {
+      expect(value).toBeDefined();
+      expect(typeof value).toBe("string");
+      if (key !== "log.action.default") {
+        expect(value.length).toBeGreaterThan(0);
+      }
+      expect(value).not.toContain("undefined");
+    }
+    for (const [key, value] of Object.entries(en)) {
+      expect(value).toBeDefined();
+      expect(typeof value).toBe("string");
+      if (key !== "log.action.default") {
+        expect(value.length).toBeGreaterThan(0);
+      }
+      expect(value).not.toContain("undefined");
+    }
+  });
 });
