@@ -1225,10 +1225,10 @@ function Modal({ modal, match, onClose, locale }: { modal: ModalState; match?: M
         {modal.type === "card" ? (
           match ? (
             <>
-              <h2>{modal.card.name_th}</h2>
-              <p>{modal.card.card_id} — {categoryLabels.th[modal.card.category]}</p>
+              <h2>{getLocalizedCard(modal.card.card_id, locale).name}</h2>
+              <p>{modal.card.card_id} — {getLocalizedCard(modal.card.card_id, locale).type}</p>
               <div className="card-detail-lines" aria-label={t(locale, "label.details")}>
-                {formatCardDetailLines(modal.card).map((line) => <p key={line}>{line}</p>)}
+                {localizedCardDetailLines(getLocalizedCard(modal.card.card_id, locale), locale).map((line) => <p key={line}>{line}</p>)}
               </div>
             </>
           ) : (
