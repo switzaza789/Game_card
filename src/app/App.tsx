@@ -26,6 +26,7 @@ import {
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
 import { formatActionLogEntry, renderCombatOutcomeLines, statusLabel } from "../ui/effectFeedback";
+import { getStoredLocale, localeOptions, setStoredLocale, t, type Locale } from "../i18n";
 import {
   buildPlaytestFeedbackPayload,
   humanFeedbackFilename,
@@ -60,6 +61,7 @@ const categoryLabels: Record<CardCategory, string> = {
 
 export function App() {
   const coordinator = useMemo(() => new PersistenceCoordinator(), []);
+  const [locale, setLocale] = useState<Locale>(() => getStoredLocale());
   const [screen, setScreen] = useState<Screen>("menu");
   const [match, setMatch] = useState<MatchState | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
@@ -77,6 +79,10 @@ export function App() {
   const lastFeedbackExportRef = useRef<string | null>(null);
   const aiExecutionRef = useRef<string | null>(null);
   const humanTurnPrepRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    setStoredLocale(locale);
+  }, [locale]);
 
   useEffect(() => {
     const loadResult = loadActiveMatch();
@@ -546,11 +552,11 @@ export function App() {
   }, [match, selectedCardId]);
 
   if (screen === "howToPlay") {
-    return <HowToPlay onBack={() => setScreen("menu")} />;
+      return <HowToPlay onBack={() => setScreen("menu")} locale={locale} />;
   }
 
   if (screen === "library") {
-    return <CardLibrary onBack={() => setScreen("menu")} onOpenCard={(card) => setModal({ type: "card", card })} modal={modal} onCloseModal={() => setModal(null)} />;
+      return <CardLibrary onBack={() => setScreen("menu")} onOpenCard={(card) => setModal({ type: "card", card })} modal={modal} onCloseModal={() => setModal(null)} locale={locale} onLocaleChange={setLocale} />;
   }
 
   if (screen === "history") {
@@ -587,6 +593,8 @@ export function App() {
             setPlaytestError(null);
             setPlaytestFeedbackOpen(true);
           }}
+          locale={locale}
+          onLocaleChange={setLocale}
         />
         {playtestFeedbackOpen && (
           <PlaytestFeedbackModal
@@ -610,8 +618,8 @@ export function App() {
 
   if (screen === "battle" && match) {
     return (
-      <BattleScreen
-        match={match}
+        <BattleScreen
+          match={match}
         activePlayerId={match.currentPlayerId}
         opponentId={otherPlayerId(match.currentPlayerId)}
         selectedCardId={selectedCardId}
@@ -640,11 +648,13 @@ export function App() {
         onDismissFeedback={() => setEffectFeedback(null)}
         endTurnConfirmOpen={endTurnConfirmOpen}
         onCancelEndTurn={() => setEndTurnConfirmOpen(false)}
-        onConfirmEndTurn={() => {
-          setEndTurnConfirmOpen(false);
-          endTurn();
-        }}
-      />
+          onConfirmEndTurn={() => {
+            setEndTurnConfirmOpen(false);
+            endTurn();
+          }}
+          locale={locale}
+          onLocaleChange={setLocale}
+        />
     );
   }
 
@@ -662,6 +672,8 @@ export function App() {
           setImportError(null);
           setShowImport(true);
         }}
+        locale={locale}
+        onLocaleChange={setLocale}
       />
       {showImport && (
         <ImportModal
@@ -691,7 +703,9 @@ function MainMenu({
   onContinue,
   onClearSave,
   onViewHistory,
-  onOpenImport
+  onOpenImport,
+  locale,
+  onLocaleChange
 }: {
   onStart: (gameMode?: GameMode) => void;
   onHowToPlay: () => void;
@@ -701,12 +715,15 @@ function MainMenu({
   onClearSave: () => void;
   onViewHistory: () => void;
   onOpenImport: () => void;
+  locale: Locale;
+  onLocaleChange: (locale: Locale) => void;
 }) {
   return (
     <main className="app-shell" aria-labelledby="game-title">
       <section className="start-panel">
-        <p className="eyebrow">Local Hot-seat Prototype</p>
-        <h1 id="game-title">{gameConfig.game_title}</h1>
+        <LocaleSelector locale={locale} onChange={onLocaleChange} />
+        <p className="eyebrow">{t(locale, "app.subtitle")}</p>
+        <h1 id="game-title">{t(locale, "app.title")}</h1>
         <dl className="summary-grid" aria-label="ข้อมูลเกมที่โหลดแล้ว">
           <div><dt>เวอร์ชัน</dt><dd>{gameConfig.version}</dd></div>
           <div><dt>จำนวนการ์ด</dt><dd>{cardCatalog.cards.length} ใบ</dd></div>
@@ -716,15 +733,15 @@ function MainMenu({
         <div className="menu-actions">
           {hasSavedGame && (
             <>
-              <button type="button" onClick={onContinue} aria-label="เล่นต่อจากเซฟเดิม">เล่นต่อ</button>
+              <button type="button" onClick={onContinue} aria-label="เล่นต่อจากเซฟเดิม">{t(locale, "menu.continue")}</button>
               <button type="button" className="danger-button" onClick={onClearSave} aria-label="ลบไฟล์เซฟ">ลบเซฟ</button>
             </>
           )}
           <button type="button" onClick={() => onStart("LOCAL_PVP")} aria-label="เริ่มเกมใหม่">
-            {hasSavedGame ? "เริ่ม Local PvP ใหม่" : "Local PvP"}
+            {hasSavedGame ? `${t(locale, "menu.localPvp")} ใหม่` : t(locale, "menu.localPvp")}
           </button>
           <button type="button" onClick={() => onStart("PVE_NORMAL")} aria-label="เริ่ม PvE กับคอมพิวเตอร์">
-            PvE vs Computer <small>Normal AI</small>
+            {t(locale, "menu.pveNormal")} <small>Normal AI</small>
           </button>
           <button type="button" className="secondary-button" onClick={onViewHistory}>ประวัติการเล่น</button>
           <button type="button" className="secondary-button" onClick={onOpenImport}>นำเข้าไฟล์เซฟ</button>
@@ -736,12 +753,31 @@ function MainMenu({
   );
 }
 
-function HowToPlay({ onBack }: { onBack: () => void }) {
+function LocaleSelector({ locale, onChange }: { locale: Locale; onChange: (locale: Locale) => void }) {
+  const labels: Record<Locale, string> = { th: t(locale, "locale.th"), en: t(locale, "locale.en") };
+  return (
+    <div className="locale-selector" role="group" aria-label={t(locale, "selector.aria")}>
+      {localeOptions().map((option) => (
+        <button
+          key={option}
+          type="button"
+          className={locale === option ? "locale-option active" : "locale-option"}
+          aria-pressed={locale === option}
+          onClick={() => onChange(option)}
+        >
+          {labels[option]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function HowToPlay({ onBack, locale }: { onBack: () => void; locale: Locale }) {
   return (
     <main className="page-shell">
       <header className="page-header">
-        <h1>วิธีเล่น</h1>
-        <button type="button" className="secondary-button" onClick={onBack}>กลับเมนู</button>
+        <h1>{locale === "en" ? "How to Play" : "วิธีเล่น"}</h1>
+        <button type="button" className="secondary-button" onClick={onBack}>{locale === "en" ? "Back" : "กลับเมนู"}</button>
       </header>
       <section className="rule-list" aria-label="กติกาหลัก">
         <p>ผู้เล่น 2 คนสลับกันเล่นบนอุปกรณ์เดียวกัน ฝ่ายละ Deck 24 ใบ มือเริ่มต้น 5 ใบ และมี Animal Zone 3 ช่อง</p>
@@ -756,19 +792,24 @@ function CardLibrary({
   onBack,
   onOpenCard,
   modal,
-  onCloseModal
+  onCloseModal,
+  locale,
+  onLocaleChange
 }: {
   onBack: () => void;
   onOpenCard: (card: CardDefinition) => void;
   modal: ModalState;
   onCloseModal: () => void;
+  locale: Locale;
+  onLocaleChange: (locale: Locale) => void;
 }) {
   return (
     <main className="page-shell">
       <header className="page-header">
-        <h1>คลังการ์ด</h1>
-        <button type="button" className="secondary-button" onClick={onBack}>กลับเมนู</button>
+        <h1>{locale === "en" ? "Card Library" : "คลังการ์ด"}</h1>
+        <button type="button" className="secondary-button" onClick={onBack}>{locale === "en" ? "Back" : "กลับเมนู"}</button>
       </header>
+      <LocaleSelector locale={locale} onChange={onLocaleChange} />
       <div className="library-grid">
         {cardCatalog.cards.map((card) => (
           <button key={card.card_id} type="button" className={`library-card ${categoryClass(card.category)}`} onClick={() => onOpenCard(card)}>
@@ -807,6 +848,8 @@ function BattleScreen(props: {
   endTurnConfirmOpen: boolean;
   onCancelEndTurn: () => void;
   onConfirmEndTurn: () => void;
+  locale: Locale;
+  onLocaleChange: (locale: Locale) => void;
 }) {
   const { match, activePlayerId, opponentId, selectedCardId, selectedDefinition } = props;
   const controlsDisabled = Boolean(props.controlsDisabled);
@@ -823,36 +866,37 @@ function BattleScreen(props: {
       <section className="scoreboard" aria-label="คะแนนผู้เล่น" aria-live="polite">
         {(["P1", "P2"] as PlayerId[]).map((playerId) => (
           <div key={playerId} className={`scoreboard-player ${match.currentPlayerId === playerId ? "active" : ""}`}>
-            <span>{playerNameForMode(playerId, match.gameMode)}</span>
+            <span>{playerNameForMode(playerId, match.gameMode, props.locale)}</span>
             <strong>{match.players[playerId].score} / {gameConfig.target_score}</strong>
             {scoreDeltas[playerId] !== 0 && <em>{scoreDeltas[playerId] > 0 ? "+" : ""}{scoreDeltas[playerId]}</em>}
           </div>
         ))}
       </section>
       <section className="topbar" aria-label="สถานะการแข่งขัน">
+        <LocaleSelector locale={props.locale} onChange={props.onLocaleChange} />
         <div className="player-panel">
-          <strong>{playerName(opponentId)}</strong>
+          <strong>{playerName(opponentId, props.locale)}</strong>
           <span>Deck {match.players[opponentId].deck.length} | Hand {match.players[opponentId].hand.length}</span>
         </div>
         <div className="phase-panel">
-          <strong>TURN {match.turnNumber} — {phaseLabel(match.phase)}</strong>
+          <strong>{t(props.locale, "label.turn")} {match.turnNumber} — {phaseLabel(match.phase, props.locale)}</strong>
           <small>Utility: {match.players[activePlayerId].utilityLocked ? "ถูกล็อก" : match.players[activePlayerId].utilityActionUsed ? "ใช้แล้ว" : "พร้อมใช้"}</small>
         </div>
         <div className="player-panel right">
-          <strong>{playerName(activePlayerId)}</strong>
+          <strong>{playerName(activePlayerId, props.locale)}</strong>
           <span className="score">{match.players[activePlayerId].score} / {gameConfig.target_score}</span>
         </div>
       </section>
 
       <section className="board" aria-label="สนามต่อสู้">
-        {isAiTurn && <div className="ai-banner" role="status" aria-live="polite">AI Turn — Computer is thinking...</div>}
+        {isAiTurn && <div className="ai-banner" role="status" aria-live="polite">AI Turn — {t(props.locale, "label.computer")} is thinking...</div>}
         {isPreparingHumanTurn && <div className="ai-banner" role="status" aria-live="polite">กำลังจั่วและคิดคะแนน...</div>}
         <HiddenHand count={match.players[opponentId].hand.length} />
-        <div className="zone-label">มือคู่ต่อสู้</div>
+        <div className="zone-label">{t(props.locale, "label.player2")}</div>
         <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} />
         <div className="divider" />
         <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} />
-        <div className="zone-label">Animal Zone ของคุณ — คะแนน {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
+        <div className="zone-label">{t(props.locale, "label.you")} — คะแนน {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
         <div className="player-hand" aria-label="มือผู้เล่นปัจจุบัน" tabIndex={0}>
           {match.players[activePlayerId].hand.map((id) => {
             const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
@@ -1378,15 +1422,15 @@ function findOwnAttachedSupport(match: MatchState, playerId: PlayerId): string |
   return undefined;
 }
 
-function playerName(playerId: PlayerId) {
-  return playerId === "P1" ? "ผู้เล่น 1" : "ผู้เล่น 2";
+function playerName(playerId: PlayerId, locale: Locale = "th") {
+  return playerId === "P1" ? t(locale, "label.player1") : t(locale, "label.player2");
 }
 
-function playerNameForMode(playerId: PlayerId, gameMode: GameMode) {
+function playerNameForMode(playerId: PlayerId, gameMode: GameMode, locale: Locale) {
   if (gameMode === "PVE_NORMAL") {
-    return playerId === "P1" ? "คุณ" : "Bot";
+    return playerId === "P1" ? t(locale, "label.you") : t(locale, "label.computer");
   }
-  return playerName(playerId);
+  return playerName(playerId, locale);
 }
 
 function scoreDeltaByPlayer(entry: MatchState["actionLog"][number] | undefined): Record<PlayerId, number> {
@@ -1403,15 +1447,15 @@ function categoryClass(category: CardCategory) {
   return `cat-${category.toLowerCase()}`;
 }
 
-function phaseLabel(phase: MatchState["phase"]) {
-  const labels: Record<MatchState["phase"], string> = {
-    READY: "เตรียมพร้อม",
-    DRAW: "จั่วการ์ด",
-    SCORE: "คิดคะแนน",
-    ACTION: "เล่นการ์ด",
-    END: "จบเทิร์น"
+function phaseLabel(phase: MatchState["phase"], locale: Locale) {
+  const keys: Record<MatchState["phase"], "phase.READY" | "phase.DRAW" | "phase.SCORE" | "phase.ACTION" | "phase.END"> = {
+    READY: "phase.READY",
+    DRAW: "phase.DRAW",
+    SCORE: "phase.SCORE",
+    ACTION: "phase.ACTION",
+    END: "phase.END"
   };
-  return labels[phase];
+  return t(locale, keys[phase]);
 }
 
 function evolutionLabel(level: number, points: number): string {

@@ -6,6 +6,7 @@ import { App, ResultScreen, formatCardDetailLines, isLevelIncreasingSupportCard 
 import { exportMatchLog, saveActiveMatch, saveMatchResult, listHumanFeedback } from "../persistence/localStorageAdapter";
 import { initStats } from "../persistence/statsTracker";
 import type { MatchResult } from "../persistence/types";
+import { LOCALE_STORAGE_KEY, getStoredLocale, normalizeLocale, t } from "../i18n";
 
 beforeEach(() => {
   // Clear localStorage between tests so no saved-game state bleeds over
@@ -29,11 +30,34 @@ afterEach(() => {
 });
 
 describe("App Phase 4 UI", () => {
+  it("loads Thai by default when no locale preference exists", () => {
+    expect(getStoredLocale()).toBe("th");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "เลือกภาษา" })).toBeInTheDocument();
+  });
+
+  it("loads stored English and switches back and forth without changing match state", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Animal Score Card Game" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "ไทย" }));
+    expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
+    expect(localStorage.getItem(LOCALE_STORAGE_KEY)).toBe("th");
+  });
+
+  it("falls back to Thai for malformed locale values", () => {
+    expect(normalizeLocale("de")).toBe("th");
+    expect(normalizeLocale("")).toBe("th");
+    expect(t("th", "label.turn")).toBe("TURN");
+  });
+
   it("starts a local hot-seat battle from the main menu", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(screen.getByRole("heading", { name: "Animal Score Card Game" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "เริ่มเกมใหม่" }));
 
@@ -69,10 +93,20 @@ describe("App Phase 4 UI", () => {
 
     const scoreboard = screen.getByLabelText("คะแนนผู้เล่น");
     expect(within(scoreboard).getByText("คุณ")).toBeInTheDocument();
-    expect(within(scoreboard).getByText("Bot")).toBeInTheDocument();
+    expect(within(scoreboard).getByText("Computer")).toBeInTheDocument();
     expect(scoreboard.querySelector(".scoreboard-player.active")).toHaveTextContent("คุณ");
     expect(screen.getAllByText(/ใช้ได้ทันที|ต้องเลือกเป้าหมาย|ใช้ได้แบบผลอ่อน|ยังไม่ถึงช่วงที่ใช้ได้/).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "เล่นการ์ด" })).toBeInTheDocument();
+  });
+
+  it("keeps the current match stable when switching locale during PvP and PvE", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "เริ่มเกมใหม่" }));
+    const before = localStorage.getItem("animal_score_saved_match");
+    await user.click(screen.getAllByRole("button", { name: /English|ไทย/ })[1]);
+    expect(localStorage.getItem("animal_score_saved_match")).toBe(before);
   });
 
   it("places an Animal directly into a selected slot and safely undoes it", async () => {
@@ -252,7 +286,7 @@ describe("App Phase 4 UI", () => {
 
     expect(await screen.findByText(/ถึงตาคุณ/, undefined, { timeout: 1500 })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "จบเทิร์น" })).not.toBeDisabled());
-    expect(screen.getByText((_content, element) => element?.textContent === "TURN 2 — เล่นการ์ด")).toBeInTheDocument();
+    expect(screen.getByText((_content, element) => element?.textContent === "TURN 2 — ACTION")).toBeInTheDocument();
 
     await user.click(findFirstHandCardByCategory("สัตว์"));
     await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
@@ -377,7 +411,7 @@ describe("App Phase 5 persistence UI", () => {
 
     await user.click(screen.getByRole("button", { name: "รีเซ็ตเกม" }));
 
-    expect(screen.getByRole("heading", { name: "Animal Score Card Game" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
     expect(localStorage.getItem("animal_score_saved_match")).toBeNull();
   });
 
