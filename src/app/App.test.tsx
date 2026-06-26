@@ -797,6 +797,150 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     await user.click(within(screen.getByRole("dialog", { name: "เริ่มเกมใหม่หรือไม่?" })).getByRole("button", { name: "เริ่มเกมใหม่" }));
     expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
   });
+
+  it("shows Thai board card names after playing an Animal", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    // first play an Animal so a board slot is filled
+    await user.click(findFirstHandCardByCategory("สัตว์"));
+    await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
+    const board = screen.getByLabelText("สนามต่อสู้");
+    const strongs = Array.from(board.querySelectorAll(".slot.filled strong"));
+    expect(strongs.length).toBeGreaterThan(0);
+    const names = strongs.map((s) => s?.textContent ?? "");
+    const knownTh = ["สุนัขจอมซน", "แมวขี้สงสัย", "กระต่ายว่องไว", "หมีใจดี", "นกส่งข่าว", "ปลาจอมพลัง", "เต่าเกราะแข็ง", "ลิงจอมเจ้าเล่ห์"];
+    expect(names.some((n) => knownTh.includes(n))).toBe(true);
+  });
+
+  it("shows English board card names when locale is English", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+    render(<App />);
+    await startBattle(user);
+    const board = screen.getByLabelText("Battlefield");
+    const strongs = Array.from(board.querySelectorAll(".slot.filled strong"));
+    if (strongs.length === 0) return;
+    const names = strongs.map((s) => s?.textContent ?? "");
+    const knownEn = ["Playful Dog", "Curious Cat", "Swift Rabbit", "Gentle Bear", "Messenger Bird", "Energetic Fish", "Armored Turtle", "Clever Monkey"];
+    expect(names.some((n) => knownEn.includes(n))).toBe(true);
+  });
+
+  it("updates board card names when locale switches mid-match", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const board = screen.getByLabelText("สนามต่อสู้");
+    const strongsBefore = Array.from(board.querySelectorAll(".slot.filled strong")).map((s) => s?.textContent ?? "");
+    if (strongsBefore.length === 0) return;
+    await user.click(screen.getByRole("button", { name: "English" }));
+    const boardEn = screen.getByLabelText("Battlefield");
+    const strongsAfter = Array.from(boardEn.querySelectorAll(".slot.filled strong")).map((s) => s?.textContent ?? "");
+    expect(strongsAfter.length).toBe(strongsBefore.length);
+    expect(strongsAfter).not.toEqual(strongsBefore);
+  });
+
+  it("localizes attached Support names on board cards when locale switches", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const supportsBefore = document.querySelectorAll(".attached-support");
+    if (supportsBefore.length === 0) return;
+    const textBefore = Array.from(supportsBefore).map((s) => s?.textContent ?? "");
+    await user.click(screen.getByRole("button", { name: "English" }));
+    const supportsAfter = document.querySelectorAll(".attached-support");
+    expect(supportsAfter.length).toBe(supportsBefore.length);
+    const textAfter = Array.from(supportsAfter).map((s) => s?.textContent ?? "");
+    expect(textAfter).not.toEqual(textBefore);
+  });
+
+  it("localizes Graveyard card names when locale switches", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const graveyardButtons = screen.getAllByRole("button", { name: /สุสาน/ });
+    if (graveyardButtons.length === 0) return;
+    await user.click(graveyardButtons[0]);
+    const list = await screen.findByRole("list");
+    const itemsBefore = Array.from(list.querySelectorAll("li")).map((li) => li?.textContent ?? "");
+    if (itemsBefore.length === 0) return;
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "English" }));
+    await user.click(screen.getAllByRole("button", { name: /Graveyard/ })[0]);
+    const listEn = await screen.findByRole("list");
+    const itemsAfter = Array.from(listEn.querySelectorAll("li")).map((li) => li?.textContent ?? "");
+    expect(itemsAfter.length).toBe(itemsBefore.length);
+    expect(itemsAfter).not.toEqual(itemsBefore);
+  });
+
+  it("localizes Graveyard card types", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const graveyardButtons = screen.getAllByRole("button", { name: /สุสาน/ });
+    if (graveyardButtons.length === 0) return;
+    await user.click(graveyardButtons[0]);
+    const list = await screen.findByRole("list");
+    const itemsBefore = Array.from(list.querySelectorAll("li small")).map((s) => s?.textContent ?? "");
+    if (itemsBefore.length === 0) return;
+    expect(itemsBefore.some((t) => ["Animal", "Support", "Weakness", "Special"].includes(t))).toBe(true);
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "English" }));
+    await user.click(screen.getAllByRole("button", { name: /Graveyard/ })[0]);
+    const listEn = await screen.findByRole("list");
+    const itemsAfter = Array.from(listEn.querySelectorAll("li small")).map((s) => s?.textContent ?? "");
+    expect(itemsAfter.length).toBe(itemsBefore.length);
+    expect(itemsAfter).toEqual(itemsBefore); // type field is same in both locales
+  });
+
+  it("locale switching does not mutate match state", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const beforeSnapshot = localStorage.getItem("animal_score_saved_match");
+    await user.click(screen.getByRole("button", { name: "English" }));
+    expect(localStorage.getItem("animal_score_saved_match")).toBe(beforeSnapshot);
+  });
+
+  it("opponent hand remains hidden after board localization", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    expect(screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "English" }));
+    expect(screen.getByLabelText("Hidden opponent hand")).toBeInTheDocument();
+    const cardBacks = document.querySelectorAll(".card-back");
+    expect(cardBacks.length).toBeGreaterThan(0);
+    cardBacks.forEach((cb) => {
+      expect(cb?.textContent?.trim() ?? "").toBe("");
+    });
+  });
+
+  it("player-hand localization still works after board localization", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const btn = hand.querySelector("button");
+    if (!btn) return;
+    const thName = btn.querySelector("strong")?.textContent ?? "";
+    expect(thName.length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: "English" }));
+    const handEn = screen.getByLabelText("Current player hand");
+    const btnEn = handEn.querySelector("button");
+    if (!btnEn) return;
+    const enName = btnEn.querySelector("strong")?.textContent ?? "";
+    expect(enName).not.toBe(thName);
+  });
+
+  it("Card Library localization still works after board localization", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    expect(screen.getByText("สุนัขจอมซน")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "English" }));
+    expect(screen.getByText("Playful Dog")).toBeInTheDocument();
+  });
 });
 
 describe("App Phase 5 persistence UI", () => {

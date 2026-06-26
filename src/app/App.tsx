@@ -1076,15 +1076,16 @@ function BoardRow({
             return <div key={index} className="slot" aria-label={`ช่อง Animal ${index + 1}`}>สัตว์ {index + 1}</div>;
           }
           const definition = getCardDefinition(animal.definitionId);
+          const localizedBoardCard = getLocalizedCard(definition.card_id, locale);
           const legal = selectedDefinition ? canTarget(selectedDefinition, ownerId, viewerId, animal.level) : false;
           return (
-            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} disabled={!legal} aria-label={`${definition.name_th} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
+            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} disabled={!legal} aria-label={`${localizedBoardCard.name} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
               <span className="level">{t(locale, "label.level")} {animal.level}</span>
               <span className="target-badge">{legal ? t(locale, "label.select") : t(locale, "label.clearSelection")}</span>
-              <strong>{definition.name_th}</strong>
+              <strong>{localizedBoardCard.name}</strong>
               {animal.level >= 2 && <small className="statuses">{evolutionLabel(animal.level, animal.evolutionPoints ?? 0)}</small>}
               {animal.attachedSupportIds.map((supportId) => (
-                <span className="attached-support" key={supportId}>{t(locale, "label.attachedSupport")}: {getCardDefinition(match.cardsByInstanceId[supportId].definitionId).name_th}</span>
+                <span className="attached-support" key={supportId}>{t(locale, "label.attachedSupport")}: {getLocalizedCard(match.cardsByInstanceId[supportId].definitionId, locale).name}</span>
               ))}
               {animal.statuses.length > 0 && <small className="statuses">{t(locale, "label.statusCount")} {animal.statuses.length}: {animal.statuses.map((status) => statusLabel(status.code)).join(", ")}</small>}
             </button>
@@ -1245,7 +1246,8 @@ function Modal({ modal, match, onClose, locale }: { modal: ModalState; match?: M
             <ul className="graveyard-list">
               {(match?.players[modal.playerId].graveyard ?? []).map((id) => {
                 const card = match ? getCardDefinition(match.cardsByInstanceId[id].definitionId) : null;
-                return <li key={id}>{card?.card_id} {card?.name_th}</li>;
+                const localizedGrave = card ? getLocalizedCard(card.card_id, locale) : null;
+                return <li key={id}>{card?.card_id} {localizedGrave?.name} <small>{localizedGrave?.type}</small></li>;
               })}
             </ul>
           </>
