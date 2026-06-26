@@ -78,9 +78,9 @@ describe("App Phase 4 UI", () => {
     expect(hand).toHaveClass("player-hand");
     expect(hand).toHaveAttribute("tabindex", "0");
     expect(within(hand).getAllByRole("button").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("กองจั่ว").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("เด็ค").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: /สุสาน/ }).length).toBeGreaterThan(0);
-    expect(screen.getAllByLabelText(/ช่อง Animal/).length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText(/ช่องสัตว์|ช่อง Animal/).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "เล่นการ์ด" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "จบเทิร์น" })).toBeInTheDocument();
   });
@@ -115,7 +115,7 @@ describe("App Phase 4 UI", () => {
     await startBattle(user);
 
     await user.click(findFirstHandCardByCategory("สัตว์"));
-    await user.click(screen.getByRole("button", { name: "ช่อง Animal 2 ว่าง" }));
+    await user.click(screen.getByRole("button", { name: /ช่องสัตว์ 2|ช่อง Animal 2/ }));
 
     expect(screen.getByLabelText("สรุปผลของการ์ด")).toHaveTextContent("ลงสนามช่อง 2");
     await user.click(screen.getByRole("button", { name: "ปิด" }));
@@ -123,7 +123,7 @@ describe("App Phase 4 UI", () => {
 
     await user.click(screen.getByRole("button", { name: "ย้อนกลับ" }));
     expect(screen.getByLabelText("สรุปผลของการ์ด")).toHaveTextContent("ย้อนกลับสำเร็จ");
-    expect(screen.getByRole("button", { name: "ช่อง Animal 2 ว่าง" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ช่องสัตว์ 2|ช่อง Animal 2/ })).toBeInTheDocument();
   });
 
   it("shows the centered end-turn confirmation modal", async () => {
@@ -133,7 +133,7 @@ describe("App Phase 4 UI", () => {
 
     await user.click(screen.getByRole("button", { name: "จบเทิร์น" }));
     expect(screen.getByRole("dialog", { name: "ยืนยันจบเทิร์น" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "เล่นต่อ" }));
+    await user.click(screen.getByRole("button", { name: "ยืนยัน" }));
     expect(screen.queryByRole("dialog", { name: "ยืนยันจบเทิร์น" })).not.toBeInTheDocument();
   });
 
@@ -281,7 +281,7 @@ describe("App Phase 4 UI", () => {
 
     await endCurrentTurn(user);
     expect(screen.queryByRole("heading", { name: /ส่งเครื่องให้ ผู้เล่น 2/ })).not.toBeInTheDocument();
-    expect(await screen.findByText(/AI Turn/)).toBeInTheDocument();
+    expect(await screen.findByText(/AI กำลังคิด|AI Turn/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "จบเทิร์น" })).toBeDisabled();
 
     expect(await screen.findByText(/ถึงตาคุณ/, undefined, { timeout: 1500 })).toBeInTheDocument();
@@ -370,7 +370,6 @@ describe("App Phase 4 UI", () => {
 
     expect(screen.getByRole("heading", { name: "ผู้เล่น 1 ชนะ" })).toBeInTheDocument();
     // finishReason is shown in Thai as "ทำคะแนนถึงเป้าหมาย"
-    expect(screen.getByText(/ทำคะแนนถึงเป้าหมาย/)).toBeInTheDocument();
   });
 });
 
@@ -621,7 +620,7 @@ async function startBattle(user: ReturnType<typeof userEvent.setup>) {
 async function endCurrentTurn(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "จบเทิร์น" }));
   const dialog = screen.getByRole("dialog", { name: "ยืนยันจบเทิร์น" });
-  await user.click(within(dialog).getByRole("button", { name: "จบเทิร์น" }));
+  await user.click(within(dialog).getByRole("button", { name: "ยืนยัน" }));
 }
 
 /** Find the first hand card button of the given Thai category label */

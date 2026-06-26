@@ -594,7 +594,6 @@ export function App() {
             setPlaytestFeedbackOpen(true);
           }}
           locale={locale}
-          onLocaleChange={setLocale}
         />
         {playtestFeedbackOpen && (
           <PlaytestFeedbackModal
@@ -807,7 +806,7 @@ function CardLibrary({
     <main className="page-shell">
       <header className="page-header">
         <h1>{locale === "en" ? "Card Library" : "คลังการ์ด"}</h1>
-        <button type="button" className="secondary-button" onClick={onBack}>{locale === "en" ? "Back" : "กลับเมนู"}</button>
+        <button type="button" className="secondary-button" onClick={onBack}>{t(locale, "menu.backToMenu")}</button>
       </header>
       <LocaleSelector locale={locale} onChange={onLocaleChange} />
       <div className="library-grid">
@@ -819,7 +818,7 @@ function CardLibrary({
           </button>
         ))}
       </div>
-      <Modal modal={modal} onClose={onCloseModal} />
+      <Modal modal={modal} onClose={onCloseModal} locale={locale} />
     </main>
   );
 }
@@ -863,7 +862,7 @@ function BattleScreen(props: {
 
   return (
     <main className="battle-app">
-      <section className="scoreboard" aria-label="คะแนนผู้เล่น" aria-live="polite">
+      <section className="scoreboard" aria-label={t(props.locale, "label.scoreboard")} aria-live="polite">
         {(["P1", "P2"] as PlayerId[]).map((playerId) => (
           <div key={playerId} className={`scoreboard-player ${match.currentPlayerId === playerId ? "active" : ""}`}>
             <span>{playerNameForMode(playerId, match.gameMode, props.locale)}</span>
@@ -872,15 +871,15 @@ function BattleScreen(props: {
           </div>
         ))}
       </section>
-      <section className="topbar" aria-label="สถานะการแข่งขัน">
+      <section className="topbar" aria-label={t(props.locale, "label.matchStatus")}>
         <LocaleSelector locale={props.locale} onChange={props.onLocaleChange} />
         <div className="player-panel">
           <strong>{playerName(opponentId, props.locale)}</strong>
-          <span>Deck {match.players[opponentId].deck.length} | Hand {match.players[opponentId].hand.length}</span>
+          <span>{t(props.locale, "label.deck")} {match.players[opponentId].deck.length} | {t(props.locale, "label.hand")} {match.players[opponentId].hand.length}</span>
         </div>
         <div className="phase-panel">
           <strong>{t(props.locale, "label.turn")} {match.turnNumber} — {phaseLabel(match.phase, props.locale)}</strong>
-          <small>Utility: {match.players[activePlayerId].utilityLocked ? "ถูกล็อก" : match.players[activePlayerId].utilityActionUsed ? "ใช้แล้ว" : "พร้อมใช้"}</small>
+          <small>{match.players[activePlayerId].utilityLocked ? t(props.locale, "label.utilityUsed") : match.players[activePlayerId].utilityActionUsed ? t(props.locale, "label.utilityUsed") : t(props.locale, "label.utilityAvailable")}</small>
         </div>
         <div className="player-panel right">
           <strong>{playerName(activePlayerId, props.locale)}</strong>
@@ -888,16 +887,16 @@ function BattleScreen(props: {
         </div>
       </section>
 
-      <section className="board" aria-label="สนามต่อสู้">
-        {isAiTurn && <div className="ai-banner" role="status" aria-live="polite">AI Turn — {t(props.locale, "label.computer")} is thinking...</div>}
-        {isPreparingHumanTurn && <div className="ai-banner" role="status" aria-live="polite">กำลังจั่วและคิดคะแนน...</div>}
-        <HiddenHand count={match.players[opponentId].hand.length} />
+      <section className="board" aria-label={t(props.locale, "label.battlefield")}>
+        {isAiTurn && <div className="ai-banner" role="status" aria-live="polite">{t(props.locale, "label.aiThinking")} — {t(props.locale, "label.computer")} is thinking...</div>}
+        {isPreparingHumanTurn && <div className="ai-banner" role="status" aria-live="polite">{t(props.locale, "label.preparingTurn")}</div>}
+        <HiddenHand count={match.players[opponentId].hand.length} locale={props.locale} />
         <div className="zone-label">{t(props.locale, "label.player2")}</div>
-        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} />
+        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} />
         <div className="divider" />
-        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} />
-        <div className="zone-label">{t(props.locale, "label.you")} — คะแนน {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
-        <div className="player-hand" aria-label="มือผู้เล่นปัจจุบัน" tabIndex={0}>
+        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} />
+        <div className="zone-label">{t(props.locale, "label.you")} — {t(props.locale, "label.score")} {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
+        <div className="player-hand" aria-label={t(props.locale, "label.playerHand")} tabIndex={0}>
           {match.players[activePlayerId].hand.map((id) => {
             const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
             const playability = getCardPlayability(match, activePlayerId, id);
@@ -921,18 +920,18 @@ function BattleScreen(props: {
         </div>
         <div className="buttons">
           <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || selectedPlayability?.state === "NOT_PLAYABLE" || needsTarget(selectedDefinition)}>
-            เล่นการ์ด
+            {t(props.locale, "label.playCard")}
           </button>
-          <button type="button" className="secondary-button" onClick={props.onRecycle} disabled={controlsDisabled}>Recycle</button>
-          <button type="button" className="secondary-button" onClick={() => props.onOpenGraveyard(activePlayerId)}>ดูสุสาน</button>
-          <button type="button" className="secondary-button" onClick={() => selectedDefinition && props.onOpenCard(selectedDefinition)} disabled={!selectedDefinition}>รายละเอียด</button>
-          <button type="button" className="secondary-button" onClick={props.onResetMatch}>รีเซ็ตเกม</button>
-          <button type="button" className="secondary-button" onClick={props.onUndo} disabled={!match.undoSnapshot}>ย้อนกลับ</button>
-          <button type="button" className="danger-button" onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")}>จบเทิร์น</button>
+          <button type="button" className="secondary-button" onClick={props.onRecycle} disabled={controlsDisabled}>{t(props.locale, "label.recycle")}</button>
+          <button type="button" className="secondary-button" onClick={() => props.onOpenGraveyard(activePlayerId)}>{t(props.locale, "label.graveyard")}</button>
+          <button type="button" className="secondary-button" onClick={() => selectedDefinition && props.onOpenCard(selectedDefinition)} disabled={!selectedDefinition}>{t(props.locale, "label.details")}</button>
+          <button type="button" className="secondary-button" onClick={props.onResetMatch}>{t(props.locale, "label.reset")}</button>
+          <button type="button" className="secondary-button" onClick={props.onUndo} disabled={!match.undoSnapshot}>{t(props.locale, "label.undo")}</button>
+          <button type="button" className="danger-button" onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")}>{t(props.locale, "label.endTurn")}</button>
         </div>
         {selectedDefinition && (
-          <div className="effect-preview" aria-label="ผลที่จะเกิดขึ้น">
-            <strong>ผลที่จะเกิดขึ้น</strong>
+          <div className="effect-preview" aria-label={t(props.locale, "label.effectPreview")}>
+            <strong>{t(props.locale, "label.effectPreview")}</strong>
             <ul>
               {previewLines(selectedDefinition, getCardPlayability(match, activePlayerId, selectedCardId ?? "")).map((line) => <li key={line}>{line}</li>)}
             </ul>
@@ -940,29 +939,29 @@ function BattleScreen(props: {
         )}
       </section>
       {props.effectFeedback && props.effectFeedback.length > 0 && (
-        <section className="effect-feedback" role="status" aria-live="polite" aria-label="สรุปผลของการ์ด">
+        <section className="effect-feedback" role="status" aria-live="polite" aria-label={t(props.locale, "label.effectFeedback")}>
           <div>
-            <strong>ผลที่ได้รับ</strong>
+            <strong>{t(props.locale, "label.effectFeedback")}</strong>
             <ul>
               {props.effectFeedback.map((line) => <li key={line}>{line}</li>)}
             </ul>
           </div>
-          <button type="button" className="secondary-button" onClick={props.onDismissFeedback}>ปิด</button>
+          <button type="button" className="secondary-button" onClick={props.onDismissFeedback}>{t(props.locale, "label.close")}</button>
         </section>
       )}
       {props.endTurnConfirmOpen && (
-        <section className="action-modal" role="dialog" aria-modal="true" aria-label="ยืนยันจบเทิร์น">
+        <section className="action-modal" role="dialog" aria-modal="true" aria-label={t(props.locale, "label.endTurnConfirm")}>
           <div className="action-modal-panel">
-            <strong>จบเทิร์นหรือไม่</strong>
-            <p>ตรวจสอบการ์ดที่ยังใช้ได้, Recycle และ Undo ก่อนจบเทิร์น</p>
+            <strong>{t(props.locale, "label.endTurn")}</strong>
+            <p>{t(props.locale, "label.chooseCard")}</p>
             <div className="modal-actions">
-              <button type="button" className="danger-button" onClick={props.onConfirmEndTurn}>จบเทิร์น</button>
-              <button type="button" className="secondary-button" onClick={props.onCancelEndTurn}>เล่นต่อ</button>
+              <button type="button" className="danger-button" onClick={props.onConfirmEndTurn}>{t(props.locale, "label.confirm")}</button>
+              <button type="button" className="secondary-button" onClick={props.onCancelEndTurn}>{t(props.locale, "menu.continue")}</button>
             </div>
           </div>
         </section>
       )}
-      <Modal modal={props.modal} match={match} onClose={props.onCloseModal} />
+      <Modal modal={props.modal} match={match} onClose={props.onCloseModal} locale={props.locale} />
     </main>
   );
 }
@@ -974,7 +973,8 @@ function BoardRow({
   selectedDefinition,
   onTarget,
   onSelectEmptySlot,
-  onOpenGraveyard
+  onOpenGraveyard,
+  locale
 }: {
   match: MatchState;
   ownerId: PlayerId;
@@ -983,19 +983,20 @@ function BoardRow({
   onTarget: (target?: Target) => void;
   onSelectEmptySlot: (target: Target) => void;
   onOpenGraveyard: (playerId: PlayerId) => void;
+  locale: Locale;
 }) {
   const player = match.players[ownerId];
   return (
     <div className="row">
-      <div className="side-zone deck-zone"><span className="zone-title">กองจั่ว</span><strong>{player.deck.length}</strong></div>
+      <div className="side-zone deck-zone"><span className="zone-title">{t(locale, "label.deck")}</span><strong>{player.deck.length}</strong></div>
       <div className="animal-zone">
         {player.board.map((instanceId, index) => {
           if (!instanceId) {
             const slotNo = (index + 1) as 1 | 2 | 3;
             const canPlace = ownerId === viewerId && (!selectedDefinition || selectedDefinition.category === "Animal");
             return canPlace
-              ? <button key={index} type="button" className={`slot empty-slot ${selectedDefinition?.category === "Animal" ? "targetable" : ""}`} aria-label={`ช่อง Animal ${index + 1} ว่าง`} onClick={() => onSelectEmptySlot({ playerId: ownerId, zone: "BOARD", slotNo })}>สัตว์ {index + 1}</button>
-              : <div key={index} className="slot" aria-label={`ช่อง Animal ${index + 1}`}>สัตว์ {index + 1}</div>;
+              ? <button key={index} type="button" className={`slot empty-slot ${selectedDefinition?.category === "Animal" ? "targetable" : ""}`} aria-label={`${t(locale, "label.animalZone")} ${index + 1} ${t(locale, "label.clearSelection")}`} onClick={() => onSelectEmptySlot({ playerId: ownerId, zone: "BOARD", slotNo })}>{t(locale, "label.animalZone")} {index + 1}</button>
+              : <div key={index} className="slot" aria-label={`${t(locale, "label.animalZone")} ${index + 1}`}>{t(locale, "label.animalZone")} {index + 1}</div>;
           }
           const animal = match.cardsByInstanceId[instanceId];
           if (!isAnimalInstance(animal)) {
@@ -1004,27 +1005,27 @@ function BoardRow({
           const definition = getCardDefinition(animal.definitionId);
           const legal = selectedDefinition ? canTarget(selectedDefinition, ownerId, viewerId, animal.level) : false;
           return (
-            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} disabled={!legal} aria-label={`${definition.name_th} ช่อง ${animal.slotNo}${legal ? " เป้าหมายถูกต้อง" : " เป้าหมายนี้ใช้ไม่ได้"}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
-              <span className="level">Lv.{animal.level}</span>
-              <span className="target-badge">{legal ? "เลือกได้" : "ใช้ไม่ได้"}</span>
+            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} disabled={!legal} aria-label={`${definition.name_th} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
+              <span className="level">{t(locale, "label.level")} {animal.level}</span>
+              <span className="target-badge">{legal ? t(locale, "label.select") : t(locale, "label.clearSelection")}</span>
               <strong>{definition.name_th}</strong>
               {animal.level >= 2 && <small className="statuses">{evolutionLabel(animal.level, animal.evolutionPoints ?? 0)}</small>}
               {animal.attachedSupportIds.map((supportId) => (
-                <span className="attached-support" key={supportId}>{getCardDefinition(match.cardsByInstanceId[supportId].definitionId).name_th}</span>
+                <span className="attached-support" key={supportId}>{t(locale, "label.attachedSupport")}: {getCardDefinition(match.cardsByInstanceId[supportId].definitionId).name_th}</span>
               ))}
-              {animal.statuses.length > 0 && <small className="statuses">{animal.statuses.map((status) => statusLabel(status.code)).join(", ")}</small>}
+              {animal.statuses.length > 0 && <small className="statuses">{t(locale, "label.statusCount")} {animal.statuses.length}: {animal.statuses.map((status) => statusLabel(status.code)).join(", ")}</small>}
             </button>
           );
         })}
       </div>
-      <button type="button" className="side-zone graveyard-button" onClick={() => onOpenGraveyard(ownerId)}><span className="zone-title">สุสาน</span><strong>{player.graveyard.length}</strong></button>
+      <button type="button" className="side-zone graveyard-button" onClick={() => onOpenGraveyard(ownerId)}><span className="zone-title">{t(locale, "label.graveyard")}</span><strong>{player.graveyard.length}</strong></button>
     </div>
   );
 }
 
-function HiddenHand({ count }: { count: number }) {
+function HiddenHand({ count, locale }: { count: number; locale: Locale }) {
   return (
-    <div className="opponent-hand" aria-label="มือคู่ต่อสู้ถูกซ่อน">
+    <div className="opponent-hand" aria-label={t(locale, "label.opponentHand")}>
       {Array.from({ length: count }).map((_, index) => <div className="card-back" key={index} />)}
     </div>
   );
@@ -1049,7 +1050,8 @@ export function ResultScreen({
   onNewGame,
   onBackToMenu = () => undefined,
   onExport = () => undefined,
-  onOpenPlaytestFeedback = () => undefined
+  onOpenPlaytestFeedback = () => undefined,
+  locale = "th"
 }: {
   match: MatchState;
   stats?: MatchStats;
@@ -1057,6 +1059,7 @@ export function ResultScreen({
   onBackToMenu?: () => void;
   onExport?: () => void;
   onOpenPlaytestFeedback?: () => void;
+  locale?: Locale;
 }) {
   const highestCard = getHighestScoringCard(stats, match.actionLog);
 
@@ -1083,24 +1086,24 @@ export function ResultScreen({
   return (
     <main className="app-shell">
       <section className="start-panel result-panel">
-        <p className="eyebrow">ผลการแข่งขัน</p>
-        <h1>{match.winner === "DRAW" ? "เสมอ" : `${playerName(match.winner ?? "P1")} ชนะ`}</h1>
+        <p className="eyebrow">{t(locale, "label.matchStatus")}</p>
+        <h1>{match.winner === "DRAW" ? t(locale, "label.resultDraw") : `${playerName(match.winner ?? "P1", locale)} ${t(locale, "label.resultVictory")}`}</h1>
 
         <dl className="summary-grid result-summary-grid">
-          <div><dt>คะแนนผู้เล่น 1</dt><dd>{match.players.P1.score} คะแนน</dd></div>
-          <div><dt>คะแนนผู้เล่น 2</dt><dd>{match.players.P2.score} คะแนน</dd></div>
-          <div><dt>จำนวนเทิร์น</dt><dd>{match.turnNumber} เทิร์น</dd></div>
-          <div><dt>ระยะเวลาที่ใช้</dt><dd>{formatDuration(durationMs)}</dd></div>
-          <div><dt>เหตุผลที่จบ</dt><dd>{match.finishReason === "TARGET_SCORE" ? "ทำคะแนนถึงเป้าหมาย" : "หมดจำนวนเทิร์น"}</dd></div>
-          <div><dt>จำนวนการรีไซเคิล</dt><dd>{(stats.recycleCount.P1 || 0) + (stats.recycleCount.P2 || 0)} ครั้ง</dd></div>
+          <div><dt>{t(locale, "label.player1")} {t(locale, "label.score")}</dt><dd>{match.players.P1.score} {t(locale, "label.score")}</dd></div>
+          <div><dt>{t(locale, "label.player2")} {t(locale, "label.score")}</dt><dd>{match.players.P2.score} {t(locale, "label.score")}</dd></div>
+          <div><dt>{t(locale, "label.turnCount")}</dt><dd>{match.turnNumber} {t(locale, "label.turn")}</dd></div>
+          <div><dt>{t(locale, "label.finalScore")}</dt><dd>{formatDuration(durationMs)}</dd></div>
+          <div><dt>{t(locale, "label.matchStatus")}</dt><dd>{match.finishReason === "TARGET_SCORE" ? t(locale, "label.victory") : t(locale, "label.resultDefeat")}</dd></div>
+          <div><dt>{t(locale, "label.recycle")}</dt><dd>{(stats.recycleCount.P1 || 0) + (stats.recycleCount.P2 || 0)} ครั้ง</dd></div>
         </dl>
 
         <hr className="subtle-divider" />
 
         <h3>สถิติการ์ดออกนอกสนาม (Board Exits)</h3>
         <dl className="summary-grid compact-summary-grid">
-          <div><dt>ลงสุสาน</dt><dd>{sentToGraveyardCount} ใบ</dd></div>
-          <div><dt>เด้งขึ้นมือ</dt><dd>{returnedToHandCount} ใบ</dd></div>
+          <div><dt>{t(locale, "label.graveyard")}</dt><dd>{sentToGraveyardCount} ใบ</dd></div>
+          <div><dt>{t(locale, "label.hand")}</dt><dd>{returnedToHandCount} ใบ</dd></div>
           <div><dt>แลกเปลี่ยน (Quick Swap)</dt><dd>{voluntarySwapCount} ใบ</dd></div>
         </dl>
 
@@ -1119,17 +1122,17 @@ export function ResultScreen({
         )}
 
         <div className="menu-actions vertical-actions">
-          <button type="button" onClick={() => onNewGame("LOCAL_PVP")}>เริ่มเกมใหม่</button>
-          <button type="button" className="secondary-button" onClick={() => { void onExport(); }}>ส่งออกไฟล์เซฟ (คัดลอกลง Clipboard)</button>
+          <button type="button" onClick={() => onNewGame("LOCAL_PVP")}>{t(locale, "menu.localPvp")}</button>
+          <button type="button" className="secondary-button" onClick={() => { void onExport(); }}>{t(locale, "label.exportLog")} (คัดลอกลง Clipboard)</button>
           <button type="button" className="secondary-button" onClick={onOpenPlaytestFeedback}>ฟีดแบ็ก Human Playtest (ไม่บังคับ)</button>
-          <button type="button" className="secondary-button" onClick={onBackToMenu}>กลับเมนูหลัก</button>
+          <button type="button" className="secondary-button" onClick={onBackToMenu}>{t(locale, "menu.backToMenu")}</button>
         </div>
       </section>
     </main>
   );
 }
 
-function Modal({ modal, match, onClose }: { modal: ModalState; match?: MatchState; onClose: () => void }) {
+function Modal({ modal, match, onClose, locale }: { modal: ModalState; match?: MatchState; onClose: () => void; locale: Locale }) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -1143,19 +1146,19 @@ function Modal({ modal, match, onClose }: { modal: ModalState; match?: MatchStat
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={modal.type === "card" ? "รายละเอียดการ์ด" : "สุสาน"}>
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={modal.type === "card" ? t(locale, "label.details") : t(locale, "label.graveyard")}>
       <section className="modal-panel" tabIndex={-1}>
         {modal.type === "card" ? (
           <>
             <h2>{modal.card.name_th}</h2>
             <p>{modal.card.card_id} — {categoryLabels[modal.card.category]}</p>
-            <div className="card-detail-lines" aria-label="รายละเอียดการ์ด">
+            <div className="card-detail-lines" aria-label={t(locale, "label.details")}>
               {formatCardDetailLines(modal.card).map((line) => <p key={line}>{line}</p>)}
             </div>
           </>
         ) : (
           <>
-            <h2>สุสาน {playerName(modal.playerId)}</h2>
+            <h2>{t(locale, "label.graveyard")} {playerName(modal.playerId, locale)}</h2>
             <ul className="graveyard-list">
               {(match?.players[modal.playerId].graveyard ?? []).map((id) => {
                 const card = match ? getCardDefinition(match.cardsByInstanceId[id].definitionId) : null;
@@ -1164,7 +1167,7 @@ function Modal({ modal, match, onClose }: { modal: ModalState; match?: MatchStat
             </ul>
           </>
         )}
-        <button type="button" ref={closeButtonRef} onClick={onClose}>ปิด</button>
+        <button type="button" ref={closeButtonRef} onClick={onClose}>{t(locale, "label.close")}</button>
       </section>
     </div>
   );
