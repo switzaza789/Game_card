@@ -85,6 +85,21 @@ export type TranslationKey =
   | "phase.END"
   | "locale.th"
   | "locale.en"
-  | "selector.aria";
+  | "selector.aria"
+  | "library.title"
+  | "card.type"
+  | "card.description"
+  | "card.ability"
+  | "card.validUse"
+  | "card.target"
+  | "card.effectSummary"
+  | "card.supportCompatibility"
+  | "card.levelUp"
+  | "card.additionalEffect"
+  | "card.weaknessTarget"
+  | "card.fullEffect"
+  | "card.offTargetEffect"
+  | "card.immediateEffect"
+  | "card.duration";
 
 export type TranslationParams = Record<string, string | number>;

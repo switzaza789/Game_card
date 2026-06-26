@@ -6,7 +6,7 @@ import { App, ResultScreen, formatCardDetailLines, isLevelIncreasingSupportCard 
 import { exportMatchLog, saveActiveMatch, saveMatchResult, listHumanFeedback } from "../persistence/localStorageAdapter";
 import { initStats } from "../persistence/statsTracker";
 import type { MatchResult } from "../persistence/types";
-import { LOCALE_STORAGE_KEY, getStoredLocale, normalizeLocale, t } from "../i18n";
+import { LOCALE_STORAGE_KEY, getLocalizedCard, getStoredLocale, normalizeLocale, t } from "../i18n";
 
 beforeEach(() => {
   // Clear localStorage between tests so no saved-game state bleeds over
@@ -165,10 +165,10 @@ describe("App Phase 4 UI", () => {
     await user.keyboard("{Escape}");
     await user.click(screen.getByRole("button", { name: /W001/ }));
     const weaknessDialog = screen.getByRole("dialog");
-    expect(weaknessDialog).toHaveTextContent("ใช้ตรงเป้าหมาย — สุนัข:");
-    expect(weaknessDialog).toHaveTextContent("ใช้ผิดเป้าหมาย:");
-    expect(Array.from(weaknessDialog.querySelectorAll(".card-detail-lines p")).some((p) => p.textContent?.startsWith("ใช้ตรงเป้าหมาย — สุนัข:"))).toBe(true);
-    expect(Array.from(weaknessDialog.querySelectorAll(".card-detail-lines p")).some((p) => p.textContent?.startsWith("ใช้ผิดเป้าหมาย:"))).toBe(true);
+    expect(weaknessDialog).toHaveTextContent("สัตว์ที่แพ้ทาง:");
+    expect(weaknessDialog).toHaveTextContent("ผลเมื่อใช้ผิดเป้าหมาย:");
+    expect(Array.from(weaknessDialog.querySelectorAll(".card-detail-lines p")).some((p) => p.textContent?.includes("สัตว์ที่แพ้ทาง:"))).toBe(true);
+    expect(Array.from(weaknessDialog.querySelectorAll(".card-detail-lines p")).some((p) => p.textContent?.includes("ผลเมื่อใช้ผิดเป้าหมาย:"))).toBe(true);
   });
 
   it("shows each weakness card target animal name from metadata", async () => {
@@ -178,11 +178,15 @@ describe("App Phase 4 UI", () => {
     await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
 
     await user.click(screen.getByRole("button", { name: /W003/ }));
-    expect(screen.getByRole("dialog")).toHaveTextContent("ใช้ตรงเป้าหมาย — กระต่ายและหมี:");
+    const w003Dialog = screen.getByRole("dialog");
+    expect(w003Dialog).toHaveTextContent("สัตว์ที่แพ้ทาง:");
+    expect(w003Dialog).toHaveTextContent("กระต่ายและหมี");
     await user.keyboard("{Escape}");
 
     await user.click(screen.getByRole("button", { name: /W005/ }));
-    expect(screen.getByRole("dialog")).toHaveTextContent("ใช้ตรงเป้าหมาย — ปลา:");
+    const w005Dialog = screen.getByRole("dialog");
+    expect(w005Dialog).toHaveTextContent("สัตว์ที่แพ้ทาง:");
+    expect(w005Dialog).toHaveTextContent("ปลา");
   });
 
   it("identifies every level-increasing Support logic key", () => {
@@ -370,6 +374,176 @@ describe("App Phase 4 UI", () => {
 
     expect(screen.getByRole("heading", { name: "ผู้เล่น 1 ชนะ" })).toBeInTheDocument();
     // finishReason is shown in Thai as "ทำคะแนนถึงเป้าหมาย"
+  });
+
+  it("renders all 24 cards in the Card Library", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    const grid = screen.getByRole("main");
+    const cardButtons = grid.querySelectorAll(".library-card");
+    expect(cardButtons.length).toBe(24);
+  });
+
+  it("shows Thai card names in Card Library by default", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    expect(screen.getByText("สุนัขจอมซน")).toBeInTheDocument();
+    expect(screen.getByText("ที่ครอบปาก")).toBeInTheDocument();
+    expect(screen.getByText("เพลงกล่อมหลับ")).toBeInTheDocument();
+  });
+
+  it("shows English card names in Card Library when locale is English", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    expect(screen.getByText("Playful Dog")).toBeInTheDocument();
+    expect(screen.getByText("Muzzle")).toBeInTheDocument();
+    expect(screen.getByText("Lullaby")).toBeInTheDocument();
+  });
+
+  it("switches language in an already-open Card Library", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    expect(screen.getByText("สุนัขจอมซน")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "English" }));
+    expect(screen.getByText("Playful Dog")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "ไทย" }));
+    expect(screen.getByText("สุนัขจอมซน")).toBeInTheDocument();
+  });
+
+  it("shows localized card type labels in Card Library grid", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    const animalCards = Array.from(document.querySelectorAll(".library-card small")).filter((el) => el.textContent === "Animal");
+    expect(animalCards.length).toBe(8);
+  });
+
+  it("shows localized English card type labels after switching", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    const animalCards = Array.from(document.querySelectorAll(".library-card small")).filter((el) => el.textContent === "Animal");
+    expect(animalCards.length).toBe(8);
+  });
+
+  it("shows Support-specific fields in Card Library modal", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    await user.click(screen.getByRole("button", { name: /S001/ }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("สัตว์ที่เข้ากันได้:");
+    expect(dialog).toHaveTextContent("เพิ่ม Level:");
+    expect(dialog).toHaveTextContent("ผลเพิ่มเติม:");
+  });
+
+  it("shows Weakness full and reduced effects in Card Library modal", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    await user.click(screen.getByRole("button", { name: /W001/ }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("สัตว์ที่แพ้ทาง:");
+    expect(dialog).toHaveTextContent("ผลเต็ม:");
+    expect(dialog).toHaveTextContent("ผลเมื่อใช้ผิดเป้าหมาย:");
+  });
+
+  it("shows Special duration or limitation in Card Library modal", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    await user.click(screen.getByRole("button", { name: /X001/ }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("ผลทันที:");
+    expect(dialog).toHaveTextContent("ระยะเวลา:");
+  });
+
+  it("filters continue using stable internal types", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    const buttons = document.querySelectorAll(".library-card");
+    const animalButtons = Array.from(buttons).filter((btn) => btn.classList.contains("cat-animal"));
+    expect(animalButtons.length).toBe(8);
+    const supportButtons = Array.from(buttons).filter((btn) => btn.classList.contains("cat-support"));
+    expect(supportButtons.length).toBe(6);
+    const weaknessButtons = Array.from(buttons).filter((btn) => btn.classList.contains("cat-weakness"));
+    expect(weaknessButtons.length).toBe(5);
+    const specialButtons = Array.from(buttons).filter((btn) => btn.classList.contains("cat-special"));
+    expect(specialButtons.length).toBe(5);
+  });
+
+  it("unknown card ID fallback does not crash in Card Library", () => {
+    const result = getLocalizedCard("Z999", "th");
+    expect(result).toBeDefined();
+    expect(result.name).toContain("Unknown Card");
+    expect(result.type).toBe("Unknown");
+  });
+
+  it("no undefined localization values appear in card texts", () => {
+    const testIds = ["A001", "A008", "S001", "S006", "W001", "W005", "X001", "X005"];
+    for (const id of testIds) {
+      for (const locale of ["th", "en"] as const) {
+        const card = getLocalizedCard(id, locale);
+        expect(card.name).toBeTruthy();
+        expect(card.type).toBeTruthy();
+        expect(card.description).toBeTruthy();
+        expect(card.ability).toBeTruthy();
+        expect(card.validUse).toBeTruthy();
+        expect(card.target).toBeTruthy();
+        expect(card.effectSummary).toBeTruthy();
+      }
+    }
+  });
+
+  it("accessibility labels switch language in Card Library", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    const a001Btn = screen.getByRole("button", { name: /สุนัขจอมซน/ });
+    expect(a001Btn).toHaveAttribute("aria-label", "A001 สุนัขจอมซน - Animal");
+    await user.click(screen.getByRole("button", { name: "English" }));
+    const a001BtnEn = screen.getByRole("button", { name: /Playful Dog/ });
+    expect(a001BtnEn).toHaveAttribute("aria-label", "A001 Playful Dog - Animal");
+  });
+
+  it("opening Card Library does not mutate active match state", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    expect(localStorage.getItem("animal_score_saved_match")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    expect(localStorage.getItem("animal_score_saved_match")).toBeNull();
+  });
+
+  it("switching language in Card Library does not mutate active match state", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    expect(localStorage.getItem("animal_score_saved_match")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    await user.click(screen.getByRole("button", { name: "English" }));
+    expect(localStorage.getItem("animal_score_saved_match")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "ไทย" }));
+    expect(localStorage.getItem("animal_score_saved_match")).toBeNull();
+  });
+
+  it("localized card type labels render in Card Library modal", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    await user.click(screen.getByRole("button", { name: /A001/ }));
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("A001 — Animal");
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "English" }));
+    await user.click(screen.getByRole("button", { name: /A001/ }));
+    const enDialog = screen.getByRole("dialog");
+    expect(enDialog).toHaveTextContent("A001 — Animal");
   });
 });
 

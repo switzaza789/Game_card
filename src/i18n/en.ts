@@ -85,5 +85,20 @@ export const en = {
   "phase.END": "END",
   "locale.th": "ไทย",
   "locale.en": "English",
-  "selector.aria": "Select language"
+  "selector.aria": "Select language",
+  "library.title": "Card Library",
+  "card.type": "Type",
+  "card.description": "Description",
+  "card.ability": "Ability",
+  "card.validUse": "Valid Use",
+  "card.target": "Target",
+  "card.effectSummary": "Effect Summary",
+  "card.supportCompatibility": "Compatible Animal",
+  "card.levelUp": "Level-Up",
+  "card.additionalEffect": "Additional Effect",
+  "card.weaknessTarget": "Weakness Target",
+  "card.fullEffect": "Full Effect",
+  "card.offTargetEffect": "Off-Target Effect",
+  "card.immediateEffect": "Immediate Effect",
+  "card.duration": "Duration"
 } satisfies Record<TranslationKey, string>;

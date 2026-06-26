@@ -85,5 +85,20 @@ export const th = {
   "phase.END": "END",
   "locale.th": "ไทย",
   "locale.en": "English",
-  "selector.aria": "เลือกภาษา"
+  "selector.aria": "เลือกภาษา",
+  "library.title": "คลังการ์ด",
+  "card.type": "ประเภท",
+  "card.description": "คำอธิบาย",
+  "card.ability": "ความสามารถ",
+  "card.validUse": "วิธีใช้",
+  "card.target": "เป้าหมาย",
+  "card.effectSummary": "สรุปผล",
+  "card.supportCompatibility": "สัตว์ที่เข้ากันได้",
+  "card.levelUp": "เพิ่ม Level",
+  "card.additionalEffect": "ผลเพิ่มเติม",
+  "card.weaknessTarget": "สัตว์ที่แพ้ทาง",
+  "card.fullEffect": "ผลเต็ม",
+  "card.offTargetEffect": "ผลเมื่อใช้ผิดเป้าหมาย",
+  "card.immediateEffect": "ผลทันที",
+  "card.duration": "ระยะเวลา"
 } satisfies Record<TranslationKey, string>;

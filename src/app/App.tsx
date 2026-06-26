@@ -26,7 +26,7 @@ import {
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
 import { formatActionLogEntry, renderCombatOutcomeLines, statusLabel } from "../ui/effectFeedback";
-import { getStoredLocale, localeOptions, setStoredLocale, t, type Locale } from "../i18n";
+import { getLocalizedCard, getStoredLocale, localeOptions, setStoredLocale, t, type Locale } from "../i18n";
 import {
   buildPlaytestFeedbackPayload,
   humanFeedbackFilename,
@@ -805,18 +805,21 @@ function CardLibrary({
   return (
     <main className="page-shell">
       <header className="page-header">
-        <h1>{locale === "en" ? "Card Library" : "คลังการ์ด"}</h1>
+        <h1>{t(locale, "library.title")}</h1>
         <button type="button" className="secondary-button" onClick={onBack}>{t(locale, "menu.backToMenu")}</button>
       </header>
       <LocaleSelector locale={locale} onChange={onLocaleChange} />
       <div className="library-grid">
-        {cardCatalog.cards.map((card) => (
-          <button key={card.card_id} type="button" className={`library-card ${categoryClass(card.category)}`} onClick={() => onOpenCard(card)}>
-            <span>{card.card_id}</span>
-            <strong>{card.name_th}</strong>
-            <small>{categoryLabels[card.category]}</small>
-          </button>
-        ))}
+        {cardCatalog.cards.map((card) => {
+          const localized = getLocalizedCard(card.card_id, locale);
+          return (
+            <button key={card.card_id} type="button" className={`library-card ${categoryClass(card.category)}`} onClick={() => onOpenCard(card)} aria-label={`${card.card_id} ${localized.name} - ${localized.type}`}>
+              <span>{card.card_id}</span>
+              <strong>{localized.name}</strong>
+              <small>{localized.type}</small>
+            </button>
+          );
+        })}
       </div>
       <Modal modal={modal} onClose={onCloseModal} locale={locale} />
     </main>
@@ -1146,16 +1149,26 @@ function Modal({ modal, match, onClose, locale }: { modal: ModalState; match?: M
   }
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={modal.type === "card" ? t(locale, "label.details") : t(locale, "label.graveyard")}>
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={modal.type === "card" ? (match ? t(locale, "label.details") : getLocalizedCard(modal.card.card_id, locale).name) : t(locale, "label.graveyard")}>
       <section className="modal-panel" tabIndex={-1}>
         {modal.type === "card" ? (
-          <>
-            <h2>{modal.card.name_th}</h2>
-            <p>{modal.card.card_id} — {categoryLabels[modal.card.category]}</p>
-            <div className="card-detail-lines" aria-label={t(locale, "label.details")}>
-              {formatCardDetailLines(modal.card).map((line) => <p key={line}>{line}</p>)}
-            </div>
-          </>
+          match ? (
+            <>
+              <h2>{modal.card.name_th}</h2>
+              <p>{modal.card.card_id} — {categoryLabels[modal.card.category]}</p>
+              <div className="card-detail-lines" aria-label={t(locale, "label.details")}>
+                {formatCardDetailLines(modal.card).map((line) => <p key={line}>{line}</p>)}
+              </div>
+            </>
+          ) : (
+            <>
+              <h2>{getLocalizedCard(modal.card.card_id, locale).name}</h2>
+              <p>{modal.card.card_id} — {getLocalizedCard(modal.card.card_id, locale).type}</p>
+              <div className="card-detail-lines" aria-label={t(locale, "label.details")}>
+                {localizedCardDetailLines(getLocalizedCard(modal.card.card_id, locale), locale).map((line) => <p key={line}>{line}</p>)}
+              </div>
+            </>
+          )
         ) : (
           <>
             <h2>{t(locale, "label.graveyard")} {playerName(modal.playerId, locale)}</h2>
@@ -1218,6 +1231,56 @@ function splitWeaknessEffects(text: string): [string, string] {
 
 function splitCardLine(text: string): string[] {
   return text.split(/\r?\n/).map((part) => part.trim()).filter(Boolean);
+}
+
+function localizedCardDetailLines(cardText: {
+  name: string; type: string; description: string; ability: string;
+  validUse: string; target: string; effectSummary: string;
+  supportCompatibility?: string; levelUp?: string; additionalEffect?: string;
+  weaknessTarget?: string; fullEffect?: string; offTargetEffect?: string;
+  immediateEffect?: string; duration?: string;
+}, locale: Locale): string[] {
+  const lines: string[] = [];
+  if (cardText.description) {
+    lines.push(`${t(locale, "card.description")}: ${cardText.description}`);
+  }
+  if (cardText.ability) {
+    lines.push(`${t(locale, "card.ability")}: ${cardText.ability}`);
+  }
+  if (cardText.validUse) {
+    lines.push(`${t(locale, "card.validUse")}: ${cardText.validUse}`);
+  }
+  if (cardText.target) {
+    lines.push(`${t(locale, "card.target")}: ${cardText.target}`);
+  }
+  if (cardText.effectSummary) {
+    lines.push(`${t(locale, "card.effectSummary")}: ${cardText.effectSummary}`);
+  }
+  if (cardText.supportCompatibility) {
+    lines.push(`${t(locale, "card.supportCompatibility")}: ${cardText.supportCompatibility}`);
+  }
+  if (cardText.levelUp) {
+    lines.push(`${t(locale, "card.levelUp")}: ${cardText.levelUp}`);
+  }
+  if (cardText.additionalEffect) {
+    lines.push(`${t(locale, "card.additionalEffect")}: ${cardText.additionalEffect}`);
+  }
+  if (cardText.weaknessTarget) {
+    lines.push(`${t(locale, "card.weaknessTarget")}: ${cardText.weaknessTarget}`);
+  }
+  if (cardText.fullEffect) {
+    lines.push(`${t(locale, "card.fullEffect")}: ${cardText.fullEffect}`);
+  }
+  if (cardText.offTargetEffect) {
+    lines.push(`${t(locale, "card.offTargetEffect")}: ${cardText.offTargetEffect}`);
+  }
+  if (cardText.immediateEffect) {
+    lines.push(`${t(locale, "card.immediateEffect")}: ${cardText.immediateEffect}`);
+  }
+  if (cardText.duration) {
+    lines.push(`${t(locale, "card.duration")}: ${cardText.duration}`);
+  }
+  return lines.flatMap(splitCardLine);
 }
 
 function weaknessTargetLabel(subtype: string): string {
