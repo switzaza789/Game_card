@@ -1,6 +1,8 @@
 import { en } from "./en";
 import { th } from "./th";
 import type { Locale, TranslationKey, TranslationParams } from "./types";
+export { getLocalizedCard, getCardText, cardTexts } from "./cards";
+export type { CardText } from "./cards";
 
 export type { Locale, TranslationKey, TranslationParams } from "./types";
 
