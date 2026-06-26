@@ -547,4 +547,186 @@ describe("card localization data layer", () => {
     expect(enExport).toContain("Export log");
     expect(enExport).toContain("Clipboard");
   });
+
+  /* ------------------------------------------------------------------ */
+  /*  Transient messages, alerts, and confirmations (Phase 2D-B)         */
+  /* ------------------------------------------------------------------ */
+
+  const TRANSIENT_FEEDBACK_KEYS = [
+    "feedback.selectCardForSlot", "feedback.turnEnded", "feedback.pveStarted",
+    "feedback.gameStarted", "feedback.gameResumed", "feedback.loadFailed",
+    "feedback.saveNotFound", "feedback.saveDeleted", "feedback.saveDeleteFailed",
+    "feedback.gameReset", "feedback.resetButDeleteFailed",
+    "feedback.returnedToMenuButDeleteFailed", "feedback.saveFailedSuffix",
+    "feedback.matchFinished", "feedback.pveTurnEnded", "feedback.pveActionLimitReached",
+    "feedback.yourTurn", "feedback.turnStartFailed", "feedback.preparingTurn",
+    "feedback.turnResumed", "feedback.importSuccess", "feedback.importFailed",
+    "feedback.clipboardUnavailable", "feedback.clipboardSuccess",
+    "feedback.clipboardPlaytestSuccess", "feedback.playtestSaved",
+    "feedback.playtestDuplicateError", "feedback.playtestSaveFailed",
+    "feedback.exportFailed", "feedback.historyCleared", "feedback.historyClearFailed",
+    "feedback.historyExportFailed", "feedback.matchExportFailed",
+    "feedback.historyExported", "feedback.matchExported",
+    "feedback.recoverySuccess", "feedback.recoveryFailed", "feedback.loadError",
+  ] as const;
+
+  const CONFIRM_KEYS = [
+    "confirm.overwriteSave", "confirm.deleteSave", "confirm.importOverwrite",
+    "confirm.clearHistory", "confirm.weaknessShield"
+  ] as const;
+
+  it("has all transient feedback keys in Thai", () => {
+    for (const key of TRANSIENT_FEEDBACK_KEYS) {
+      expect(th).toHaveProperty(key);
+      expect(th[key as keyof typeof th].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("has all transient feedback keys in English", () => {
+    for (const key of TRANSIENT_FEEDBACK_KEYS) {
+      expect(en).toHaveProperty(key);
+      expect(en[key as keyof typeof en].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("has all confirm keys in Thai", () => {
+    for (const key of CONFIRM_KEYS) {
+      expect(th).toHaveProperty(key);
+      expect(th[key as keyof typeof th].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("has all confirm keys in English", () => {
+    for (const key of CONFIRM_KEYS) {
+      expect(en).toHaveProperty(key);
+      expect(en[key as keyof typeof en].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps Thai and English key coverage identical after adding transient keys", () => {
+    expect(Object.keys(th).sort()).toEqual(Object.keys(en).sort());
+  });
+
+  it("provides Thai success messages", () => {
+    expect(th["feedback.saveDeleted"]).toBe("ลบเกมเซฟเรียบร้อย");
+    expect(th["feedback.gameReset"]).toBe("รีเซ็ตเกมเรียบร้อย");
+    expect(th["feedback.importSuccess"]).toContain("สำเร็จ");
+    expect(th["feedback.clipboardSuccess"]).toContain("เรียบร้อย");
+    expect(th["feedback.playtestSaved"]).toBe("บันทึกและส่งออกฟีดแบ็ก JSON แล้ว");
+  });
+
+  it("provides English success messages", () => {
+    expect(en["feedback.saveDeleted"]).toBe("Save deleted");
+    expect(en["feedback.gameReset"]).toBe("Game reset");
+    expect(en["feedback.importSuccess"]).toContain("successful");
+    expect(en["feedback.clipboardSuccess"]).toContain("Clipboard");
+  });
+
+  it("provides Thai error messages with parameter interpolation", () => {
+    const err = t("th", "feedback.saveDeleteFailed", { reason: "permission denied" });
+    expect(err).toContain("permission denied");
+    expect(err).toContain("ลบเกมเซฟไม่สำเร็จ");
+    const loadErr = t("th", "feedback.loadFailed", { reason: "corrupt data" });
+    expect(loadErr).toContain("corrupt data");
+    expect(loadErr).toContain("ไม่สามารถโหลดเซฟ");
+  });
+
+  it("provides English error messages with parameter interpolation", () => {
+    const err = t("en", "feedback.saveDeleteFailed", { reason: "permission denied" });
+    expect(err).toContain("permission denied");
+    expect(err).toContain("Failed to delete");
+    const loadErr = t("en", "feedback.loadFailed", { reason: "corrupt data" });
+    expect(loadErr).toContain("corrupt data");
+    expect(loadErr).toContain("Failed to load");
+  });
+
+  it("provides clipboard success/failure in both locales", () => {
+    expect(th["feedback.clipboardSuccess"]).toContain("Clipboard");
+    expect(en["feedback.clipboardSuccess"]).toContain("Clipboard");
+    expect(th["feedback.clipboardUnavailable"]).toContain("ไม่สามารถ");
+    expect(en["feedback.clipboardUnavailable"]).toContain("Auto-copy");
+  });
+
+  it("provides export failure in both locales", () => {
+    const thFail = t("th", "feedback.exportFailed", { reason: "disk full" });
+    expect(thFail).toContain("disk full");
+    expect(thFail).toContain("ล้มเหลว");
+    const enFail = t("en", "feedback.exportFailed", { reason: "disk full" });
+    expect(enFail).toContain("disk full");
+    expect(enFail).toContain("failed");
+  });
+
+  it("provides save/load notifications in both locales", () => {
+    const thSaveDeleted = t("th", "feedback.saveDeleted");
+    expect(thSaveDeleted).toBeTruthy();
+    const enSaveDeleted = t("en", "feedback.saveDeleted");
+    expect(enSaveDeleted).toBeTruthy();
+    const thSaveNotFound = t("th", "feedback.saveNotFound");
+    expect(thSaveNotFound).toBeTruthy();
+    const enSaveNotFound = t("en", "feedback.saveNotFound");
+    expect(enSaveNotFound).toBeTruthy();
+  });
+
+  it("provides Thai confirmation text", () => {
+    expect(th["confirm.overwriteSave"]).toContain("ลบเซฟเดิม");
+    expect(th["confirm.deleteSave"]).toContain("ลบเกมเซฟ");
+    expect(th["confirm.importOverwrite"]).toContain("นำเข้าไฟล์เซฟ");
+    expect(th["confirm.clearHistory"]).toContain("ลบประวัติการเล่น");
+    expect(th["confirm.weaknessShield"]).toContain("Weakness Shield");
+  });
+
+  it("provides English confirmation text", () => {
+    expect(en["confirm.overwriteSave"]).toContain("overwrite");
+    expect(en["confirm.deleteSave"]).toContain("delete this save");
+    expect(en["confirm.importOverwrite"]).toContain("overwrite");
+    expect(en["confirm.clearHistory"]).toContain("clear all play history");
+    expect(en["confirm.weaknessShield"]).toContain("Weakness Shield");
+  });
+
+  it("provides Thai parameter interpolation for gameResumed", () => {
+    const msg = t("th", "feedback.gameResumed", { player: "ผู้เล่น 2" });
+    expect(msg).toContain("ผู้เล่น 2");
+    expect(msg).toContain("กู้คืนเกมสำเร็จ");
+  });
+
+  it("provides English parameter interpolation for gameResumed", () => {
+    const msg = t("en", "feedback.gameResumed", { player: "Player 2" });
+    expect(msg).toContain("Player 2");
+    expect(msg).toContain("resumed");
+  });
+
+  it("provides Thai parameter interpolation for confirm.weaknessShield", () => {
+    const msg = t("th", "confirm.weaknessShield", { player: "ผู้เล่น 1" });
+    expect(msg).toContain("ผู้เล่น 1");
+    expect(msg).toContain("Weakness Shield");
+  });
+
+  it("provides English parameter interpolation for confirm.weaknessShield", () => {
+    const msg = t("en", "confirm.weaknessShield", { player: "Player 1" });
+    expect(msg).toContain("Player 1");
+    expect(msg).toContain("Weakness Shield");
+  });
+
+  it("provides Thai history messages with parameter interpolation", () => {
+    expect(t("th", "feedback.historyCleared")).toBe("ลบประวัติการเล่นเรียบร้อยแล้ว");
+    expect(t("th", "feedback.historyExported")).toBe("ส่งออกประวัติการเล่นทั้งหมดแล้ว");
+    const thMatchExported = t("th", "feedback.matchExported", { matchId: "match-123" });
+    expect(thMatchExported).toContain("match-123");
+  });
+
+  it("provides English history messages with parameter interpolation", () => {
+    expect(en["feedback.historyCleared"]).toBe("Play history cleared");
+    expect(en["feedback.historyExported"]).toBe("Play history exported");
+    const enMatchExported = t("en", "feedback.matchExported", { matchId: "match-123" });
+    expect(enMatchExported).toContain("match-123");
+  });
+
+  it("provides recovery messages in both locales", () => {
+    expect(t("th", "feedback.recoverySuccess")).toBe("กู้คืนผลการแข่งขันและลบเซฟเรียบร้อย");
+    expect(t("en", "feedback.recoverySuccess")).toBe("Match result recovered and save cleared");
+    const thFail = t("th", "feedback.recoveryFailed", { reason: "timeout" });
+    expect(thFail).toContain("timeout");
+    const enFail = t("en", "feedback.recoveryFailed", { reason: "timeout" });
+    expect(enFail).toContain("timeout");
+  });
 });

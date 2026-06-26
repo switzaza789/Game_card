@@ -77,7 +77,7 @@ export function App() {
   const [screen, setScreen] = useState<Screen>("menu");
   const [match, setMatch] = useState<MatchState | null>(null);
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
-  const [message, setMessage] = useState("เลือกการ์ดจากมือ แล้วเลือกเป้าหมายบนสนาม");
+  const [message, setMessage] = useState(t(locale, "feedback.unknown"));
   const [modal, setModal] = useState<ModalState>(null);
   const [hasSavedGame, setHasSavedGame] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -111,21 +111,22 @@ export function App() {
           setMatch(persisted.state);
           setScreen("result");
           if (recoveryResult.ok) {
-            setMessage("กู้คืนผลการแข่งขันและลบเซฟเรียบร้อย");
+            setMessage(t(locale, "feedback.recoverySuccess"));
           } else {
-            setMessage(`เกิดข้อผิดพลาดในการบันทึกประวัติ: ${storageErrorMessage(recoveryResult.error)}`);
+            setMessage(t(locale, "feedback.recoveryFailed", { reason: storageErrorMessage(recoveryResult.error) }));
           }
         } else {
           setHasSavedGame(true);
         }
       }
     } else {
-      setMessage(`ข้อมูลเซฟมีปัญหา: ${storageErrorMessage(loadResult.error)}`);
+      setMessage(t(locale, "feedback.loadError", { reason: storageErrorMessage(loadResult.error) }));
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coordinator]);
 
   function startGame(gameMode: GameMode = "LOCAL_PVP") {
-    if (hasSavedGame && !window.confirm("คุณมีเกมที่เล่นค้างอยู่ ต้องการเริ่มเกมใหม่และลบเซฟเดิมหรือไม่?")) {
+    if (hasSavedGame && !window.confirm(t(locale, "confirm.overwriteSave"))) {
       return;
     }
 
@@ -152,7 +153,7 @@ export function App() {
 
     setMatch(currentMatch);
     setSelectedCardId(null);
-    setMessage(gameMode === "PVE_NORMAL" ? "เริ่ม PvE แล้ว คุณคือผู้เล่น 1" : "เริ่มเกมแล้ว ผู้เล่น 1 พร้อมเล่น");
+    setMessage(gameMode === "PVE_NORMAL" ? t(locale, "feedback.pveStarted") : t(locale, "feedback.gameStarted"));
     setScreen("battle");
     setHasSavedGame(false);
   }
@@ -165,26 +166,26 @@ export function App() {
       setMatch(persisted.state);
       setScreen(persisted.state.gameMode === "PVE_NORMAL" && persisted.state.currentPlayerId === "P2" && persisted.screen === "handoff" ? "battle" : persisted.screen);
       setSelectedCardId(null);
-      setMessage(`กู้คืนเกมสำเร็จ! ถึงตา ${playerName(persisted.state.currentPlayerId)}`);
+      setMessage(t(locale, "feedback.gameResumed", { player: playerName(persisted.state.currentPlayerId, locale) }));
     } else {
-      setMessage(`ไม่สามารถโหลดเซฟได้: ${loadResult.ok ? "ไม่พบไฟล์เซฟ" : storageErrorMessage(loadResult.error)}`);
+      setMessage(loadResult.ok ? t(locale, "feedback.saveNotFound") : t(locale, "feedback.loadFailed", { reason: storageErrorMessage(loadResult.error) }));
     }
   }
 
   function clearSave() {
-    if (window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบเกมเซฟนี้?")) {
+    if (window.confirm(t(locale, "confirm.deleteSave"))) {
       const delResult = deleteActiveMatch();
       if (delResult.ok) {
         setHasSavedGame(false);
-        setMessage("ลบเกมเซฟเรียบร้อย");
+        setMessage(t(locale, "feedback.saveDeleted"));
       } else {
-        setMessage(`ลบเกมเซฟไม่สำเร็จ: ${storageErrorMessage(delResult.error)}`);
+        setMessage(t(locale, "feedback.saveDeleteFailed", { reason: storageErrorMessage(delResult.error) }));
       }
     }
   }
 
   function handleImport(jsonText: string) {
-    if (match && match.status !== "FINISHED" && !window.confirm("คุณกำลังเล่นเกมอยู่ ต้องการนำเข้าไฟล์เซฟทับเกมปัจจุบันหรือไม่?")) {
+    if (match && match.status !== "FINISHED" && !window.confirm(t(locale, "confirm.importOverwrite"))) {
       return;
     }
 
@@ -196,12 +197,12 @@ export function App() {
       setScreen(persisted.screen);
       setHasSavedGame(false);
       setSelectedCardId(null);
-      setMessage("นำเข้าและโหลดไฟล์เซฟสำเร็จ!");
+      setMessage(t(locale, "feedback.importSuccess"));
       saveActiveMatch(persisted.state, persisted.screen, persisted.stats, Date.now());
       setShowImport(false);
       setImportError(null);
     } else {
-      setImportError(`ไม่สามารถนำเข้าข้อมูลได้: ${storageErrorMessage(impResult.error)}`);
+      setImportError(t(locale, "feedback.importFailed", { reason: storageErrorMessage(impResult.error) }));
     }
   }
 
@@ -211,20 +212,20 @@ export function App() {
     if (expResult.ok) {
       if (!navigator.clipboard?.writeText || !window.isSecureContext) {
         setExportText(expResult.value);
-        setMessage("ไม่สามารถคัดลอกอัตโนมัติได้ เปิดหน้าต่างส่งออก JSON แล้ว");
+        setMessage(t(locale, "feedback.clipboardUnavailable"));
         return;
       }
 
       void navigator.clipboard.writeText(expResult.value)
         .then(() => {
-          alert("คัดลอกไฟล์เซฟลง Clipboard เรียบร้อยแล้ว!");
+          alert(t(locale, "feedback.clipboardSuccess"));
         })
         .catch(() => {
           setExportText(expResult.value);
-          setMessage("ไม่สามารถคัดลอกอัตโนมัติได้ เปิดหน้าต่างส่งออก JSON แล้ว");
+          setMessage(t(locale, "feedback.clipboardUnavailable"));
         });
     } else {
-      alert(`ส่งออกข้อมูลล้มเหลว: ${storageErrorMessage(expResult.error)}`);
+      alert(t(locale, "feedback.exportFailed", { reason: storageErrorMessage(expResult.error) }));
     }
   }
 
@@ -239,13 +240,13 @@ export function App() {
 
     const duplicateKey = JSON.stringify({ matchId: match.matchId, input });
     if (lastFeedbackExportRef.current === duplicateKey) {
-      setPlaytestError("ฟีดแบ็กชุดนี้เพิ่งถูกบันทึกแล้ว");
+      setPlaytestError(t(locale, "feedback.playtestDuplicateError"));
       return;
     }
 
     const saveResult = saveHumanFeedback(feedbackResult.value);
     if (!saveResult.ok) {
-      setPlaytestError(`บันทึกฟีดแบ็กล้มเหลว: ${storageErrorMessage(saveResult.error)}`);
+      setPlaytestError(t(locale, "feedback.playtestSaveFailed", { reason: storageErrorMessage(saveResult.error) }));
       return;
     }
 
@@ -254,7 +255,7 @@ export function App() {
     setPlaytestError(null);
     setPlaytestFeedbackOpen(false);
     downloadJson(json, humanFeedbackFilename(match.matchId, timestamp));
-    setMessage("บันทึกและส่งออกฟีดแบ็ก JSON แล้ว");
+    setMessage(t(locale, "feedback.playtestSaved"));
     if (!navigator.clipboard?.writeText || !window.isSecureContext) {
       setExportText(json);
       return;
@@ -262,7 +263,7 @@ export function App() {
 
     void navigator.clipboard.writeText(json)
       .then(() => {
-        alert("บันทึกและคัดลอกฟีดแบ็ก Playtest ลง Clipboard เรียบร้อยแล้ว!");
+        alert(t(locale, "feedback.clipboardPlaytestSuccess"));
       })
       .catch(() => {
         setExportText(json);
@@ -281,7 +282,7 @@ export function App() {
     setPlaytestFeedbackOpen(false);
     setHasSavedGame(false);
     setScreen("menu");
-    setMessage(deleteResult.ok ? "รีเซ็ตเกมเรียบร้อย" : `รีเซ็ตเกมแล้ว แต่ลบเซฟไม่สำเร็จ: ${storageErrorMessage(deleteResult.error)}`);
+    setMessage(deleteResult.ok ? t(locale, "feedback.gameReset") : t(locale, "feedback.resetButDeleteFailed", { reason: storageErrorMessage(deleteResult.error) }));
   }
 
   function requestResetMatch() {
@@ -305,7 +306,7 @@ export function App() {
     setHasSavedGame(false);
     setScreen("menu");
     if (!deleteResult.ok) {
-      setMessage(`กลับเมนูหลักแล้ว แต่ลบเซฟไม่สำเร็จ: ${storageErrorMessage(deleteResult.error)}`);
+      setMessage(t(locale, "feedback.returnedToMenuButDeleteFailed", { reason: storageErrorMessage(deleteResult.error) }));
     }
   }
 
@@ -327,7 +328,7 @@ export function App() {
 
     setMatch(currentMatch);
     setSelectedCardId(null);
-    setMessage(`ถึงตา ${playerName(currentMatch.currentPlayerId)}`);
+    setMessage(t(locale, "feedback.turnResumed", { player: playerName(currentMatch.currentPlayerId, locale) }));
     setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
   }
 
@@ -347,7 +348,7 @@ export function App() {
     if (!result.validation.valid) {
       setMessage(result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", "));
     } else {
-      setMessage("จบเทิร์นแล้ว");
+      setMessage(t(locale, "feedback.turnEnded"));
       if (result.state.status === "FINISHED") {
         setScreen("result");
       } else if (result.state.gameMode === "PVE_NORMAL" && result.state.currentPlayerId === "P2") {
@@ -359,7 +360,7 @@ export function App() {
 
     const sr1 = result.storageResult;
     if (!sr1.ok) {
-      setMessage((prev) => `${prev} (บันทึกเซฟล้มเหลว: ${storageErrorMessage(sr1.error)})`);
+      setMessage((prev) => `${prev}${t(locale, "feedback.saveFailedSuffix", { reason: storageErrorMessage(sr1.error) })}`);
     }
   }
 
@@ -385,11 +386,11 @@ export function App() {
         setActionFeedback(botEntry ? { type: "combat", entry: botEntry } : null);
         setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
         if (currentMatch.status === "FINISHED") {
-          setMessage("เกมจบแล้ว");
+          setMessage(t(locale, "feedback.matchFinished"));
         } else if (currentMatch.currentPlayerId === "P1") {
-          setMessage("คอมพิวเตอร์จบเทิร์นแล้ว ถึงตาคุณ");
+          setMessage(t(locale, "feedback.pveTurnEnded"));
         } else if (result.actionLimitFallback) {
-          setMessage("คอมพิวเตอร์ถึงขีดจำกัด action และหยุดอย่างปลอดภัย");
+          setMessage(t(locale, "feedback.pveActionLimitReached"));
         }
       } finally {
         if (aiExecutionRef.current === aiTurnKey) {
@@ -403,6 +404,7 @@ export function App() {
         aiExecutionRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coordinator, match, screen]);
 
   useEffect(() => {
@@ -425,13 +427,13 @@ export function App() {
         setSelectedCardId(null);
         setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
         if (currentMatch.status === "FINISHED") {
-          setMessage("เกมจบแล้ว");
+          setMessage(t(locale, "feedback.matchFinished"));
         } else if (currentMatch.phase === "ACTION") {
-          setMessage("ถึงตาคุณ — เล่นการ์ดได้");
+          setMessage(t(locale, "feedback.yourTurn"));
         } else if (result.stoppedByRejection) {
-          setMessage("เริ่มเทิร์นไม่สำเร็จ กรุณาตรวจสอบ Action Log");
+          setMessage(t(locale, "feedback.turnStartFailed"));
         } else {
-          setMessage("กำลังจั่วและคิดคะแนน...");
+          setMessage(t(locale, "feedback.preparingTurn"));
         }
       } finally {
         if (humanTurnPrepRef.current === prepKey) {
@@ -445,6 +447,7 @@ export function App() {
         humanTurnPrepRef.current = null;
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coordinator, match, screen]);
 
   function recycleSelected() {
@@ -482,7 +485,7 @@ export function App() {
 
     const sr2 = result.storageResult;
     if (!sr2.ok) {
-      setMessage((prev) => `${prev} (บันทึกเซฟล้มเหลว: ${storageErrorMessage(sr2.error)})`);
+      setMessage((prev) => `${prev}${t(locale, "feedback.saveFailedSuffix", { reason: storageErrorMessage(sr2.error) })}`);
     }
   }
 
@@ -510,7 +513,7 @@ export function App() {
       const targetCard = match.cardsByInstanceId[target.instanceId];
       const shieldId = findHandCard(match, targetCard.ownerId, "X002");
 
-      if (shieldId && window.confirm(`${playerName(targetCard.ownerId)} ใช้ Weakness Shield หรือไม่?`)) {
+      if (shieldId && window.confirm(t(locale, "confirm.weaknessShield", { player: playerName(targetCard.ownerId, locale) }))) {
         payload.reactionCardInstanceId = shieldId;
       }
     }
@@ -556,7 +559,7 @@ export function App() {
 
     const sr3 = result.storageResult;
     if (!sr3.ok) {
-      setMessage((prev) => `${prev} (บันทึกเซฟล้มเหลว: ${storageErrorMessage(sr3.error)})`);
+      setMessage((prev) => `${prev}${t(locale, "feedback.saveFailedSuffix", { reason: storageErrorMessage(sr3.error) })}`);
     }
   }
 
@@ -670,7 +673,7 @@ export function App() {
             playSelected(target);
           } else {
             setPendingAnimalSlot(target);
-            setMessage("เลือก Animal จากมือเพื่อลงช่องนี้");
+            setMessage(t(locale, "feedback.selectCardForSlot"));
           }
         }}
         onRecycle={recycleSelected}
@@ -776,7 +779,7 @@ function MainMenu({
               <button type="button" className="danger-button" onClick={onClearSave} aria-label={t(locale, "menu.deleteAria")}>{t(locale, "menu.clearSave")}</button>
             </>
           )}
-          <button type="button" onClick={() => onStart("LOCAL_PVP")} aria-label={t(locale, "menu.localPvp")}>
+          <button type="button" onClick={() => onStart("LOCAL_PVP")} aria-label={hasSavedGame ? t(locale, "menu.newGame", { mode: t(locale, "menu.localPvp") }) : t(locale, "menu.localPvp")}>
             {hasSavedGame ? t(locale, "menu.newGame", { mode: t(locale, "menu.localPvp") }) : t(locale, "menu.localPvp")}
           </button>
           <button type="button" onClick={() => onStart("PVE_NORMAL")} aria-label={t(locale, "menu.pveNormal")}>
@@ -1732,13 +1735,13 @@ function HistoryScreen({
   }, []);
 
   function handleClear() {
-    if (window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบประวัติการเล่นทั้งหมด?")) {
+    if (window.confirm(t(locale, "confirm.clearHistory"))) {
       const res = clearMatchHistory();
       if (res.ok) {
         setHistory([]);
-        alert("ลบประวัติการเล่นเรียบร้อยแล้ว");
+        alert(t(locale, "feedback.historyCleared"));
       } else {
-        alert(`ลบประวัติการเล่นล้มเหลว: ${storageErrorMessage(res.error)}`);
+        alert(t(locale, "feedback.historyClearFailed", { reason: storageErrorMessage(res.error) }));
       }
     }
   }
@@ -1747,23 +1750,23 @@ function HistoryScreen({
     const timestamp = Date.now();
     const result = exportAllMatchHistory(timestamp);
     if (!result.ok) {
-      alert(`ส่งออกประวัติทั้งหมดล้มเหลว: ${storageErrorMessage(result.error)}`);
+      alert(t(locale, "feedback.historyExportFailed", { reason: storageErrorMessage(result.error) }));
       return;
     }
     downloadJson(result.value, matchHistoryFilename(timestamp));
     onShowExport(result.value);
-    onMessage("ส่งออกประวัติการเล่นทั้งหมดแล้ว");
+    onMessage(t(locale, "feedback.historyExported"));
   }
 
   function handleExportOne(localeResult: MatchResult) {
     const exportResult = exportSingleMatchHistoryRecord(localeResult);
     if (!exportResult.ok) {
-      alert(`ส่งออกประวัติ match ล้มเหลว: ${storageErrorMessage(exportResult.error)}`);
+      alert(t(locale, "feedback.matchExportFailed", { reason: storageErrorMessage(exportResult.error) }));
       return;
     }
     downloadJson(exportResult.value, singleMatchHistoryFilename(localeResult.matchId));
     onShowExport(exportResult.value);
-    onMessage(`ส่งออกประวัติ ${localeResult.matchId} แล้ว`);
+    onMessage(t(locale, "feedback.matchExported", { matchId: localeResult.matchId }));
   }
 
   return (

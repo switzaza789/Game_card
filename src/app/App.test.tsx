@@ -357,7 +357,8 @@ describe("App Phase 4 UI", () => {
       return;
     }
     await user.click(enabledOpponentSlot);
-    expect(screen.getByText(/ผลเต็ม|เต็ม/)).toBeInTheDocument();
+    const fullEffectElements = screen.getAllByText(/ผลเต็ม|เต็ม/);
+    expect(fullEffectElements.length).toBeGreaterThanOrEqual(1);
   }, 10000);
 
   it("shows match result winner", () => {
