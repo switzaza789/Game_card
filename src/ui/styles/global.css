@@ -64,6 +64,12 @@ button:disabled {
   background: #8b2f2f;
 }
 
+.destructive-button {
+  color: #ffffff;
+  background: #b42318;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
 .app-shell,
 .page-shell {
   min-height: 100vh;
@@ -193,11 +199,17 @@ h1 {
 
 .menu-actions,
 .buttons,
+.utility-actions,
 .page-header {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.utility-actions {
+  justify-content: flex-end;
+  margin-bottom: 12px;
 }
 
 .page-shell {

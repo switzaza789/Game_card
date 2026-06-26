@@ -376,6 +376,42 @@ describe("App Phase 4 UI", () => {
     // finishReason is shown in Thai as "ทำคะแนนถึงเป้าหมาย"
   });
 
+  it("shows a localized return-to-menu action on the result screen", async () => {
+    const user = userEvent.setup();
+    const onBackToMenu = vi.fn();
+    const match = {
+      ...createMatch({ seed: "result-menu-ui" }),
+      status: "FINISHED" as const,
+      winner: "P1" as const,
+      finishReason: "TARGET_SCORE" as const
+    };
+
+    render(<ResultScreen match={match} onNewGame={() => undefined} onBackToMenu={onBackToMenu} locale="en" />);
+
+    await user.click(screen.getByRole("button", { name: "Back to Main Menu" }));
+    expect(onBackToMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Reset Game in a separate destructive area and confirms before resetting", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    const utilityArea = document.querySelector(".utility-actions");
+    expect(utilityArea).toBeInTheDocument();
+    expect(utilityArea?.querySelector("button")).toHaveTextContent("เริ่มเกมใหม่");
+    expect(document.querySelector(".buttons")?.textContent).not.toContain("เริ่มเกมใหม่");
+
+    await user.click(screen.getByRole("button", { name: "เริ่มเกมใหม่" }));
+    const dialog = screen.getByRole("dialog", { name: "เริ่มเกมใหม่หรือไม่?" });
+    expect(dialog).toHaveTextContent("ความคืบหน้าของเกมปัจจุบันจะถูกล้างและไม่สามารถย้อนกลับได้");
+
+    const beforeState = localStorage.getItem("animal_score_saved_match");
+    await user.click(within(dialog).getByRole("button", { name: "ยกเลิก" }));
+    expect(localStorage.getItem("animal_score_saved_match")).toBe(beforeState);
+    expect(screen.queryByRole("dialog", { name: "เริ่มเกมใหม่หรือไม่?" })).not.toBeInTheDocument();
+  });
+
   it("renders all 24 cards in the Card Library", async () => {
     const user = userEvent.setup();
     render(<App />);
@@ -575,14 +611,14 @@ describe("App Phase 5 persistence UI", () => {
   });
 
   it("resets an active match and clears the saved match", async () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
     const user = userEvent.setup();
     render(<App />);
     await startBattle(user);
 
     expect(localStorage.getItem("animal_score_saved_match")).not.toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "รีเซ็ตเกม" }));
+    await user.click(screen.getByRole("button", { name: "เริ่มเกมใหม่" }));
+    await user.click(within(screen.getByRole("dialog", { name: "เริ่มเกมใหม่หรือไม่?" })).getByRole("button", { name: "เริ่มเกมใหม่" }));
 
     expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
     expect(localStorage.getItem("animal_score_saved_match")).toBeNull();

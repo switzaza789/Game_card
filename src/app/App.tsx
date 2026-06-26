@@ -76,6 +76,7 @@ export function App() {
   const [effectFeedback, setEffectFeedback] = useState<string[] | null>(null);
   const [pendingAnimalSlot, setPendingAnimalSlot] = useState<Target | null>(null);
   const [endTurnConfirmOpen, setEndTurnConfirmOpen] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const lastFeedbackExportRef = useRef<string | null>(null);
   const aiExecutionRef = useRef<string | null>(null);
   const humanTurnPrepRef = useRef<string | null>(null);
@@ -257,16 +258,43 @@ export function App() {
   }
 
   function resetMatch() {
-    if (!window.confirm("รีเซ็ตเกมที่กำลังเล่นและกลับเมนูหลักหรือไม่?")) {
-      return;
-    }
-
     const deleteResult = deleteActiveMatch();
     setMatch(null);
     setSelectedCardId(null);
+    setEffectFeedback(null);
+    setModal(null);
+    setPendingAnimalSlot(null);
+    setEndTurnConfirmOpen(false);
+    setResetConfirmOpen(false);
+    setPlaytestFeedbackOpen(false);
     setHasSavedGame(false);
     setScreen("menu");
     setMessage(deleteResult.ok ? "รีเซ็ตเกมเรียบร้อย" : `รีเซ็ตเกมแล้ว แต่ลบเซฟไม่สำเร็จ: ${storageErrorMessage(deleteResult.error)}`);
+  }
+
+  function requestResetMatch() {
+    setResetConfirmOpen(true);
+  }
+
+  function cancelResetMatch() {
+    setResetConfirmOpen(false);
+  }
+
+  function returnToMenu() {
+    const deleteResult = deleteActiveMatch();
+    setMatch(null);
+    setSelectedCardId(null);
+    setEffectFeedback(null);
+    setModal(null);
+    setPendingAnimalSlot(null);
+    setEndTurnConfirmOpen(false);
+    setResetConfirmOpen(false);
+    setPlaytestFeedbackOpen(false);
+    setHasSavedGame(false);
+    setScreen("menu");
+    if (!deleteResult.ok) {
+      setMessage(`กลับเมนูหลักแล้ว แต่ลบเซฟไม่สำเร็จ: ${storageErrorMessage(deleteResult.error)}`);
+    }
   }
 
   function continueFromHandoff() {
@@ -587,7 +615,7 @@ export function App() {
           match={match}
           stats={coordinator.getStats()}
           onNewGame={startGame}
-          onBackToMenu={() => setScreen("menu")}
+          onBackToMenu={returnToMenu}
           onExport={() => { void handleExport(); }}
           onOpenPlaytestFeedback={() => {
             setPlaytestError(null);
@@ -641,7 +669,7 @@ export function App() {
         onOpenCard={(card) => setModal({ type: "card", card })}
         onOpenGraveyard={(playerId) => setModal({ type: "graveyard", playerId })}
         onCloseModal={() => setModal(null)}
-        onResetMatch={resetMatch}
+        onResetMatch={requestResetMatch}
         controlsDisabled={(match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2") || match.phase !== "ACTION"}
         effectFeedback={effectFeedback}
         onDismissFeedback={() => setEffectFeedback(null)}
@@ -653,6 +681,9 @@ export function App() {
           }}
           locale={locale}
           onLocaleChange={setLocale}
+          resetConfirmOpen={resetConfirmOpen}
+          onCancelReset={cancelResetMatch}
+          onConfirmReset={resetMatch}
         />
     );
   }
@@ -852,16 +883,26 @@ function BattleScreen(props: {
   onConfirmEndTurn: () => void;
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
+  resetConfirmOpen: boolean;
+  onCancelReset: () => void;
+  onConfirmReset: () => void;
 }) {
   const { match, activePlayerId, opponentId, selectedCardId, selectedDefinition } = props;
   const controlsDisabled = Boolean(props.controlsDisabled);
   const isAiTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2";
   const isPreparingHumanTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P1" && match.phase !== "ACTION";
+  const resetConfirmButtonRef = useRef<HTMLButtonElement>(null);
   const lastLog = [...match.actionLog].reverse().find((entry) => entry.action.type === "PLAY_CARD" && (entry.outcomes?.length ?? 0) > 0)
     ?? [...match.actionLog].reverse().find((entry) => (entry.outcomes?.length ?? 0) > 0)
     ?? match.actionLog[match.actionLog.length - 1];
   const scoreDeltas = scoreDeltaByPlayer(lastLog);
   const selectedPlayability = selectedCardId ? getCardPlayability(match, activePlayerId, selectedCardId) : null;
+
+  useEffect(() => {
+    if (props.resetConfirmOpen) {
+      resetConfirmButtonRef.current?.focus();
+    }
+  }, [props.resetConfirmOpen]);
 
   return (
     <main className="battle-app">
@@ -917,9 +958,12 @@ function BattleScreen(props: {
 
       <section className="actions">
         <div className="log" role="status">
-          <strong>Action Log</strong>
+          <strong>{t(props.locale, "label.actionLog")}</strong>
           <p>{props.message}</p>
           <small>{formatActionLogEntry(match, lastLog)}</small>
+        </div>
+        <div className="utility-actions">
+          <button type="button" className="destructive-button" onClick={props.onResetMatch}>{t(props.locale, "label.reset")}</button>
         </div>
         <div className="buttons">
           <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || selectedPlayability?.state === "NOT_PLAYABLE" || needsTarget(selectedDefinition)}>
@@ -928,7 +972,6 @@ function BattleScreen(props: {
           <button type="button" className="secondary-button" onClick={props.onRecycle} disabled={controlsDisabled}>{t(props.locale, "label.recycle")}</button>
           <button type="button" className="secondary-button" onClick={() => props.onOpenGraveyard(activePlayerId)}>{t(props.locale, "label.graveyard")}</button>
           <button type="button" className="secondary-button" onClick={() => selectedDefinition && props.onOpenCard(selectedDefinition)} disabled={!selectedDefinition}>{t(props.locale, "label.details")}</button>
-          <button type="button" className="secondary-button" onClick={props.onResetMatch}>{t(props.locale, "label.reset")}</button>
           <button type="button" className="secondary-button" onClick={props.onUndo} disabled={!match.undoSnapshot}>{t(props.locale, "label.undo")}</button>
           <button type="button" className="danger-button" onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")}>{t(props.locale, "label.endTurn")}</button>
         </div>
@@ -950,6 +993,18 @@ function BattleScreen(props: {
             </ul>
           </div>
           <button type="button" className="secondary-button" onClick={props.onDismissFeedback}>{t(props.locale, "label.close")}</button>
+        </section>
+      )}
+      {props.resetConfirmOpen && (
+        <section className="action-modal" role="dialog" aria-modal="true" aria-label={t(props.locale, "label.resetGameConfirmTitle")} onKeyDown={(event) => { if (event.key === "Escape") { props.onCancelReset(); } }}>
+          <div className="action-modal-panel">
+            <strong>{t(props.locale, "label.resetGameConfirmTitle")}</strong>
+            <p>{t(props.locale, "label.resetGameConfirmBody")}</p>
+            <div className="modal-actions">
+              <button ref={resetConfirmButtonRef} type="button" className="danger-button" onClick={props.onConfirmReset}>{t(props.locale, "label.reset")}</button>
+              <button type="button" className="secondary-button" onClick={props.onCancelReset}>{t(props.locale, "label.cancel")}</button>
+            </div>
+          </div>
         </section>
       )}
       {props.endTurnConfirmOpen && (
@@ -1128,7 +1183,7 @@ export function ResultScreen({
           <button type="button" onClick={() => onNewGame("LOCAL_PVP")}>{t(locale, "menu.localPvp")}</button>
           <button type="button" className="secondary-button" onClick={() => { void onExport(); }}>{t(locale, "label.exportLog")} (คัดลอกลง Clipboard)</button>
           <button type="button" className="secondary-button" onClick={onOpenPlaytestFeedback}>ฟีดแบ็ก Human Playtest (ไม่บังคับ)</button>
-          <button type="button" className="secondary-button" onClick={onBackToMenu}>{t(locale, "menu.backToMenu")}</button>
+          <button type="button" className="secondary-button" onClick={onBackToMenu}>{t(locale, "label.returnToMenu")}</button>
         </div>
       </section>
     </main>
