@@ -55,6 +55,9 @@ describe("card effects", () => {
       const result = play(state, "P1", supportId, targetOf(state, "P1", animalId));
 
       expect(result.validation.valid).toBe(false);
+      if (result.validation.valid) {
+        throw new Error("expected invalid validation result");
+      }
       expect(result.validation.errors).toContain("สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้");
       expect(result.state.cardsByInstanceId[instanceId].zone).toBe("HAND");
       expect(getBoardAnimal(result.state, "P1", animalId).level).toBe(3);
@@ -80,6 +83,9 @@ describe("card effects", () => {
 
     const level3 = play(state, "P1", "S001", targetOf(state, "P1", "A001"));
     expect(level3.validation.valid).toBe(false);
+    if (level3.validation.valid) {
+      throw new Error("expected invalid validation result");
+    }
     expect(level3.validation.errors).toContain("สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้");
     expect(level3.state.players.P1.hand).toContain("P1-S001-1");
     expect(getBoardAnimal(level3.state, "P1", "A001").level).toBe(3);
