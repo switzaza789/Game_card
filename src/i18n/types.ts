@@ -226,6 +226,16 @@ export type TranslationKey =
   | "preview.x004.target"
   | "preview.x004.effect"
   | "preview.x004.mayBeBlocked"
-  | "preview.x005.effect";
+  | "preview.x005.effect"
+  | "feedback.recycle.success"
+  | "feedback.recycle.failure"
+  | "feedback.recycle.sentGraveyard"
+  | "feedback.recycle.drawnToHand"
+  | "feedback.recycle.deckCount"
+  | "feedback.recycle.used"
+  | "feedback.undo.success"
+  | "feedback.undo.failure"
+  | "feedback.play.failure"
+  | "feedback.unknown";
 
 export type TranslationParams = Record<string, string | number>;

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createMatch } from "../engine/state/match";
 import type { ActionLogEntry, EffectOutcome } from "../types/game";
-import { formatActionLogEntry, renderCombatOutcomeLines, statusDisplayMeta, statusLabel, summarizeOutcomes } from "./effectFeedback";
+import { formatActionLogEntry, renderActionFeedback, renderCombatOutcomeLines, statusDisplayMeta, statusLabel, summarizeOutcomes } from "./effectFeedback";
 
 describe("effect feedback display", () => {
   it("keeps raw outcome codes language-independent while rendering Thai summaries", () => {
@@ -139,5 +139,145 @@ describe("effect feedback display", () => {
     const eng = formatActionLogEntry(state, unknownEntry, "en");
     expect(eng).toContain("START_MATCH");
     expect(eng).not.toContain("undefined");
+  });
+});
+
+describe("renderActionFeedback — centered action feedback", () => {
+  it("renders Thai recycle success feedback with card names", () => {
+    const state = createMatch({ seed: "recycle-th" });
+    const cardId = state.players.P1.hand[0];
+    const feedback = renderActionFeedback(state, {
+      type: "recycle",
+      success: true,
+      selectedCardInstanceId: cardId,
+      drawnCardInstanceId: cardId,
+      deckCount: 10
+    }, "th");
+    expect(feedback[0]).toBe("รีไซเคิลสำเร็จ");
+    expect(feedback.some(l => l.includes("สุสาน"))).toBe(true);
+    expect(feedback.some(l => l.includes("ขึ้นมือ"))).toBe(true);
+    expect(feedback.some(l => l.includes("10"))).toBe(true);
+    expect(feedback).toContain("ใช้ Recycle ของเทิร์นนี้แล้ว");
+    feedback.forEach(line => expect(line).not.toContain("undefined"));
+  });
+
+  it("renders English recycle success feedback with card names", () => {
+    const state = createMatch({ seed: "recycle-en" });
+    const cardId = state.players.P1.hand[0];
+    const feedback = renderActionFeedback(state, {
+      type: "recycle",
+      success: true,
+      selectedCardInstanceId: cardId,
+      drawnCardInstanceId: cardId,
+      deckCount: 10
+    }, "en");
+    expect(feedback[0]).toBe("Recycle successful");
+    expect(feedback.some(l => l.includes("graveyard"))).toBe(true);
+    expect(feedback.some(l => l.includes("hand"))).toBe(true);
+    expect(feedback.some(l => l.includes("10"))).toBe(true);
+    expect(feedback).toContain("Recycle used this turn");
+    feedback.forEach(line => expect(line).not.toContain("undefined"));
+  });
+
+  it("renders recycle failure feedback in both locales", () => {
+    const state = createMatch({ seed: "recycle-fail" });
+    const thai = renderActionFeedback(state, { type: "recycle", success: false, reason: "test fail" }, "th");
+    expect(thai[0]).toBe("รีไซเคิลไม่สำเร็จ");
+    expect(thai[1]).toBe("test fail");
+    const eng = renderActionFeedback(state, { type: "recycle", success: false, reason: "test fail" }, "en");
+    expect(eng[0]).toBe("Recycle failed");
+    expect(eng[1]).toBe("test fail");
+  });
+
+  it("renders undo success feedback in both locales", () => {
+    const state = createMatch({ seed: "undo-success" });
+    const thai = renderActionFeedback(state, { type: "undo", success: true, lastLogResult: "เล่นการ์ด Playful Dog" }, "th");
+    expect(thai[0]).toBe("ย้อนกลับสำเร็จ");
+    expect(thai[1]).toBe("เล่นการ์ด Playful Dog");
+    const eng = renderActionFeedback(state, { type: "undo", success: true, lastLogResult: "played Playful Dog" }, "en");
+    expect(eng[0]).toBe("Undo successful");
+    expect(eng[1]).toBe("played Playful Dog");
+  });
+
+  it("renders undo failure feedback in both locales", () => {
+    const state = createMatch({ seed: "undo-fail" });
+    const thai = renderActionFeedback(state, { type: "undo", success: false, reason: "ไม่มีอะไรให้ย้อนกลับ", lastLogResult: "" }, "th");
+    expect(thai[0]).toBe("ย้อนกลับไม่สำเร็จ");
+    expect(thai[1]).toBe("ไม่มีอะไรให้ย้อนกลับ");
+    const eng = renderActionFeedback(state, { type: "undo", success: false, reason: "Nothing to undo", lastLogResult: "" }, "en");
+    expect(eng[0]).toBe("Undo failed");
+    expect(eng[1]).toBe("Nothing to undo");
+  });
+
+  it("renders play failed feedback in both locales", () => {
+    const state = createMatch({ seed: "play-fail" });
+    const cardId = state.players.P1.hand[0];
+    const thai = renderActionFeedback(state, { type: "playFailed", cardInstanceId: cardId, reason: "ไม่สามารถใช้ได้" }, "th");
+    expect(thai[0]).toContain("ไม่สำเร็จ");
+    expect(thai[1]).toBe("ไม่สามารถใช้ได้");
+    const eng = renderActionFeedback(state, { type: "playFailed", cardInstanceId: cardId, reason: "Cannot play" }, "en");
+    expect(eng[0]).toContain("Failed to use");
+    expect(eng[1]).toBe("Cannot play");
+  });
+
+  it("renders unknown fallback in both locales", () => {
+    const state = createMatch({ seed: "unknown-fb" });
+    const thai = renderActionFeedback(state, { type: "unknown" }, "th");
+    expect(thai).toEqual(["ดำเนินการเสร็จสิ้น"]);
+    const eng = renderActionFeedback(state, { type: "unknown" }, "en");
+    expect(eng).toEqual(["Action completed"]);
+  });
+
+  it("renders combat feedback through ActionFeedback", () => {
+    const state = createMatch({ seed: "combat-fb", gameMode: "PVE_NORMAL" });
+    const source = state.players.P2.hand[0];
+    const target = state.players.P1.hand[0];
+    const entry: ActionLogEntry = {
+      seq: 1,
+      action: { type: "PLAY_CARD", playerId: "P2", payload: { cardInstanceId: source, target: { playerId: "P1", zone: "BOARD", instanceId: target } } },
+      phase: "ACTION",
+      turnNumber: 4,
+      actor: "P2",
+      validation: { valid: true },
+      result: "PLAY_CARD resolved",
+      outcomes: [
+        { code: "CARD_PLAYED", cardInstanceId: source, definitionId: state.cardsByInstanceId[source].definitionId, playerId: "P2", targetInstanceId: target, targetPlayerId: "P1", actionKind: "WEAKNESS", effectResult: "FULL_EFFECT", reasonCode: "MATCHING_WEAKNESS" },
+        { code: "SCORE_CHANGED", playerId: "P1", fromScore: 7, toScore: 5, amount: -2 }
+      ],
+      rng: state.rng,
+      timestamp: 1
+    };
+    const thai = renderActionFeedback(state, { type: "combat", entry }, "th");
+    expect(thai.join("\n")).toContain("ผลเต็ม");
+    expect(thai.join("\n")).not.toContain("undefined");
+    const eng = renderActionFeedback(state, { type: "combat", entry }, "en");
+    expect(eng.join("\n")).toContain("Full effect");
+    expect(eng.join("\n")).not.toContain("undefined");
+  });
+
+  it("renders recycle feedback without optional fields", () => {
+    const state = createMatch({ seed: "recycle-minimal" });
+    const feedback = renderActionFeedback(state, { type: "recycle", success: true }, "th");
+    expect(feedback[0]).toBe("รีไซเคิลสำเร็จ");
+    expect(feedback).toContain("ใช้ Recycle ของเทิร์นนี้แล้ว");
+    expect(feedback.length).toBe(2);
+  });
+
+  it("does not mutate match state when rendering feedback", () => {
+    const state = createMatch({ seed: "no-mutate" });
+    const beforeScore = state.players.P1.score;
+    const cardId = state.players.P1.hand[0];
+    renderActionFeedback(state, { type: "recycle", success: true, selectedCardInstanceId: cardId }, "th");
+    expect(state.players.P1.score).toBe(beforeScore);
+  });
+
+  it("displays localized card names matching the selected locale in recycle feedback", () => {
+    const state = createMatch({ seed: "card-names-locale" });
+    const cardId = state.players.P1.hand[0];
+    const thDef = renderActionFeedback(state, { type: "recycle", success: true, selectedCardInstanceId: cardId }, "th");
+    const enDef = renderActionFeedback(state, { type: "recycle", success: true, selectedCardInstanceId: cardId }, "en");
+    expect(thDef.join(" ")).not.toBe(enDef.join(" "));
+    thDef.forEach(line => expect(line).not.toContain("undefined"));
+    enDef.forEach(line => expect(line).not.toContain("undefined"));
   });
 });

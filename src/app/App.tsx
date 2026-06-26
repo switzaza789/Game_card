@@ -25,7 +25,7 @@ import {
 } from "../persistence/localStorageAdapter";
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
-import { formatActionLogEntry, renderCombatOutcomeLines, statusLabel, statusDisplayMeta } from "../ui/effectFeedback";
+import { formatActionLogEntry, renderActionFeedback, statusLabel, statusDisplayMeta, type ActionFeedback } from "../ui/effectFeedback";
 import { getLocalizedCard, getStoredLocale, localeOptions, setStoredLocale, t, type Locale, type TranslationKey } from "../i18n";
 import {
   buildPlaytestFeedbackPayload,
@@ -85,7 +85,7 @@ export function App() {
   const [exportText, setExportText] = useState<string | null>(null);
   const [playtestFeedbackOpen, setPlaytestFeedbackOpen] = useState(false);
   const [playtestError, setPlaytestError] = useState<string | null>(null);
-  const [effectFeedback, setEffectFeedback] = useState<string[] | null>(null);
+  const [actionFeedback, setActionFeedback] = useState<ActionFeedback | null>(null);
   const [pendingAnimalSlot, setPendingAnimalSlot] = useState<Target | null>(null);
   const [endTurnConfirmOpen, setEndTurnConfirmOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
@@ -273,7 +273,7 @@ export function App() {
     const deleteResult = deleteActiveMatch();
     setMatch(null);
     setSelectedCardId(null);
-    setEffectFeedback(null);
+    setActionFeedback(null);
     setModal(null);
     setPendingAnimalSlot(null);
     setEndTurnConfirmOpen(false);
@@ -296,7 +296,7 @@ export function App() {
     const deleteResult = deleteActiveMatch();
     setMatch(null);
     setSelectedCardId(null);
-    setEffectFeedback(null);
+    setActionFeedback(null);
     setModal(null);
     setPendingAnimalSlot(null);
     setEndTurnConfirmOpen(false);
@@ -382,7 +382,7 @@ export function App() {
         const botEntry = [...currentMatch.actionLog].reverse().find((entry) => entry.actor === "P2" && entry.action.type === "PLAY_CARD" && entry.validation.valid);
         setMatch(currentMatch);
         setSelectedCardId(null);
-        setEffectFeedback(botEntry ? renderCombatOutcomeLines(currentMatch, botEntry, locale) : null);
+        setActionFeedback(botEntry ? { type: "combat", entry: botEntry } : null);
         setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
         if (currentMatch.status === "FINISHED") {
           setMessage("เกมจบแล้ว");
@@ -451,11 +451,10 @@ export function App() {
     if (!match || !selectedCardId) {
       const reason = t(locale, "playability.reason.recycleNoCard");
       setMessage(reason);
-      setEffectFeedback(["รีไซเคิลไม่สำเร็จ", reason]);
+      setActionFeedback({ type: "recycle", success: false, reason });
       return;
     }
     const before = match;
-    const recycledName = getCardDefinition(before.cardsByInstanceId[selectedCardId].definitionId).name_th;
 
     const result = coordinator.dispatch({
       type: "RECYCLE",
@@ -468,18 +467,17 @@ export function App() {
     if (!result.validation.valid) {
       const reason = result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", ");
       setMessage(reason);
-      setEffectFeedback(["รีไซเคิลไม่สำเร็จ", reason]);
+      setActionFeedback({ type: "recycle", success: false, reason });
     } else {
-      setMessage("Recycle สำเร็จ: ทิ้ง 1 ใบ แล้วจั่ว 1 ใบ");
+      setMessage(t(locale, "feedback.recycle.success"));
       const drawnId = result.state.players[match.currentPlayerId].hand.find((id) => !before.players[match.currentPlayerId].hand.includes(id));
-      const drawnName = drawnId ? getCardDefinition(result.state.cardsByInstanceId[drawnId].definitionId).name_th : "การ์ดใหม่";
-      setEffectFeedback([
-        "รีไซเคิลสำเร็จ",
-        `ส่ง ${recycledName} จากมือไปสุสาน`,
-        `จั่ว ${drawnName} ขึ้นมือ`,
-        `กองจั่วเหลือ ${result.state.players[match.currentPlayerId].deck.length} ใบ`,
-        "ใช้ Recycle ของเทิร์นนี้แล้ว"
-      ]);
+      setActionFeedback({
+        type: "recycle",
+        success: true,
+        selectedCardInstanceId: selectedCardId,
+        drawnCardInstanceId: drawnId ?? undefined,
+        deckCount: result.state.players[match.currentPlayerId].deck.length
+      });
     }
 
     const sr2 = result.storageResult;
@@ -546,10 +544,11 @@ export function App() {
       const errors = result.validation.errors;
       const reason = errors.map(e => localizeValidationReason(e, locale)).join(", ");
       setMessage(reason);
-      setEffectFeedback([`ใช้ ${definition.name_th} ไม่สำเร็จ`, reason]);
+      setActionFeedback({ type: "playFailed", cardInstanceId, reason });
     } else {
-      setMessage(`${definition.name_th} สำเร็จ`);
-      setEffectFeedback(renderCombatOutcomeLines(result.state, result.state.actionLog[result.state.actionLog.length - 1], locale));
+      const localizedCard = getLocalizedCard(definition.card_id, locale);
+      setMessage(`${localizedCard.name} ${t(locale, "log.result.full")}`);
+      setActionFeedback({ type: "combat", entry: result.state.actionLog[result.state.actionLog.length - 1] });
       if (result.state.status === "FINISHED") {
         setScreen("result");
       }
@@ -580,9 +579,10 @@ export function App() {
     if (!match) return;
     const result = coordinator.dispatch({ type: "UNDO_LAST_REVERSIBLE_ACTION", playerId: match.currentPlayerId, payload: {} }, Date.now());
     setMatch(result.state);
-    const text = result.validation.valid ? "ย้อนกลับสำเร็จ" : result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", ");
+    const success = result.validation.valid;
+    const text = success ? t(locale, "feedback.undo.success") : result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", ");
     setMessage(text);
-    setEffectFeedback([text, result.state.actionLog[result.state.actionLog.length - 1]?.result ?? ""]);
+    setActionFeedback({ type: "undo", success, reason: success ? undefined : text, lastLogResult: result.state.actionLog[result.state.actionLog.length - 1]?.result ?? "" });
   }
 
   const selectedDefinition = useMemo(() => {
@@ -684,8 +684,8 @@ export function App() {
         onCloseModal={() => setModal(null)}
         onResetMatch={requestResetMatch}
         controlsDisabled={(match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2") || match.phase !== "ACTION"}
-        effectFeedback={effectFeedback}
-        onDismissFeedback={() => setEffectFeedback(null)}
+        actionFeedback={actionFeedback}
+        onDismissFeedback={() => setActionFeedback(null)}
         endTurnConfirmOpen={endTurnConfirmOpen}
         onCancelEndTurn={() => setEndTurnConfirmOpen(false)}
           onConfirmEndTurn={() => {
@@ -889,7 +889,7 @@ function BattleScreen(props: {
   onCloseModal: () => void;
   onResetMatch: () => void;
   controlsDisabled?: boolean;
-  effectFeedback: string[] | null;
+  actionFeedback: ActionFeedback | null;
   onDismissFeedback: () => void;
   endTurnConfirmOpen: boolean;
   onCancelEndTurn: () => void;
@@ -910,6 +910,7 @@ function BattleScreen(props: {
     ?? match.actionLog[match.actionLog.length - 1];
   const scoreDeltas = scoreDeltaByPlayer(lastLog);
   const selectedPlayability = selectedCardId ? getCardPlayability(match, activePlayerId, selectedCardId) : null;
+  const feedbackLines = props.actionFeedback ? renderActionFeedback(match, props.actionFeedback, props.locale) : null;
 
   useEffect(() => {
     if (props.resetConfirmOpen) {
@@ -1000,12 +1001,12 @@ function BattleScreen(props: {
           </div>
         )}
       </section>
-      {props.effectFeedback && props.effectFeedback.length > 0 && (
+      {feedbackLines && feedbackLines.length > 0 && (
         <section className="effect-feedback" role="status" aria-live="polite" aria-label={t(props.locale, "label.effectFeedback")}>
           <div>
             <strong>{t(props.locale, "label.effectFeedback")}</strong>
             <ul>
-              {props.effectFeedback.map((line) => <li key={line}>{line}</li>)}
+              {feedbackLines.map((line) => <li key={line}>{line}</li>)}
             </ul>
           </div>
           <button type="button" className="secondary-button" onClick={props.onDismissFeedback}>{t(props.locale, "label.close")}</button>

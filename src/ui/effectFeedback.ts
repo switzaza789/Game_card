@@ -121,6 +121,47 @@ export function summarizeOutcomes(match: MatchState, outcomes: EffectOutcome[] |
   return lines.length > 0 ? lines.join("\n") : t(locale, "log.noDetails");
 }
 
+export type ActionFeedback =
+  | { type: "combat"; entry: ActionLogEntry }
+  | { type: "recycle"; success: boolean; selectedCardInstanceId?: string; drawnCardInstanceId?: string; deckCount?: number; reason?: string }
+  | { type: "undo"; success: boolean; reason?: string; lastLogResult: string }
+  | { type: "playFailed"; cardInstanceId: string; reason: string }
+  | { type: "unknown" };
+
+export function renderActionFeedback(match: MatchState, feedback: ActionFeedback, locale: Locale): string[] {
+  switch (feedback.type) {
+    case "combat":
+      return renderCombatOutcomeLines(match, feedback.entry, locale);
+    case "recycle": {
+      if (!feedback.success) {
+        return [t(locale, "feedback.recycle.failure"), feedback.reason ?? t(locale, "playability.reason.fallback")];
+      }
+      const lines = [t(locale, "feedback.recycle.success")];
+      if (feedback.selectedCardInstanceId) {
+        lines.push(t(locale, "feedback.recycle.sentGraveyard", { card: cardName(match, feedback.selectedCardInstanceId, locale) }));
+      }
+      if (feedback.drawnCardInstanceId) {
+        lines.push(t(locale, "feedback.recycle.drawnToHand", { card: cardName(match, feedback.drawnCardInstanceId, locale) }));
+      }
+      if (feedback.deckCount !== undefined) {
+        lines.push(t(locale, "feedback.recycle.deckCount", { count: feedback.deckCount }));
+      }
+      lines.push(t(locale, "feedback.recycle.used"));
+      return lines;
+    }
+    case "undo": {
+      if (!feedback.success) {
+        return [t(locale, "feedback.undo.failure"), feedback.reason ?? t(locale, "playability.reason.fallback")];
+      }
+      return [t(locale, "feedback.undo.success"), feedback.lastLogResult];
+    }
+    case "playFailed":
+      return [t(locale, "feedback.play.failure", { card: cardName(match, feedback.cardInstanceId, locale) }), feedback.reason];
+    case "unknown":
+      return [t(locale, "feedback.unknown")];
+  }
+}
+
 export function statusLabel(statusCode: StatusEffectCode, includeDuration = true): string {
   const meta = statusDisplayMeta[statusCode];
   return includeDuration ? `${meta.icon} ${meta.label} (${meta.duration})` : `${meta.icon} ${meta.label}`;

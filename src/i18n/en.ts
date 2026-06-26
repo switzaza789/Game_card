@@ -226,5 +226,15 @@ export const en = {
   "preview.x004.target": "Choose 1 opponent Level 1 Animal",
   "preview.x004.effect": "Return opponent's Level 1 Animal to hand",
   "preview.x004.mayBeBlocked": "Removal shield may block this effect",
-  "preview.x005.effect": "You gain +1 score and your opponent loses 1 score"
+  "preview.x005.effect": "You gain +1 score and your opponent loses 1 score",
+  "feedback.recycle.success": "Recycle successful",
+  "feedback.recycle.failure": "Recycle failed",
+  "feedback.recycle.sentGraveyard": "Sent {card} from hand to graveyard",
+  "feedback.recycle.drawnToHand": "Drew {card} to hand",
+  "feedback.recycle.deckCount": "{count} cards remaining in deck",
+  "feedback.recycle.used": "Recycle used this turn",
+  "feedback.undo.success": "Undo successful",
+  "feedback.undo.failure": "Undo failed",
+  "feedback.play.failure": "Failed to use {card}",
+  "feedback.unknown": "Action completed"
 } satisfies Record<TranslationKey, string>;

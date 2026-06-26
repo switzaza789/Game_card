@@ -224,7 +224,7 @@ describe("App Phase 4 UI", () => {
     expect(screen.getByLabelText("ผลที่จะเกิดขึ้น")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
 
-    expect(screen.getByText(new RegExp(animalName + ".*สำเร็จ|สำเร็จ"))).toBeInTheDocument();
+    expect(screen.getByText(new RegExp("^" + animalName + " ผลเต็ม$"))).toBeInTheDocument();
     expect(screen.getByLabelText("สรุปผลของการ์ด")).toBeInTheDocument();
   });
 
@@ -257,7 +257,7 @@ describe("App Phase 4 UI", () => {
     }
     await user.click(enabledSlot);
 
-    expect(screen.getAllByText(/สำเร็จ/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ผลเต็ม|เต็ม/).length).toBeGreaterThan(0);
   });
 
   it("validates Recycle and shows player handoff privacy screen", async () => {
@@ -296,7 +296,7 @@ describe("App Phase 4 UI", () => {
 
     await user.click(findFirstHandCardByCategory("สัตว์"));
     await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
-    expect(screen.getAllByText(/สำเร็จ/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ผลเต็ม/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/PLAY_CARD is only valid during ACTION phase/)).not.toBeInTheDocument();
   }, 10000);
 
@@ -357,7 +357,7 @@ describe("App Phase 4 UI", () => {
       return;
     }
     await user.click(enabledOpponentSlot);
-    expect(screen.getByText(/สำเร็จ/)).toBeInTheDocument();
+    expect(screen.getByText(/ผลเต็ม|เต็ม/)).toBeInTheDocument();
   }, 10000);
 
   it("shows match result winner", () => {

@@ -226,5 +226,15 @@ export const th = {
   "preview.x004.target": "เลือกสัตว์ Level 1 ฝ่ายตรงข้าม",
   "preview.x004.effect": "คืน Animal Level 1 ของคู่ต่อสู้ขึ้นมือ",
   "preview.x004.mayBeBlocked": "โล่ป้องกันการนำออกอาจป้องกันผลนี้",
-  "preview.x005.effect": "คุณได้ +1 คะแนน และคู่ต่อสู้เสีย 1 คะแนน"
+  "preview.x005.effect": "คุณได้ +1 คะแนน และคู่ต่อสู้เสีย 1 คะแนน",
+  "feedback.recycle.success": "รีไซเคิลสำเร็จ",
+  "feedback.recycle.failure": "รีไซเคิลไม่สำเร็จ",
+  "feedback.recycle.sentGraveyard": "ส่ง {card} จากมือไปสุสาน",
+  "feedback.recycle.drawnToHand": "จั่ว {card} ขึ้นมือ",
+  "feedback.recycle.deckCount": "กองจั่วเหลือ {count} ใบ",
+  "feedback.recycle.used": "ใช้ Recycle ของเทิร์นนี้แล้ว",
+  "feedback.undo.success": "ย้อนกลับสำเร็จ",
+  "feedback.undo.failure": "ย้อนกลับไม่สำเร็จ",
+  "feedback.play.failure": "ใช้ {card} ไม่สำเร็จ",
+  "feedback.unknown": "ดำเนินการเสร็จสิ้น"
 } satisfies Record<TranslationKey, string>;

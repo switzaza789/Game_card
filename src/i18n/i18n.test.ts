@@ -388,4 +388,86 @@ describe("card localization data layer", () => {
     expect(t("th", "preview.weakness.fullEffect")).toContain("ลด Level");
     expect(t("en", "preview.weakness.fullEffect")).toContain("reduces Level");
   });
+
+  /* ------------------------------------------------------------------ */
+  /*  Centered Action Feedback localization                              */
+  /* ------------------------------------------------------------------ */
+
+  const FEEDBACK_KEYS = [
+    "feedback.recycle.success", "feedback.recycle.failure",
+    "feedback.recycle.sentGraveyard", "feedback.recycle.drawnToHand",
+    "feedback.recycle.deckCount", "feedback.recycle.used",
+    "feedback.undo.success", "feedback.undo.failure",
+    "feedback.play.failure", "feedback.unknown"
+  ];
+
+  it("has all feedback keys in Thai dictionary", () => {
+    for (const key of FEEDBACK_KEYS) {
+      expect(th).toHaveProperty(key);
+      expect((th as Record<string, string>)[key].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("has all feedback keys in English dictionary", () => {
+    for (const key of FEEDBACK_KEYS) {
+      expect(en).toHaveProperty(key);
+      expect((en as Record<string, string>)[key].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("provides localized recycle success feedback in both locales", () => {
+    expect(t("th", "feedback.recycle.success")).toBe("รีไซเคิลสำเร็จ");
+    expect(t("en", "feedback.recycle.success")).toBe("Recycle successful");
+  });
+
+  it("provides localized recycle failure feedback in both locales", () => {
+    expect(t("th", "feedback.recycle.failure")).toBe("รีไซเคิลไม่สำเร็จ");
+    expect(t("en", "feedback.recycle.failure")).toBe("Recycle failed");
+  });
+
+  it("provides localized recycle sentGraveyard feedback in both locales", () => {
+    const thSent = t("th", "feedback.recycle.sentGraveyard", { card: "Playful Dog" });
+    expect(thSent).toContain("Playful Dog");
+    expect(thSent).toContain("สุสาน");
+    const enSent = t("en", "feedback.recycle.sentGraveyard", { card: "Playful Dog" });
+    expect(enSent).toContain("Playful Dog");
+    expect(enSent).toContain("graveyard");
+  });
+
+  it("provides localized recycle drawnToHand feedback in both locales", () => {
+    const thDrawn = t("th", "feedback.recycle.drawnToHand", { card: "Playful Dog" });
+    expect(thDrawn).toContain("Playful Dog");
+    expect(thDrawn).toContain("ขึ้นมือ");
+    const enDrawn = t("en", "feedback.recycle.drawnToHand", { card: "Playful Dog" });
+    expect(enDrawn).toContain("Playful Dog");
+    expect(enDrawn).toContain("hand");
+  });
+
+  it("provides localized recycle deckCount in both locales", () => {
+    expect(t("th", "feedback.recycle.deckCount", { count: 5 })).toContain("5");
+    expect(t("en", "feedback.recycle.deckCount", { count: 5 })).toContain("5");
+  });
+
+  it("provides localized undo success feedback in both locales", () => {
+    expect(t("th", "feedback.undo.success")).toBe("ย้อนกลับสำเร็จ");
+    expect(t("en", "feedback.undo.success")).toBe("Undo successful");
+  });
+
+  it("provides localized undo failure feedback in both locales", () => {
+    expect(t("th", "feedback.undo.failure")).toBe("ย้อนกลับไม่สำเร็จ");
+    expect(t("en", "feedback.undo.failure")).toBe("Undo failed");
+  });
+
+  it("provides localized play failure feedback in both locales", () => {
+    const thFail = t("th", "feedback.play.failure", { card: "Playful Dog" });
+    expect(thFail).toContain("Playful Dog");
+    expect(en).toHaveProperty("feedback.play.failure");
+    const enFail = t("en", "feedback.play.failure", { card: "Playful Dog" });
+    expect(enFail).toContain("Playful Dog");
+  });
+
+  it("provides localized unknown feedback fallback in both locales", () => {
+    expect(t("th", "feedback.unknown")).toBe("ดำเนินการเสร็จสิ้น");
+    expect(t("en", "feedback.unknown")).toBe("Action completed");
+  });
 });
