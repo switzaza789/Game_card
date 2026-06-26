@@ -141,5 +141,20 @@ export const en = {
   "status.removalShield.duration": "Remains until used or until the SCORE phase depending on the effect type",
   "status.utilityLock.label": "Utility lock",
   "status.utilityLock.description": "The player is restricted from using Utility Actions",
-  "status.utilityLock.duration": "Expires based on the card effect that created the status"
+  "status.utilityLock.duration": "Expires based on the card effect that created the status",
+  "playability.reason.undoNotAvailable": "Nothing to undo",
+  "playability.reason.undoWrongActor": "Only the acting player can undo",
+  "playability.reason.undoWrongTurn": "Can only undo during your own turn",
+  "playability.reason.undoMatchFinished": "Cannot undo after match ends",
+  "playability.reason.undoWrongPhase": "Can only undo during ACTION phase",
+  "playability.reason.recycleFirstTurn": "Cannot recycle on the first turn",
+  "playability.reason.recycleEmptyDeck": "Cannot recycle with empty deck",
+  "playability.reason.recycleNoCard": "Select a card in hand first",
+  "playability.reason.slotOccupied": "Animal slot is already occupied",
+  "playability.reason.matchFinished": "Match is already finished",
+  "playability.reason.wrongPlayer": "Not your turn",
+  "playability.reason.behindOnly": "Can only be used while behind on score",
+  "playability.reason.quickSwapRequires": "Quick Swap requires an Animal in hand",
+  "playability.reason.quickSwapNotAnimal": "Quick Swap replacement must be an Animal",
+  "playability.reason.fallback": "This action cannot be used right now."
 } satisfies Record<TranslationKey, string>;

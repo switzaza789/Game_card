@@ -268,7 +268,7 @@ describe("App Phase 4 UI", () => {
     const anyCard = hand.querySelector("button") as HTMLButtonElement;
     await user.click(anyCard);
     await user.click(screen.getByRole("button", { name: "Recycle" }));
-    expect(screen.getAllByText(/Recycle is not allowed on the first turn/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ไม่สามารถรีไซเคิลในเทิร์นแรก/).length).toBeGreaterThan(0);
 
     await endCurrentTurn(user);
     expect(screen.getByRole("heading", { name: /ส่งเครื่องให้ ผู้เล่น 2/ })).toBeInTheDocument();
@@ -1479,6 +1479,71 @@ describe("App Phase 5 persistence UI", () => {
 
     expect(screen.getByText(/rulesClarity ต้องเป็นจำนวนเต็ม 1 ถึง 5/)).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "ข้อมูล JSON สำหรับส่งออก" })).not.toBeInTheDocument();
+  });
+});
+
+describe("invalid-use reason localization", () => {
+  it("shows Thai recycle-first-turn rejection message in Thai locale", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const anyCard = hand.querySelector("button") as HTMLButtonElement;
+    await user.click(anyCard);
+    await user.click(screen.getByRole("button", { name: "Recycle" }));
+    expect(screen.getAllByText("ไม่สามารถรีไซเคิลในเทิร์นแรก").length).toBeGreaterThan(0);
+  });
+
+  it("shows English recycle-first-turn rejection message in English locale", async () => {
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("Current player hand");
+    const anyCard = hand.querySelector("button") as HTMLButtonElement;
+    await user.click(anyCard);
+    await user.click(screen.getByRole("button", { name: "Recycle" }));
+    expect(screen.getAllByText("Cannot recycle on the first turn").length).toBeGreaterThan(0);
+  });
+
+  it("shows Thai fallback for an unknown validation error", () => {
+    expect(t("th", "playability.reason.fallback")).toBe("ไม่สามารถใช้คำสั่งนี้ได้ในขณะนี้");
+  });
+
+  it("shows English fallback for an unknown validation error", () => {
+    expect(t("en", "playability.reason.fallback")).toBe("This action cannot be used right now.");
+  });
+
+  it("localizes all known validation reason keys without raw undefined", () => {
+    const reasonKeys = [
+      "notFound", "dogMaxLevel", "notActionPhase", "notInHand",
+      "animalActionUsed", "animalZoneFull", "utilityLocked", "utilityUsed",
+      "needsAnimalTarget", "needsOwnAnimal", "noEnemyTarget", "targetProtected",
+      "animalMaxLevel", "needsLevel1", "weaknessOffTarget",
+      "undoNotAvailable", "undoWrongActor", "undoWrongTurn", "undoMatchFinished",
+      "undoWrongPhase", "recycleFirstTurn", "recycleEmptyDeck", "recycleNoCard",
+      "slotOccupied", "matchFinished", "wrongPlayer", "behindOnly",
+      "quickSwapRequires", "quickSwapNotAnimal", "fallback"
+    ];
+    for (const key of reasonKeys) {
+      const thVal = t("th", `playability.reason.${key}` as never);
+      const enVal = t("en", `playability.reason.${key}` as never);
+      expect(thVal).toBeTruthy();
+      expect(enVal).toBeTruthy();
+      expect(thVal.length).toBeGreaterThan(0);
+      expect(enVal.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("does not expose raw engine error strings in the centered message", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    await user.click(screen.getByRole("button", { name: "Recycle" }));
+    const statusElements = screen.getAllByRole("status");
+    const allText = statusElements.map((el) => el.textContent ?? "").join(" ");
+    expect(allText).not.toContain("first turn");
+    expect(allText).not.toContain("Recycle is not allowed");
   });
 });
 

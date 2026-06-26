@@ -208,4 +208,33 @@ describe("card localization data layer", () => {
   it("keeps Thai and English status key counts identical after adding status translations", () => {
     expect(Object.keys(th).sort()).toEqual(Object.keys(en).sort());
   });
+
+  it("provides localized invalid-use reasons in both locales", () => {
+    const reasonKeys = [
+      "undoNotAvailable", "undoWrongActor", "undoWrongTurn", "undoMatchFinished",
+      "undoWrongPhase", "recycleFirstTurn", "recycleEmptyDeck", "recycleNoCard",
+      "slotOccupied", "matchFinished", "wrongPlayer", "behindOnly",
+      "quickSwapRequires", "quickSwapNotAnimal", "fallback"
+    ];
+    for (const key of reasonKeys) {
+      const thVal = t("th", `playability.reason.${key}` as never);
+      const enVal = t("en", `playability.reason.${key}` as never);
+      expect(thVal).toBeTruthy();
+      expect(thVal.length).toBeGreaterThan(0);
+      expect(enVal).toBeTruthy();
+      expect(enVal.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("does not contain raw translation keys in Thai values", () => {
+    for (const value of Object.values(th)) {
+      expect(value).not.toMatch(/^playability\.reason\./);
+    }
+  });
+
+  it("does not contain raw translation keys in English values", () => {
+    for (const value of Object.values(en)) {
+      expect(value).not.toMatch(/^playability\.reason\./);
+    }
+  });
 });

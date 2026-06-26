@@ -141,5 +141,20 @@ export const th = {
   "status.removalShield.duration": "คงอยู่จนถูกใช้หรือจนถึง SCORE phase ตามชนิดของผล",
   "status.utilityLock.label": "ล็อก Utility",
   "status.utilityLock.description": "ผู้เล่นถูกจำกัดการใช้ Utility Action",
-  "status.utilityLock.duration": "หมดอายุตามผลของการ์ดที่สร้างสถานะ"
+  "status.utilityLock.duration": "หมดอายุตามผลของการ์ดที่สร้างสถานะ",
+  "playability.reason.undoNotAvailable": "ไม่มีอะไรให้ย้อนกลับ",
+  "playability.reason.undoWrongActor": "เฉพาะผู้เล่นที่กระทำการนั้นเท่านั้นที่ย้อนกลับได้",
+  "playability.reason.undoWrongTurn": "ย้อนกลับได้เฉพาะในเทิร์นของคุณ",
+  "playability.reason.undoMatchFinished": "ไม่สามารถย้อนกลับหลังเกมจบ",
+  "playability.reason.undoWrongPhase": "ย้อนกลับได้เฉพาะใน ACTION phase",
+  "playability.reason.recycleFirstTurn": "ไม่สามารถรีไซเคิลในเทิร์นแรก",
+  "playability.reason.recycleEmptyDeck": "ไม่สามารถรีไซเคิลเมื่อกองจั่วว่าง",
+  "playability.reason.recycleNoCard": "ต้องเลือกการ์ดในมือก่อน Recycle",
+  "playability.reason.slotOccupied": "ช่อง Animal นี้ถูกครอบครองแล้ว",
+  "playability.reason.matchFinished": "เกมจบแล้ว",
+  "playability.reason.wrongPlayer": "ไม่ใช่ตาของคุณ",
+  "playability.reason.behindOnly": "ใช้ได้เมื่อคะแนนตามหลังเท่านั้น",
+  "playability.reason.quickSwapRequires": "Quick Swap ต้องมี Animal ในมือ",
+  "playability.reason.quickSwapNotAnimal": "Quick Swap การ์ดแทนต้องเป็น Animal",
+  "playability.reason.fallback": "ไม่สามารถใช้คำสั่งนี้ได้ในขณะนี้"
 } satisfies Record<TranslationKey, string>;

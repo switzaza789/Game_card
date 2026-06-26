@@ -141,6 +141,21 @@ export type TranslationKey =
   | "status.removalShield.duration"
   | "status.utilityLock.label"
   | "status.utilityLock.description"
-  | "status.utilityLock.duration";
+  | "status.utilityLock.duration"
+  | "playability.reason.undoNotAvailable"
+  | "playability.reason.undoWrongActor"
+  | "playability.reason.undoWrongTurn"
+  | "playability.reason.undoMatchFinished"
+  | "playability.reason.undoWrongPhase"
+  | "playability.reason.recycleFirstTurn"
+  | "playability.reason.recycleEmptyDeck"
+  | "playability.reason.recycleNoCard"
+  | "playability.reason.slotOccupied"
+  | "playability.reason.matchFinished"
+  | "playability.reason.wrongPlayer"
+  | "playability.reason.behindOnly"
+  | "playability.reason.quickSwapRequires"
+  | "playability.reason.quickSwapNotAnimal"
+  | "playability.reason.fallback";
 
 export type TranslationParams = Record<string, string | number>;

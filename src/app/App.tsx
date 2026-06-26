@@ -345,7 +345,7 @@ export function App() {
     setMatch(result.state);
     setSelectedCardId(null);
     if (!result.validation.valid) {
-      setMessage(result.validation.errors.join(", "));
+      setMessage(result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", "));
     } else {
       setMessage("จบเทิร์นแล้ว");
       if (result.state.status === "FINISHED") {
@@ -449,7 +449,7 @@ export function App() {
 
   function recycleSelected() {
     if (!match || !selectedCardId) {
-      const reason = "ต้องเลือกการ์ดในมือก่อน Recycle";
+      const reason = t(locale, "playability.reason.recycleNoCard");
       setMessage(reason);
       setEffectFeedback(["รีไซเคิลไม่สำเร็จ", reason]);
       return;
@@ -466,7 +466,7 @@ export function App() {
     setMatch(result.state);
     setSelectedCardId(null);
     if (!result.validation.valid) {
-      const reason = result.validation.errors.map(translateValidationReason).join(", ");
+      const reason = result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", ");
       setMessage(reason);
       setEffectFeedback(["รีไซเคิลไม่สำเร็จ", reason]);
     } else {
@@ -543,7 +543,8 @@ export function App() {
     setSelectedCardId(null);
     setPendingAnimalSlot(null);
     if (!result.validation.valid) {
-      const reason = result.validation.errors.map(translateValidationReason).join(", ");
+      const errors = result.validation.errors;
+      const reason = errors.map(e => localizeValidationReason(e, locale)).join(", ");
       setMessage(reason);
       setEffectFeedback([`ใช้ ${definition.name_th} ไม่สำเร็จ`, reason]);
     } else {
@@ -579,7 +580,7 @@ export function App() {
     if (!match) return;
     const result = coordinator.dispatch({ type: "UNDO_LAST_REVERSIBLE_ACTION", playerId: match.currentPlayerId, payload: {} }, Date.now());
     setMatch(result.state);
-    const text = result.validation.valid ? "ย้อนกลับสำเร็จ" : result.validation.errors.map(translateValidationReason).join(", ");
+    const text = result.validation.valid ? "ย้อนกลับสำเร็จ" : result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", ");
     setMessage(text);
     setEffectFeedback([text, result.state.actionLog[result.state.actionLog.length - 1]?.result ?? ""]);
   }
@@ -1443,6 +1444,19 @@ function getCardPlayability(match: MatchState, playerId: PlayerId, cardInstanceI
 
 function translateValidationReason(reason: string | undefined): string {
   if (!reason) return "ยังใช้ไม่ได้";
+  if (reason.includes("No reversible action")) return "ไม่มีอะไรให้ย้อนกลับ";
+  if (reason.includes("Only the player who made the action")) return "เฉพาะผู้เล่นที่กระทำการนั้นเท่านั้นที่ย้อนกลับได้";
+  if (reason.includes("your current turn")) return "ย้อนกลับได้เฉพาะในเทิร์นของคุณ";
+  if (reason.includes("Cannot undo after match finish")) return "ไม่สามารถย้อนกลับหลังเกมจบ";
+  if (reason.includes("Cannot undo outside ACTION")) return "ย้อนกลับได้เฉพาะใน ACTION phase";
+  if (reason.includes("Recycle is not allowed")) return "ไม่สามารถรีไซเคิลในเทิร์นแรก";
+  if (reason.includes("Cannot recycle with an empty deck")) return "ไม่สามารถรีไซเคิลเมื่อกองจั่วว่าง";
+  if (reason.includes("Selected Animal slot is occupied")) return "ช่อง Animal นี้ถูกครอบครองแล้ว";
+  if (reason.includes("Match is already finished")) return "เกมจบแล้ว";
+  if (reason.includes("Action player is not the current player")) return "ไม่ใช่ตาของคุณ";
+  if (reason.includes("Food Thief can only be used while behind")) return "ใช้ได้เมื่อคะแนนตามหลังเท่านั้น";
+  if (reason.includes("Quick Swap requires a replacement Animal from hand")) return "Quick Swap ต้องมี Animal ในมือ";
+  if (reason.includes("Quick Swap replacement must be an Animal")) return "Quick Swap การ์ดแทนต้องเป็น Animal";
   if (reason.includes("ACTION phase")) return "ยังไม่ถึงช่วงที่ใช้ได้";
   if (reason.includes("current player's hand")) return "การ์ดไม่ได้อยู่ในมือ";
   if (reason.includes("Animal action already")) return "ใช้การ์ดสัตว์แล้วในเทิร์นนี้";
@@ -1477,13 +1491,34 @@ const PLAYABILITY_LABEL_TH_TO_KEY: Record<string, TranslationKey> = {
   "สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้": "playability.reason.dogMaxLevel",
   "สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้": "playability.reason.animalMaxLevel",
   "ใช้ได้ แต่ไม่ตรงจุดอ่อน: จะลดคะแนนครั้งถัดไป 1 คะแนน": "playability.reason.weaknessOffTarget",
-  "ไม่พบการ์ด": "playability.reason.notFound"
+  "ไม่พบการ์ด": "playability.reason.notFound",
+  "ไม่มีอะไรให้ย้อนกลับ": "playability.reason.undoNotAvailable",
+  "เฉพาะผู้เล่นที่กระทำการนั้นเท่านั้นที่ย้อนกลับได้": "playability.reason.undoWrongActor",
+  "ย้อนกลับได้เฉพาะในเทิร์นของคุณ": "playability.reason.undoWrongTurn",
+  "ไม่สามารถย้อนกลับหลังเกมจบ": "playability.reason.undoMatchFinished",
+  "ย้อนกลับได้เฉพาะใน ACTION phase": "playability.reason.undoWrongPhase",
+  "ไม่สามารถรีไซเคิลในเทิร์นแรก": "playability.reason.recycleFirstTurn",
+  "ไม่สามารถรีไซเคิลเมื่อกองจั่วว่าง": "playability.reason.recycleEmptyDeck",
+  "ต้องเลือกการ์ดในมือก่อน Recycle": "playability.reason.recycleNoCard",
+  "ช่อง Animal นี้ถูกครอบครองแล้ว": "playability.reason.slotOccupied",
+  "เกมจบแล้ว": "playability.reason.matchFinished",
+  "ไม่ใช่ตาของคุณ": "playability.reason.wrongPlayer",
+  "ใช้ได้เมื่อคะแนนตามหลังเท่านั้น": "playability.reason.behindOnly",
+  "Quick Swap ต้องมี Animal ในมือ": "playability.reason.quickSwapRequires",
+  "Quick Swap การ์ดแทนต้องเป็น Animal": "playability.reason.quickSwapNotAnimal"
 };
 
 function localizePlayabilityLabel(playability: PlayabilityInfo, locale: Locale): string {
   const key = PLAYABILITY_LABEL_TH_TO_KEY[playability.label];
   if (key) return t(locale, key);
   return playability.label;
+}
+
+function localizeValidationReason(error: string | undefined, locale: Locale): string {
+  const thai = translateValidationReason(error);
+  const key = PLAYABILITY_LABEL_TH_TO_KEY[thai];
+  if (key) return t(locale, key);
+  return t(locale, "playability.reason.fallback");
 }
 
 const STATUS_KEY_MAP: Record<StatusEffectCode, { label: TranslationKey; description: TranslationKey; duration: TranslationKey }> = {
