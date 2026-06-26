@@ -603,14 +603,12 @@ export function App() {
   if (screen === "history") {
     return (
       <>
-        <HistoryScreen onBack={() => setScreen("menu")} onShowExport={(json) => setExportText(json)} onMessage={setMessage} />
+        <HistoryScreen onBack={() => setScreen("menu")} onShowExport={(json) => setExportText(json)} onMessage={setMessage} locale={locale} />
         {exportText && (
           <ExportModal
             value={exportText}
-            title="ส่งออกข้อมูล JSON"
-            description="คัดลอก JSON นี้เพื่อเก็บประวัติการเล่นภายในเครื่อง"
-            textareaLabel="ข้อมูล JSON สำหรับส่งออก"
             onClose={() => setExportText(null)}
+            locale={locale}
           />
         )}
       </>
@@ -618,7 +616,7 @@ export function App() {
   }
 
   if (screen === "handoff" && match && !(match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2")) {
-    return <HandoffScreen nextPlayerId={match.currentPlayerId} onContinue={continueFromHandoff} />;
+    return <HandoffScreen nextPlayerId={match.currentPlayerId} onContinue={continueFromHandoff} locale={locale} />;
   }
 
   if ((screen === "result" || match?.status === "FINISHED") && match) {
@@ -641,15 +639,14 @@ export function App() {
             onClose={() => setPlaytestFeedbackOpen(false)}
             onExport={handlePlaytestExport}
             error={playtestError}
+            locale={locale}
           />
         )}
         {exportText && (
           <ExportModal
             value={exportText}
-            title="ส่งออกข้อมูล JSON"
-            description="คัดลอก JSON นี้เพื่อเก็บ log หรือฟีดแบ็ก Playtest ภายในเครื่อง"
-            textareaLabel="ข้อมูล JSON สำหรับส่งออก"
             onClose={() => setExportText(null)}
+            locale={locale}
           />
         )}
       </>
@@ -723,15 +720,14 @@ export function App() {
           onClose={() => setShowImport(false)}
           onImport={handleImport}
           error={importError}
+          locale={locale}
         />
       )}
       {exportText && (
         <ExportModal
           value={exportText}
-          title="ส่งออกข้อมูล JSON"
-          description="คัดลอก JSON นี้เพื่อเก็บ log หรือฟีดแบ็ก Playtest ภายในเครื่อง"
-          textareaLabel="ข้อมูล JSON สำหรับส่งออก"
           onClose={() => setExportText(null)}
+          locale={locale}
         />
       )}
     </>
@@ -767,29 +763,29 @@ function MainMenu({
         <LocaleSelector locale={locale} onChange={onLocaleChange} />
         <p className="eyebrow">{t(locale, "app.subtitle")}</p>
         <h1 id="game-title">{t(locale, "app.title")}</h1>
-        <dl className="summary-grid" aria-label="ข้อมูลเกมที่โหลดแล้ว">
-          <div><dt>เวอร์ชัน</dt><dd>{gameConfig.version}</dd></div>
-          <div><dt>จำนวนการ์ด</dt><dd>{cardCatalog.cards.length} ใบ</dd></div>
-          <div><dt>ผู้เล่น</dt><dd>{gameConfig.players} คน</dd></div>
-          <div><dt>คะแนนชนะ</dt><dd>{gameConfig.target_score} คะแนน</dd></div>
+        <dl className="summary-grid" aria-label={t(locale, "menu.savedGameAria")}>
+          <div><dt>{t(locale, "menu.version")}</dt><dd>{gameConfig.version}</dd></div>
+          <div><dt>{t(locale, "menu.cardCount")}</dt><dd>{cardCatalog.cards.length}</dd></div>
+          <div><dt>{t(locale, "menu.players")}</dt><dd>{gameConfig.players}</dd></div>
+          <div><dt>{t(locale, "menu.targetScore")}</dt><dd>{gameConfig.target_score}</dd></div>
         </dl>
         <div className="menu-actions">
           {hasSavedGame && (
             <>
-              <button type="button" onClick={onContinue} aria-label="เล่นต่อจากเซฟเดิม">{t(locale, "menu.continue")}</button>
-              <button type="button" className="danger-button" onClick={onClearSave} aria-label="ลบไฟล์เซฟ">ลบเซฟ</button>
+              <button type="button" onClick={onContinue} aria-label={t(locale, "menu.continue")}>{t(locale, "menu.continue")}</button>
+              <button type="button" className="danger-button" onClick={onClearSave} aria-label={t(locale, "menu.deleteAria")}>{t(locale, "menu.clearSave")}</button>
             </>
           )}
-          <button type="button" onClick={() => onStart("LOCAL_PVP")} aria-label="เริ่มเกมใหม่">
-            {hasSavedGame ? `${t(locale, "menu.localPvp")} ใหม่` : t(locale, "menu.localPvp")}
+          <button type="button" onClick={() => onStart("LOCAL_PVP")} aria-label={t(locale, "menu.localPvp")}>
+            {hasSavedGame ? t(locale, "menu.newGame", { mode: t(locale, "menu.localPvp") }) : t(locale, "menu.localPvp")}
           </button>
-          <button type="button" onClick={() => onStart("PVE_NORMAL")} aria-label="เริ่ม PvE กับคอมพิวเตอร์">
-            {t(locale, "menu.pveNormal")} <small>Normal AI</small>
+          <button type="button" onClick={() => onStart("PVE_NORMAL")} aria-label={t(locale, "menu.pveNormal")}>
+            {t(locale, "menu.pveNormal")} <small>{t(locale, "menu.aiLabel")}</small>
           </button>
-          <button type="button" className="secondary-button" onClick={onViewHistory}>ประวัติการเล่น</button>
-          <button type="button" className="secondary-button" onClick={onOpenImport}>นำเข้าไฟล์เซฟ</button>
-          <button type="button" className="secondary-button" onClick={onHowToPlay}>วิธีเล่น</button>
-          <button type="button" className="secondary-button" onClick={onLibrary}>คลังการ์ด</button>
+          <button type="button" className="secondary-button" onClick={onViewHistory}>{t(locale, "menu.viewHistory")}</button>
+          <button type="button" className="secondary-button" onClick={onOpenImport}>{t(locale, "menu.importSave")}</button>
+          <button type="button" className="secondary-button" onClick={onHowToPlay}>{t(locale, "menu.howToPlay")}</button>
+          <button type="button" className="secondary-button" onClick={onLibrary}>{t(locale, "menu.cardLibrary")}</button>
         </div>
       </section>
     </main>
@@ -819,13 +815,13 @@ function HowToPlay({ onBack, locale }: { onBack: () => void; locale: Locale }) {
   return (
     <main className="page-shell">
       <header className="page-header">
-        <h1>{locale === "en" ? "How to Play" : "วิธีเล่น"}</h1>
-        <button type="button" className="secondary-button" onClick={onBack}>{locale === "en" ? "Back" : "กลับเมนู"}</button>
+        <h1>{t(locale, "howToPlay.title")}</h1>
+        <button type="button" className="secondary-button" onClick={onBack}>{t(locale, "history.back")}</button>
       </header>
-      <section className="rule-list" aria-label="กติกาหลัก">
-        <p>ผู้เล่น 2 คนสลับกันเล่นบนอุปกรณ์เดียวกัน ฝ่ายละ Deck 24 ใบ มือเริ่มต้น 5 ใบ และมี Animal Zone 3 ช่อง</p>
-        <p>ใน Action Phase ลง Animal ได้ 1 ใบ และใช้ Utility ได้ 1 ครั้ง โดย Support, Weakness, Special และ Recycle ใช้สิทธิ์ Utility ร่วมกัน</p>
-        <p>Animal ที่อยู่บนสนามจะทำคะแนนตาม Level ใน Score Phase ถัดไป ผู้เล่นที่ถึง 15 คะแนนก่อนจะชนะ</p>
+      <section className="rule-list" aria-label={t(locale, "howToPlay.title")}>
+        <p>{t(locale, "howToPlay.rule1")}</p>
+        <p>{t(locale, "howToPlay.rule2")}</p>
+        <p>{t(locale, "howToPlay.rule3")}</p>
       </section>
     </main>
   );
@@ -1107,14 +1103,14 @@ function HiddenHand({ count, locale }: { count: number; locale: Locale }) {
   );
 }
 
-function HandoffScreen({ nextPlayerId, onContinue }: { nextPlayerId: PlayerId; onContinue: () => void }) {
+function HandoffScreen({ nextPlayerId, onContinue, locale }: { nextPlayerId: PlayerId; onContinue: () => void; locale: Locale }) {
   return (
     <main className="app-shell privacy-shell">
       <section className="start-panel">
-        <p className="eyebrow">ซ่อนมือผู้เล่น</p>
-        <h1>ส่งเครื่องให้ {playerName(nextPlayerId)}</h1>
-        <p>หน้าจอนี้ซ่อนมือของผู้เล่นก่อนหน้าแล้ว</p>
-        <button type="button" onClick={onContinue}>พร้อมเล่น</button>
+        <p className="eyebrow">{t(locale, "handoff.eyebrow")}</p>
+        <h1>{t(locale, "handoff.title", { player: playerName(nextPlayerId) })}</h1>
+        <p>{t(locale, "handoff.privacyNotice")}</p>
+        <button type="button" onClick={onContinue}>{t(locale, "handoff.readyButton")}</button>
       </section>
     </main>
   );
@@ -1170,37 +1166,37 @@ export function ResultScreen({
           <div><dt>{t(locale, "label.player2")} {t(locale, "label.score")}</dt><dd>{match.players.P2.score} {t(locale, "label.score")}</dd></div>
           <div><dt>{t(locale, "label.turnCount")}</dt><dd>{match.turnNumber} {t(locale, "label.turn")}</dd></div>
           <div><dt>{t(locale, "label.finalScore")}</dt><dd>{formatDuration(durationMs)}</dd></div>
-          <div><dt>{t(locale, "label.matchStatus")}</dt><dd>{match.finishReason === "TARGET_SCORE" ? t(locale, "label.victory") : t(locale, "label.resultDefeat")}</dd></div>
-          <div><dt>{t(locale, "label.recycle")}</dt><dd>{(stats.recycleCount.P1 || 0) + (stats.recycleCount.P2 || 0)} ครั้ง</dd></div>
+          <div><dt>{t(locale, "label.matchStatus")}</dt><dd>{match.finishReason === "TARGET_SCORE" ? t(locale, "result.finishReason.targetScore") : t(locale, "result.finishReason.maxTurns")}</dd></div>
+          <div><dt>{t(locale, "label.recycle")}</dt><dd>{(stats.recycleCount.P1 || 0) + (stats.recycleCount.P2 || 0)}</dd></div>
         </dl>
 
         <hr className="subtle-divider" />
 
-        <h3>สถิติการ์ดออกนอกสนาม (Board Exits)</h3>
+        <h3>{t(locale, "result.boardExits")}</h3>
         <dl className="summary-grid compact-summary-grid">
-          <div><dt>{t(locale, "label.graveyard")}</dt><dd>{sentToGraveyardCount} ใบ</dd></div>
-          <div><dt>{t(locale, "label.hand")}</dt><dd>{returnedToHandCount} ใบ</dd></div>
-          <div><dt>แลกเปลี่ยน (Quick Swap)</dt><dd>{voluntarySwapCount} ใบ</dd></div>
+          <div><dt>{t(locale, "result.sentToGraveyard")}</dt><dd>{sentToGraveyardCount}</dd></div>
+          <div><dt>{t(locale, "result.returnedToHand")}</dt><dd>{returnedToHandCount}</dd></div>
+          <div><dt>{t(locale, "result.quickSwap")}</dt><dd>{voluntarySwapCount}</dd></div>
         </dl>
 
         <hr className="subtle-divider" />
 
         {highestCard && (
           <div className="highlight-card">
-            <h4>การ์ดทำคะแนนสูงสุด (Highest Scoring Card)</h4>
+            <h4>{t(locale, "result.highestScoringCard")}</h4>
             <p>
               <strong>{highestCard.nameTh}</strong> ({highestCard.cardId})
             </p>
             <p className="small-copy">
-              คะแนนสะสม: {highestCard.score} คะแนน | เจ้าของ: {playerName(highestCard.ownerId)}
+              {t(locale, "result.scoreAccumulated", { score: highestCard.score, player: playerName(highestCard.ownerId) })}
             </p>
           </div>
         )}
 
         <div className="menu-actions vertical-actions">
           <button type="button" onClick={() => onNewGame("LOCAL_PVP")}>{t(locale, "menu.localPvp")}</button>
-          <button type="button" className="secondary-button" onClick={() => { void onExport(); }}>{t(locale, "label.exportLog")} (คัดลอกลง Clipboard)</button>
-          <button type="button" className="secondary-button" onClick={onOpenPlaytestFeedback}>ฟีดแบ็ก Human Playtest (ไม่บังคับ)</button>
+          <button type="button" className="secondary-button" onClick={() => { void onExport(); }}>{t(locale, "result.exportWithClipboard", { label: t(locale, "label.exportLog") })}</button>
+          <button type="button" className="secondary-button" onClick={onOpenPlaytestFeedback}>{t(locale, "result.playtestFeedback")}</button>
           <button type="button" className="secondary-button" onClick={onBackToMenu}>{t(locale, "label.returnToMenu")}</button>
         </div>
       </section>
@@ -1718,11 +1714,13 @@ function downloadJson(value: string, filename: string): void {
 function HistoryScreen({
   onBack,
   onShowExport,
-  onMessage
+  onMessage,
+  locale
 }: {
   onBack: () => void;
   onShowExport: (json: string) => void;
   onMessage: (message: string) => void;
+  locale: Locale;
 }) {
   const [history, setHistory] = useState<MatchResult[]>([]);
 
@@ -1757,67 +1755,67 @@ function HistoryScreen({
     onMessage("ส่งออกประวัติการเล่นทั้งหมดแล้ว");
   }
 
-  function handleExportOne(result: MatchResult) {
-    const exportResult = exportSingleMatchHistoryRecord(result);
+  function handleExportOne(localeResult: MatchResult) {
+    const exportResult = exportSingleMatchHistoryRecord(localeResult);
     if (!exportResult.ok) {
       alert(`ส่งออกประวัติ match ล้มเหลว: ${storageErrorMessage(exportResult.error)}`);
       return;
     }
-    downloadJson(exportResult.value, singleMatchHistoryFilename(result.matchId));
+    downloadJson(exportResult.value, singleMatchHistoryFilename(localeResult.matchId));
     onShowExport(exportResult.value);
-    onMessage(`ส่งออกประวัติ ${result.matchId} แล้ว`);
+    onMessage(`ส่งออกประวัติ ${localeResult.matchId} แล้ว`);
   }
 
   return (
     <main className="page-shell scroll-page">
       <header className="page-header split-header">
-        <h1>ประวัติการเล่น</h1>
+        <h1>{t(locale, "history.title")}</h1>
         <div className="inline-actions">
           {history.length > 0 && (
             <>
-              <button type="button" className="secondary-button" onClick={handleExportAll}>ส่งออกประวัติทั้งหมด</button>
-              <button type="button" className="danger-button" onClick={handleClear}>ลบประวัติทั้งหมด</button>
+              <button type="button" className="secondary-button" onClick={handleExportAll}>{t(locale, "history.exportAll")}</button>
+              <button type="button" className="danger-button" onClick={handleClear}>{t(locale, "history.clearAll")}</button>
             </>
           )}
-          <button type="button" className="secondary-button" onClick={onBack}>กลับเมนู</button>
+          <button type="button" className="secondary-button" onClick={onBack}>{t(locale, "history.back")}</button>
         </div>
       </header>
 
       {history.length === 0 ? (
-        <p className="empty-state">ไม่มีประวัติการเล่น</p>
+        <p className="empty-state">{t(locale, "history.empty")}</p>
       ) : (
         <div className="history-list">
           {history.map((result) => {
-            const playedAtDate = new Date(result.endedAt).toLocaleString("th-TH");
+            const playedAtDate = new Date(result.endedAt).toLocaleString(locale === "en" ? "en-US" : "th-TH");
             return (
               <section key={result.matchId} className="start-panel history-card">
                 <div className="history-meta">
                   <small>ID: {result.matchId}</small>
-                  <small>เวลาเล่น: {playedAtDate}</small>
+                  <small>{t(locale, "history.playedAt")}: {playedAtDate}</small>
                 </div>
                 <h3>
-                  ผลการแข่งขัน: {result.winner === "DRAW" ? "เสมอ" : `${playerName(result.winner)} ชนะ`}
+                  {t(locale, "history.result")}: {result.winner === "DRAW" ? t(locale, "history.draw") : t(locale, "history.winner", { player: playerName(result.winner, locale) })}
                 </h3>
                 <dl className="summary-grid compact-summary-grid">
-                  <div><dt>คะแนนผู้เล่น 1</dt><dd>{result.finalScores.P1}</dd></div>
-                  <div><dt>คะแนนผู้เล่น 2</dt><dd>{result.finalScores.P2}</dd></div>
-                  <div><dt>จำนวนเทิร์น</dt><dd>{result.turnCount}</dd></div>
-                  <div><dt>ระยะเวลาเล่น</dt><dd>{formatDuration(result.duration)}</dd></div>
-                  <div><dt>รีไซเคิลรวม</dt><dd>{result.recycleCount} ครั้ง</dd></div>
-                  <div><dt>เหตุผลจบเกม</dt><dd>{result.finishReason === "TARGET_SCORE" ? "ทำคะแนนถึงเป้าหมาย" : "หมดจำนวนเทิร์น"}</dd></div>
+                  <div><dt>{t(locale, "history.player1Score")}</dt><dd>{result.finalScores.P1}</dd></div>
+                  <div><dt>{t(locale, "history.player2Score")}</dt><dd>{result.finalScores.P2}</dd></div>
+                  <div><dt>{t(locale, "history.turnCount")}</dt><dd>{result.turnCount}</dd></div>
+                  <div><dt>{t(locale, "history.duration")}</dt><dd>{formatDuration(result.duration)}</dd></div>
+                  <div><dt>{t(locale, "history.recycleCount")}</dt><dd>{result.recycleCount}</dd></div>
+                  <div><dt>{t(locale, "history.finishReason")}</dt><dd>{result.finishReason === "TARGET_SCORE" ? t(locale, "history.finishReason.targetScore") : t(locale, "history.finishReason.maxTurns")}</dd></div>
                 </dl>
                 <div className="history-exits">
-                  <div><strong>ลงสุสาน:</strong> {result.boardExitCount.sentToGraveyard} ใบ</div>
-                  <div><strong>เด้งขึ้นมือ:</strong> {result.boardExitCount.returnedToHand} ใบ</div>
-                  <div><strong>สลับตำแหน่ง:</strong> {result.boardExitCount.voluntarySwap} ใบ</div>
+                  <div><strong>{t(locale, "history.sentToGraveyard")}:</strong> {result.boardExitCount.sentToGraveyard}</div>
+                  <div><strong>{t(locale, "history.returnedToHand")}:</strong> {result.boardExitCount.returnedToHand}</div>
+                  <div><strong>{t(locale, "history.voluntarySwap")}:</strong> {result.boardExitCount.voluntarySwap}</div>
                 </div>
                 {result.highestScoringCard && (
                   <div className="history-highlight">
-                    <strong>การ์ดทำคะแนนสูงสุด:</strong> {result.highestScoringCard.nameTh} ({result.highestScoringCard.cardId}) — {result.highestScoringCard.score} คะแนน (ของ {playerName(result.highestScoringCard.ownerId)})
+                    <strong>{t(locale, "history.highestScoringCard")}:</strong> {result.highestScoringCard.nameTh} ({result.highestScoringCard.cardId}) — {result.highestScoringCard.score} ({playerName(result.highestScoringCard.ownerId)})
                   </div>
                 )}
                 <div className="history-actions">
-                  <button type="button" className="secondary-button" onClick={() => handleExportOne(result)}>ส่งออก match นี้</button>
+                  <button type="button" className="secondary-button" onClick={() => handleExportOne(result)}>{t(locale, "history.exportMatch")}</button>
                 </div>
               </section>
             );
@@ -1835,11 +1833,13 @@ function toPersistableScreen(screen: Screen): PersistableScreen {
 function ImportModal({
   onClose,
   onImport,
-  error
+  error,
+  locale
 }: {
   onClose: () => void;
   onImport: (jsonText: string) => void;
   error: string | null;
+  locale: Locale;
 }) {
   const [text, setText] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1849,24 +1849,24 @@ function ImportModal({
   }, []);
 
   return (
-    <div className="modal-backdrop modal-top" role="dialog" aria-modal="true" aria-label="นำเข้าข้อมูลเซฟเกม">
+    <div className="modal-backdrop modal-top" role="dialog" aria-modal="true" aria-label={t(locale, "import.title")}>
       <section className="modal-panel import-export-panel">
-        <h2>นำเข้าข้อมูลเซฟเกม</h2>
-        <p className="muted-copy">วางข้อมูล JSON เพื่อโหลดเซฟเกมที่เคยเล่นอยู่</p>
+        <h2>{t(locale, "import.title")}</h2>
+        <p className="muted-copy">{t(locale, "import.description")}</p>
         <textarea
           ref={textareaRef}
           className="json-textarea"
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder='{"schemaVersion": "1", ...}'
-          aria-label="ข้อมูล JSON สำหรับนำเข้า"
+          aria-label={t(locale, "import.aria")}
         />
         {error && (
           <p className="error-copy">{error}</p>
         )}
         <div className="modal-actions">
-          <button type="button" className="secondary-button" onClick={onClose}>ปิด</button>
-          <button type="button" onClick={() => onImport(text)} disabled={!text.trim()}>นำเข้า</button>
+          <button type="button" className="secondary-button" onClick={onClose}>{t(locale, "label.close")}</button>
+          <button type="button" onClick={() => onImport(text)} disabled={!text.trim()}>{t(locale, "import.button")}</button>
         </div>
       </section>
     </div>
@@ -1876,11 +1876,13 @@ function ImportModal({
 function PlaytestFeedbackModal({
   onClose,
   onExport,
-  error
+  error,
+  locale
 }: {
   onClose: () => void;
   onExport: (input: PlaytestFeedbackInput) => void;
   error: string | null;
+  locale: Locale;
 }) {
   const firstInputRef = useRef<HTMLInputElement>(null);
   const [testerCode, setTesterCode] = useState("");
@@ -1933,13 +1935,13 @@ function PlaytestFeedbackModal({
   }
 
   return (
-    <div className="modal-backdrop modal-top" role="dialog" aria-modal="true" aria-label="ฟีดแบ็ก Playtest">
+    <div className="modal-backdrop modal-top" role="dialog" aria-modal="true" aria-label={t(locale, "playtest.aria")}>
       <section className="modal-panel import-export-panel playtest-panel">
-        <h2>ฟีดแบ็ก Human Playtest (ไม่บังคับ)</h2>
-        <p className="muted-copy">กรอกเฉพาะรหัสนิรนามถ้าต้องการ ห้ามใส่ชื่อ อีเมล เบอร์โทร หรือข้อมูลส่วนตัว</p>
+        <h2>{t(locale, "playtest.title")}</h2>
+        <p className="muted-copy">{t(locale, "playtest.description")}</p>
         <div className="feedback-grid">
           <label className="feedback-field" htmlFor="testerCode">
-            <span>รหัสผู้ทดสอบนิรนาม (ไม่บังคับ)</span>
+            <span>{t(locale, "playtest.testerCode")}</span>
             <input
               ref={firstInputRef}
               id="testerCode"
@@ -1949,7 +1951,7 @@ function PlaytestFeedbackModal({
             />
           </label>
           <label className="feedback-field" htmlFor="playerSeat">
-            <span>บทบาทผู้ให้ฟีดแบ็ก</span>
+            <span>{t(locale, "playtest.seatLabel")}</span>
             <select id="playerSeat" value={playerSeat} onChange={(event) => setPlayerSeat(event.target.value as PlayerSeat)}>
               <option value="P1">P1</option>
               <option value="P2">P2</option>
@@ -1959,21 +1961,21 @@ function PlaytestFeedbackModal({
           </label>
         </div>
         <div className="feedback-grid">
-          <RatingInput id="rulesClarity" label="ความชัดเจนของกติกา" value={ratings.rulesClarity} onChange={(value) => updateRating("rulesClarity", value)} />
-          <RatingInput id="gameFun" label="ความสนุก" value={ratings.gameFun} onChange={(value) => updateRating("gameFun", value)} />
-          <RatingInput id="gameLength" label="ความยาวเกม" value={ratings.gameLength} onChange={(value) => updateRating("gameLength", value)} />
-          <RatingInput id="balance" label="สมดุลเกม" value={ratings.balance} onChange={(value) => updateRating("balance", value)} />
-          <RatingInput id="uiClarity" label="ความชัดเจนของ UI" value={ratings.uiClarity} onChange={(value) => updateRating("uiClarity", value)} />
+          <RatingInput id="rulesClarity" label={t(locale, "playtest.rulesClarity")} value={ratings.rulesClarity} onChange={(value) => updateRating("rulesClarity", value)} locale={locale} />
+          <RatingInput id="gameFun" label={t(locale, "playtest.gameFun")} value={ratings.gameFun} onChange={(value) => updateRating("gameFun", value)} locale={locale} />
+          <RatingInput id="gameLength" label={t(locale, "playtest.gameLength")} value={ratings.gameLength} onChange={(value) => updateRating("gameLength", value)} locale={locale} />
+          <RatingInput id="balance" label={t(locale, "playtest.balance")} value={ratings.balance} onChange={(value) => updateRating("balance", value)} locale={locale} />
+          <RatingInput id="uiClarity" label={t(locale, "playtest.uiClarity")} value={ratings.uiClarity} onChange={(value) => updateRating("uiClarity", value)} locale={locale} />
         </div>
-        <TextFeedback id="confusingMoments" label="จุดที่สับสน" value={texts.confusingMoments} onChange={(value) => updateText("confusingMoments", value)} />
-        <TextFeedback id="strongestCard" label="การ์ดที่รู้สึกว่าแข็งที่สุด" value={texts.strongestCard} onChange={(value) => updateText("strongestCard", value)} />
-        <TextFeedback id="weakestCard" label="การ์ดที่รู้สึกว่าอ่อนที่สุด" value={texts.weakestCard} onChange={(value) => updateText("weakestCard", value)} />
-        <TextFeedback id="bugDescription" label="รายละเอียดบั๊กที่พบ" value={texts.bugDescription} onChange={(value) => updateText("bugDescription", value)} />
-        <TextFeedback id="additionalComments" label="ความคิดเห็นเพิ่มเติม" value={texts.additionalComments} onChange={(value) => updateText("additionalComments", value)} />
+        <TextFeedback id="confusingMoments" label={t(locale, "playtest.confusingMoments")} value={texts.confusingMoments} onChange={(value) => updateText("confusingMoments", value)} />
+        <TextFeedback id="strongestCard" label={t(locale, "playtest.strongestCard")} value={texts.strongestCard} onChange={(value) => updateText("strongestCard", value)} />
+        <TextFeedback id="weakestCard" label={t(locale, "playtest.weakestCard")} value={texts.weakestCard} onChange={(value) => updateText("weakestCard", value)} />
+        <TextFeedback id="bugDescription" label={t(locale, "playtest.bugDescription")} value={texts.bugDescription} onChange={(value) => updateText("bugDescription", value)} />
+        <TextFeedback id="additionalComments" label={t(locale, "playtest.additionalComments")} value={texts.additionalComments} onChange={(value) => updateText("additionalComments", value)} />
         {error && <p className="error-copy">{error}</p>}
         <div className="modal-actions">
-          <button type="button" className="secondary-button" onClick={onClose}>ปิด</button>
-          <button type="button" onClick={submit}>บันทึกและส่งออก JSON</button>
+          <button type="button" className="secondary-button" onClick={onClose}>{t(locale, "label.close")}</button>
+          <button type="button" onClick={submit}>{t(locale, "playtest.export")}</button>
         </div>
       </section>
     </div>
@@ -1985,17 +1987,19 @@ function RatingInput({
   label,
   value,
   onChange,
-  inputRef
+  inputRef,
+  locale
 }: {
   id: FeedbackRatingKey;
   label: string;
   value: string;
   onChange: (value: string) => void;
   inputRef?: RefObject<HTMLInputElement | null>;
+  locale: Locale;
 }) {
   return (
     <label className="feedback-field" htmlFor={id}>
-      <span>{label} (1-5)</span>
+      <span>{label}{t(locale, "playtest.ratingSuffix")}</span>
       <input
         ref={inputRef}
         id={id}
@@ -2038,17 +2042,22 @@ function TextFeedback({
 function ExportModal({
   value,
   onClose,
-  title = "ส่งออกข้อมูลเซฟเกม",
-  description = "คัดลอก JSON นี้เพื่อเก็บ log หรือใช้ debug ภายในเครื่อง",
-  textareaLabel = "ข้อมูล JSON สำหรับส่งออก"
+  title,
+  description,
+  textareaLabel,
+  locale
 }: {
   value: string;
   onClose: () => void;
   title?: string;
   description?: string;
   textareaLabel?: string;
+  locale: Locale;
 }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const resolvedTitle = title ?? t(locale, "export.title");
+  const resolvedDescription = description ?? t(locale, "export.description");
+  const resolvedTextareaLabel = textareaLabel ?? t(locale, "export.aria");
 
   useEffect(() => {
     textareaRef.current?.focus();
@@ -2056,19 +2065,19 @@ function ExportModal({
   }, []);
 
   return (
-    <div className="modal-backdrop modal-top" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="modal-backdrop modal-top" role="dialog" aria-modal="true" aria-label={resolvedTitle}>
       <section className="modal-panel import-export-panel">
-        <h2>{title}</h2>
-        <p className="muted-copy">{description}</p>
+        <h2>{resolvedTitle}</h2>
+        <p className="muted-copy">{resolvedDescription}</p>
         <textarea
           ref={textareaRef}
           className="json-textarea"
           value={value}
           readOnly
-          aria-label={textareaLabel}
+          aria-label={resolvedTextareaLabel}
         />
         <div className="modal-actions">
-          <button type="button" onClick={onClose}>ปิด</button>
+          <button type="button" onClick={onClose}>{t(locale, "label.close")}</button>
         </div>
       </section>
     </div>

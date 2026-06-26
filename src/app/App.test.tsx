@@ -61,7 +61,7 @@ describe("App Phase 4 UI", () => {
 
     expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "เริ่มเกมใหม่" }));
+    await user.click(screen.getByRole("button", { name: "Local PvP" }));
 
     expect(screen.getByLabelText("สนามต่อสู้")).toBeInTheDocument();
     expect(screen.getByText(/TURN 1/)).toBeInTheDocument();
@@ -91,7 +91,7 @@ describe("App Phase 4 UI", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "เริ่ม PvE กับคอมพิวเตอร์" }));
+    await user.click(screen.getByRole("button", { name: "PvE vs Computer" }));
 
     const scoreboard = screen.getByLabelText("คะแนนผู้เล่น");
     expect(within(scoreboard).getByText("คุณ")).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe("App Phase 4 UI", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "เริ่มเกมใหม่" }));
+    await user.click(screen.getByRole("button", { name: "Local PvP" }));
     const before = localStorage.getItem("animal_score_saved_match");
     await user.click(screen.getAllByRole("button", { name: /English|ไทย/ })[1]);
     expect(localStorage.getItem("animal_score_saved_match")).toBe(before);
@@ -281,7 +281,7 @@ describe("App Phase 4 UI", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "เริ่ม PvE กับคอมพิวเตอร์" }));
+    await user.click(screen.getByRole("button", { name: "PvE vs Computer" }));
     expect(screen.getByText(/เริ่ม PvE แล้ว/)).toBeInTheDocument();
     expect(screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน")).toBeInTheDocument();
 
@@ -436,7 +436,7 @@ describe("App Phase 4 UI", () => {
     const user = userEvent.setup();
     localStorage.setItem(LOCALE_STORAGE_KEY, "en");
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    await user.click(screen.getByRole("button", { name: "Card library" }));
     expect(screen.getByText("Playful Dog")).toBeInTheDocument();
     expect(screen.getByText("Muzzle")).toBeInTheDocument();
     expect(screen.getByText("Lullaby")).toBeInTheDocument();
@@ -465,7 +465,7 @@ describe("App Phase 4 UI", () => {
     const user = userEvent.setup();
     localStorage.setItem(LOCALE_STORAGE_KEY, "en");
     render(<App />);
-    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    await user.click(screen.getByRole("button", { name: "Card library" }));
     const animalCards = Array.from(document.querySelectorAll(".library-card small")).filter((el) => el.textContent === "Animal");
     expect(animalCards.length).toBe(8);
   });
@@ -1249,7 +1249,7 @@ describe("App Phase 5 persistence UI", () => {
 
     render(<App />);
 
-    await user.click(await screen.findByRole("button", { name: "เล่นต่อจากเซฟเดิม" }));
+    await user.click(await screen.findByRole("button", { name: "เล่นต่อ" }));
 
     expect(screen.getByLabelText("สนามต่อสู้")).toBeInTheDocument();
     expect(screen.getByText(/กู้คืนเกมสำเร็จ/)).toBeInTheDocument();
@@ -1262,7 +1262,7 @@ describe("App Phase 5 persistence UI", () => {
 
     render(<App />);
 
-    await user.click(await screen.findByRole("button", { name: "เล่นต่อจากเซฟเดิม" }));
+    await user.click(await screen.findByRole("button", { name: "เล่นต่อ" }));
 
     expect(screen.getByRole("heading", { name: /ส่งเครื่องให้ ผู้เล่น 1/ })).toBeInTheDocument();
     expect(screen.queryByLabelText("มือผู้เล่นปัจจุบัน")).not.toBeInTheDocument();
@@ -1704,7 +1704,7 @@ describe("invalid-use reason localization", () => {
 });
 
 async function startBattle(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole("button", { name: "เริ่มเกมใหม่" }));
+  await user.click(screen.getByRole("button", { name: "Local PvP" }));
 }
 
 async function endCurrentTurn(user: ReturnType<typeof userEvent.setup>) {

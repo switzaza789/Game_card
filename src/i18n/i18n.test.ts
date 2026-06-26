@@ -470,4 +470,81 @@ describe("card localization data layer", () => {
     expect(t("th", "feedback.unknown")).toBe("ดำเนินการเสร็จสิ้น");
     expect(t("en", "feedback.unknown")).toBe("Action completed");
   });
+
+  /* ------------------------------------------------------------------ */
+  /*  Secondary Screen localization (Phase 2D-A)                         */
+  /* ------------------------------------------------------------------ */
+
+  const SECONDARY_SCREEN_KEYS = [
+    "menu.savedGameAria", "menu.version", "menu.cardCount", "menu.players",
+    "menu.targetScore", "menu.newGame", "menu.clearSave", "menu.deleteAria",
+    "menu.viewHistory", "menu.importSave", "menu.howToPlay", "menu.cardLibrary",
+    "menu.aiLabel",
+    "howToPlay.title", "howToPlay.rule1", "howToPlay.rule2", "howToPlay.rule3",
+    "handoff.eyebrow", "handoff.title", "handoff.privacyNotice", "handoff.readyButton",
+    "history.title", "history.empty", "history.exportAll", "history.clearAll",
+    "history.back", "history.exportMatch", "history.result", "history.winner",
+    "history.draw", "history.player1Score", "history.player2Score", "history.turnCount",
+    "history.duration", "history.recycleCount", "history.finishReason",
+    "history.sentToGraveyard", "history.returnedToHand", "history.voluntarySwap",
+    "history.highestScoringCard", "history.playedAt",
+    "history.finishReason.targetScore", "history.finishReason.maxTurns",
+    "import.title", "import.description", "import.aria", "import.button",
+    "export.title", "export.description", "export.aria",
+    "playtest.title", "playtest.description", "playtest.aria",
+    "playtest.testerCode", "playtest.seatLabel", "playtest.export",
+    "playtest.rulesClarity", "playtest.gameFun", "playtest.gameLength",
+    "playtest.balance", "playtest.uiClarity",
+    "playtest.confusingMoments", "playtest.strongestCard", "playtest.weakestCard",
+    "playtest.bugDescription", "playtest.additionalComments", "playtest.ratingSuffix",
+    "result.boardExits", "result.sentToGraveyard", "result.returnedToHand",
+    "result.quickSwap", "result.highestScoringCard", "result.scoreAccumulated",
+    "result.exportWithClipboard", "result.playtestFeedback",
+    "result.finishReason.targetScore", "result.finishReason.maxTurns"
+  ];
+
+  it("has all secondary screen keys in both dictionaries", () => {
+    for (const key of SECONDARY_SCREEN_KEYS) {
+      expect(th).toHaveProperty(key);
+      expect(th[key as keyof typeof th].length).toBeGreaterThan(0);
+      expect(en).toHaveProperty(key);
+      expect(en[key as keyof typeof en].length).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps Thai and English key coverage identical after adding secondary screen keys", () => {
+    expect(Object.keys(th).sort()).toEqual(Object.keys(en).sort());
+  });
+
+  it("provides localized handoff title with parameter interpolation", () => {
+    const thTitle = t("th", "handoff.title", { player: "ผู้เล่น 2" });
+    expect(thTitle).toContain("ผู้เล่น 2");
+    const enTitle = t("en", "handoff.title", { player: "Player 2" });
+    expect(enTitle).toContain("Player 2");
+  });
+
+  it("provides localized history winner with parameter interpolation", () => {
+    const thWinner = t("th", "history.winner", { player: "ผู้เล่น 1" });
+    expect(thWinner).toContain("ผู้เล่น 1");
+    const enWinner = t("en", "history.winner", { player: "Player 1" });
+    expect(enWinner).toContain("Player 1");
+  });
+
+  it("provides localized result scoreAccumulated with parameter interpolation", () => {
+    const thScore = t("th", "result.scoreAccumulated", { score: 6, player: "ผู้เล่น 1" });
+    expect(thScore).toContain("6");
+    expect(thScore).toContain("ผู้เล่น 1");
+    const enScore = t("en", "result.scoreAccumulated", { score: 6, player: "Player 1" });
+    expect(enScore).toContain("6");
+    expect(enScore).toContain("Player 1");
+  });
+
+  it("provides localized exportWithClipboard with parameter interpolation", () => {
+    const thExport = t("th", "result.exportWithClipboard", { label: "ส่งออกไฟล์เซฟ" });
+    expect(thExport).toContain("ส่งออกไฟล์เซฟ");
+    expect(thExport).toContain("Clipboard");
+    const enExport = t("en", "result.exportWithClipboard", { label: "Export log" });
+    expect(enExport).toContain("Export log");
+    expect(enExport).toContain("Clipboard");
+  });
 });
