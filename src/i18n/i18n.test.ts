@@ -19,6 +19,22 @@ describe("i18n foundation", () => {
     expect(t("en", "menu.continue")).toBe("Continue");
     expect(localeDictionary.en["phase.ACTION"]).toBe("ACTION");
   });
+
+  it("provides the localized hidden-card label in both locales", () => {
+    expect(t("th", "label.hiddenCard")).toBe("การ์ดที่ซ่อนอยู่");
+    expect(t("en", "label.hiddenCard")).toBe("Hidden card");
+  });
+
+  it("provides localized playability state labels in both locales", () => {
+    expect(t("th", "playability.playableNow")).toBe("ใช้ได้ทันที");
+    expect(t("en", "playability.playableNow")).toBe("Playable now");
+    expect(t("th", "playability.needsTarget")).toBe("ต้องเลือกเป้าหมาย");
+    expect(t("en", "playability.needsTarget")).toBe("Choose a target");
+    expect(t("th", "playability.partialEffect")).toBe("ใช้ได้แบบผลอ่อน");
+    expect(t("en", "playability.partialEffect")).toBe("Playable with reduced effect");
+    expect(t("th", "playability.notPlayable")).toBe("ยังใช้ไม่ได้");
+    expect(t("en", "playability.notPlayable")).toBe("Not playable yet");
+  });
 });
 
 /* ------------------------------------------------------------------ */

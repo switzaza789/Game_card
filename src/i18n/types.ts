@@ -103,6 +103,26 @@ export type TranslationKey =
   | "card.fullEffect"
   | "card.offTargetEffect"
   | "card.immediateEffect"
-  | "card.duration";
+  | "card.duration"
+  | "label.hiddenCard"
+  | "playability.playableNow"
+  | "playability.needsTarget"
+  | "playability.partialEffect"
+  | "playability.notPlayable"
+  | "playability.reason.notFound"
+  | "playability.reason.dogMaxLevel"
+  | "playability.reason.notActionPhase"
+  | "playability.reason.notInHand"
+  | "playability.reason.animalActionUsed"
+  | "playability.reason.animalZoneFull"
+  | "playability.reason.utilityLocked"
+  | "playability.reason.utilityUsed"
+  | "playability.reason.needsAnimalTarget"
+  | "playability.reason.needsOwnAnimal"
+  | "playability.reason.noEnemyTarget"
+  | "playability.reason.targetProtected"
+  | "playability.reason.animalMaxLevel"
+  | "playability.reason.needsLevel1"
+  | "playability.reason.weaknessOffTarget";
 
 export type TranslationParams = Record<string, string | number>;

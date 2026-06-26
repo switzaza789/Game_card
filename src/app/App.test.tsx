@@ -583,6 +583,222 @@ describe("App Phase 4 UI", () => {
   });
 });
 
+describe("App Phase 2C-1C-A player hand card localization", () => {
+  it("shows Thai localized card names in the current player hand", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const buttons = Array.from(hand.querySelectorAll("button"));
+    expect(buttons.length).toBeGreaterThan(0);
+    // At least one card name should be a known Thai name from the catalog
+    const names = buttons.map((b) => b.querySelector("strong")?.textContent ?? "");
+    const knownThaiNames = ["สุนัขจอมซน", "แมวขี้สงสัย", "กระต่ายว่องไว", "หมีใจดี", "นกส่งข่าว", "ปลาจอมพลัง", "เต่าเกราะแข็ง", "ลิงจอมเจ้าเล่ห์", "กระดูกแสนอร่อย", "ไหมพรมหลากสี", "แครอทสด", "น้ำผึ้งหวาน", "เมล็ดพืชชั้นดี", "อาหารปลาพิเศษ", "ที่ครอบปาก", "เลเซอร์พอยน์เตอร์", "กับดักบนพื้น", "กรงนก", "เบ็ดตกปลา", "เพลงกล่อมหลับ", "เกราะป้องกันจุดอ่อน", "เปลี่ยนตัวด่วน", "ลมแรงพัดปลิว", "ขโมยอาหาร"];
+    expect(names.some((n) => knownThaiNames.includes(n))).toBe(true);
+  });
+
+  it("shows English localized card names in the current player hand when locale is English", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+    render(<App />);
+    await startBattle(user);
+
+    const hand = screen.getByLabelText("Current player hand");
+    const buttons = Array.from(hand.querySelectorAll("button"));
+    expect(buttons.length).toBeGreaterThan(0);
+    const names = buttons.map((b) => b.querySelector("strong")?.textContent ?? "");
+    const knownEnNames = ["Playful Dog", "Curious Cat", "Swift Rabbit", "Gentle Bear", "Messenger Bird", "Energetic Fish", "Armored Turtle", "Clever Monkey", "Delicious Bone", "Colorful Yarn", "Fresh Carrot", "Sweet Honey", "Premium Seeds", "Special Fish Food", "Muzzle", "Laser Pointer", "Ground Trap", "Bird Cage", "Fishing Hook", "Lullaby", "Weakness Shield", "Quick Swap", "Strong Wind", "Food Thief"];
+    expect(names.some((n) => knownEnNames.includes(n))).toBe(true);
+  });
+
+  it("switches card type labels between Thai and English in the hand", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const thaiTypes = Array.from(hand.querySelectorAll("button small")).map((el) => el?.textContent ?? "");
+    expect(thaiTypes.some((t) => ["สัตว์", "สนับสนุน", "จุดอ่อน", "พิเศษ"].includes(t))).toBe(true);
+
+    await user.click(screen.getByRole("button", { name: "English" }));
+
+    const handEn = screen.getByLabelText("Current player hand");
+    const enTypes = Array.from(handEn.querySelectorAll("button small")).map((el) => el?.textContent ?? "");
+    // Card type small or playability label should include English variants
+    expect(enTypes.some((t) => ["Animal", "Support", "Weakness", "Special", "Playable now", "Choose a target", "Not playable yet"].some((k) => t.includes(k)))).toBe(true);
+  });
+
+  it("switches visible hand-card descriptions/language when toggling locale", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const beforeNames = Array.from(hand.querySelectorAll("button strong")).map((el) => el?.textContent ?? "");
+    await user.click(screen.getByRole("button", { name: "English" }));
+
+    const handEn = screen.getByLabelText("Current player hand");
+    const afterNames = Array.from(handEn.querySelectorAll("button strong")).map((el) => el?.textContent ?? "");
+    // Same number of cards, but text should not be identical (Thai -> English)
+    expect(afterNames.length).toBe(beforeNames.length);
+    expect(afterNames).not.toEqual(beforeNames);
+  });
+
+  it("switches use-timing / usability labels when toggling locale", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const beforeLabels = Array.from(hand.querySelectorAll(".playability-label")).map((el) => el?.textContent ?? "");
+    await user.click(screen.getByRole("button", { name: "English" }));
+
+    const handEn = screen.getByLabelText("Current player hand");
+    const afterLabels = Array.from(handEn.querySelectorAll(".playability-label")).map((el) => el?.textContent ?? "");
+    expect(afterLabels.length).toBe(beforeLabels.length);
+    // At least one label should differ after switching to English
+    expect(afterLabels.some((label, i) => label !== beforeLabels[i])).toBe(true);
+  });
+
+  it("updates an already-rendered hand immediately when locale switches mid-match", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const beforeIds = Array.from(hand.querySelectorAll("button")).map((b) => b.querySelector("span")?.textContent ?? "");
+    expect(beforeIds.length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "English" }));
+    const handEn = screen.getByLabelText("Current player hand");
+    const afterIds = Array.from(handEn.querySelectorAll("button")).map((b) => b.querySelector("span")?.textContent ?? "");
+    // Card IDs stay the same (stable ids)
+    expect(afterIds).toEqual(beforeIds);
+  });
+
+  it("does not mutate match state when switching locale mid-match", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    const beforeSnapshot = localStorage.getItem("animal_score_saved_match");
+    const handBefore = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const beforeHandCount = handBefore.querySelectorAll("button").length;
+
+    await user.click(screen.getByRole("button", { name: "English" }));
+
+    expect(localStorage.getItem("animal_score_saved_match")).toBe(beforeSnapshot);
+    const handAfter = screen.getByLabelText("Current player hand");
+    expect(handAfter.querySelectorAll("button").length).toBe(beforeHandCount);
+  });
+
+  it("exposes localized accessible names for visible hand cards", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const buttons = Array.from(hand.querySelectorAll("button"));
+    const a001 = buttons.find((b) => b.querySelector("span")?.textContent === "A001");
+    if (a001) {
+      const label = a001.getAttribute("aria-label") ?? "";
+      expect(label).toContain("A001");
+      expect(label).toContain("สุนัขจอมซน");
+      expect(label).toContain("สัตว์");
+    }
+  });
+
+  it("exposes English accessible names for visible hand cards in English locale", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem(LOCALE_STORAGE_KEY, "en");
+    render(<App />);
+    await startBattle(user);
+
+    const hand = screen.getByLabelText("Current player hand");
+    const buttons = Array.from(hand.querySelectorAll("button"));
+    const a001 = buttons.find((b) => b.querySelector("span")?.textContent === "A001");
+    if (a001) {
+      const label = a001.getAttribute("aria-label") ?? "";
+      expect(label).toContain("A001");
+      expect(label).toContain("Playful Dog");
+      expect(label).toContain("Animal");
+    }
+  });
+
+  it("hides opponent hand card identity from DOM text", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    const opponentHand = screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน");
+    const cardBacks = opponentHand.querySelectorAll(".card-back");
+    expect(cardBacks.length).toBeGreaterThan(0);
+    // No card names, ids, or type labels should appear inside the card backs
+    const cardBackText = Array.from(cardBacks).map((el) => el.textContent ?? "").join(" ");
+    expect(cardBackText.trim()).toBe("");
+  });
+
+  it("hides opponent hand card identity from aria-label, title, and alt", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    const opponentHand = screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน");
+    const cardBacks = Array.from(opponentHand.querySelectorAll<HTMLElement>(".card-back"));
+    for (const back of cardBacks) {
+      const aria = back.getAttribute("aria-label") ?? "";
+      // Generic hidden-card label is allowed; specific identity is not
+      expect(aria).toBe("การ์ดที่ซ่อนอยู่");
+      // No title attribute exposing identity
+      const title = back.getAttribute("title") ?? "";
+      expect(title).toBe("");
+      // No alt attribute
+      expect(back.hasAttribute("alt")).toBe(false);
+    }
+  });
+
+  it("still allows selecting a card from the localized hand", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    const animalButton = findFirstHandCardByCategory("สัตว์");
+    await user.click(animalButton);
+    expect(animalButton.classList.contains("selected")).toBe(true);
+  });
+
+  it("still allows direct Animal placement after localization", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    await user.click(findFirstHandCardByCategory("สัตว์"));
+    await user.click(screen.getByRole("button", { name: /ช่องสัตว์ 2|ช่อง Animal 2/ }));
+    expect(screen.getByLabelText("สรุปผลของการ์ด")).toHaveTextContent("ลงสนามช่อง 2");
+  });
+
+  it("keeps Card Library localization working", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    expect(screen.getByText("สุนัขจอมซน")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "English" }));
+    expect(screen.getByText("Playful Dog")).toBeInTheDocument();
+  });
+
+  it("keeps reset confirmation working with localized hand", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+
+    await user.click(screen.getByRole("button", { name: "เริ่มเกมใหม่" }));
+    expect(screen.getByRole("dialog", { name: "เริ่มเกมใหม่หรือไม่?" })).toBeInTheDocument();
+    await user.click(within(screen.getByRole("dialog", { name: "เริ่มเกมใหม่หรือไม่?" })).getByRole("button", { name: "เริ่มเกมใหม่" }));
+    expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
+  });
+});
+
 describe("App Phase 5 persistence UI", () => {
   it("resumes a saved active match from Local Storage", async () => {
     const user = userEvent.setup();

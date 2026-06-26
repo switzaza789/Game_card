@@ -26,7 +26,7 @@ import {
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
 import { formatActionLogEntry, renderCombatOutcomeLines, statusLabel } from "../ui/effectFeedback";
-import { getLocalizedCard, getStoredLocale, localeOptions, setStoredLocale, t, type Locale } from "../i18n";
+import { getLocalizedCard, getStoredLocale, localeOptions, setStoredLocale, t, type Locale, type TranslationKey } from "../i18n";
 import {
   buildPlaytestFeedbackPayload,
   humanFeedbackFilename,
@@ -52,12 +52,24 @@ type ModalState =
   | { type: "graveyard"; playerId: PlayerId }
   | null;
 
-const categoryLabels: Record<CardCategory, string> = {
-  Animal: "สัตว์",
-  Support: "สนับสนุน",
-  Weakness: "จุดอ่อน",
-  Special: "พิเศษ"
+const categoryLabels: Record<Locale, Record<CardCategory, string>> = {
+  th: {
+    Animal: "สัตว์",
+    Support: "สนับสนุน",
+    Weakness: "จุดอ่อน",
+    Special: "พิเศษ"
+  },
+  en: {
+    Animal: "Animal",
+    Support: "Support",
+    Weakness: "Weakness",
+    Special: "Special"
+  }
 };
+
+function localizedCategoryLabel(category: CardCategory, locale: Locale): string {
+  return categoryLabels[locale][category];
+}
 
 export function App() {
   const coordinator = useMemo(() => new PersistenceCoordinator(), []);
@@ -944,12 +956,15 @@ function BattleScreen(props: {
           {match.players[activePlayerId].hand.map((id) => {
             const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
             const playability = getCardPlayability(match, activePlayerId, id);
+            const localizedCard = getLocalizedCard(definition.card_id, props.locale);
+            const localizedPlayabilityLabel = localizePlayabilityLabel(playability, props.locale);
+            const localizedCategory = localizedCategoryLabel(definition.category, props.locale);
             return (
-              <button key={id} type="button" className={`hand-card ${categoryClass(definition.category)} state-${playability.state.toLowerCase()} ${selectedCardId === id ? "selected" : ""}`} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={playability.state === "NOT_PLAYABLE"} aria-describedby={`playability-${id}`}>
+              <button key={id} type="button" className={`hand-card ${categoryClass(definition.category)} state-${playability.state.toLowerCase()} ${selectedCardId === id ? "selected" : ""}`} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={playability.state === "NOT_PLAYABLE"} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`}>
                 <span>{definition.card_id}</span>
-                <strong>{definition.name_th}</strong>
-                <small>{categoryLabels[definition.category]}</small>
-                <small id={`playability-${id}`} className="playability-label">{playability.label}</small>
+                <strong>{localizedCard.name}</strong>
+                <small>{localizedCategory}</small>
+                <small id={`playability-${id}`} className="playability-label">{localizedPlayabilityLabel}</small>
               </button>
             );
           })}
@@ -1084,7 +1099,7 @@ function BoardRow({
 function HiddenHand({ count, locale }: { count: number; locale: Locale }) {
   return (
     <div className="opponent-hand" aria-label={t(locale, "label.opponentHand")}>
-      {Array.from({ length: count }).map((_, index) => <div className="card-back" key={index} />)}
+      {Array.from({ length: count }).map((_, index) => <div className="card-back" key={index} aria-label={t(locale, "label.hiddenCard")} role="img" />)}
     </div>
   );
 }
@@ -1210,7 +1225,7 @@ function Modal({ modal, match, onClose, locale }: { modal: ModalState; match?: M
           match ? (
             <>
               <h2>{modal.card.name_th}</h2>
-              <p>{modal.card.card_id} — {categoryLabels[modal.card.category]}</p>
+              <p>{modal.card.card_id} — {categoryLabels.th[modal.card.category]}</p>
               <div className="card-detail-lines" aria-label={t(locale, "label.details")}>
                 {formatCardDetailLines(modal.card).map((line) => <p key={line}>{line}</p>)}
               </div>
@@ -1439,6 +1454,34 @@ function translateValidationReason(reason: string | undefined): string {
   if (reason.includes("เพิ่มเลเวลได้")) return "สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้";
   if (reason.includes("Level 1")) return "ต้องเลือกสัตว์ Level 1";
   return reason;
+}
+
+const PLAYABILITY_LABEL_TH_TO_KEY: Record<string, TranslationKey> = {
+  "ใช้ได้ทันที": "playability.playableNow",
+  "ต้องเลือกเป้าหมาย": "playability.needsTarget",
+  "ใช้ได้แบบผลอ่อน": "playability.partialEffect",
+  "ยังใช้ไม่ได้": "playability.notPlayable",
+  "ยังไม่ถึงช่วงที่ใช้ได้": "playability.reason.notActionPhase",
+  "การ์ดไม่ได้อยู่ในมือ": "playability.reason.notInHand",
+  "ใช้การ์ดสัตว์แล้วในเทิร์นนี้": "playability.reason.animalActionUsed",
+  "ช่องสัตว์เต็ม": "playability.reason.animalZoneFull",
+  "ใช้การ์ดประเภทนี้ไม่ได้ในเทิร์นนี้": "playability.reason.utilityLocked",
+  "ใช้การ์ดประเภทนี้แล้วในเทิร์นนี้": "playability.reason.utilityUsed",
+  "การ์ดนี้ต้องเลือกสัตว์": "playability.reason.needsAnimalTarget",
+  "ต้องมีสัตว์ของคุณอยู่ในสนาม": "playability.reason.needsOwnAnimal",
+  "ไม่มีเป้าหมายฝ่ายตรงข้าม": "playability.reason.noEnemyTarget",
+  "เป้าหมายมีเกราะป้องกัน": "playability.reason.targetProtected",
+  "ต้องเลือกสัตว์ Level 1": "playability.reason.needsLevel1",
+  "สุนัขมีเลเวลสูงสุดแล้ว ไม่สามารถใช้กระดูกเพิ่มได้": "playability.reason.dogMaxLevel",
+  "สัตว์มีเลเวลสูงสุดแล้ว ไม่สามารถใช้การ์ดเสริมที่เพิ่มเลเวลได้": "playability.reason.animalMaxLevel",
+  "ใช้ได้ แต่ไม่ตรงจุดอ่อน: จะลดคะแนนครั้งถัดไป 1 คะแนน": "playability.reason.weaknessOffTarget",
+  "ไม่พบการ์ด": "playability.reason.notFound"
+};
+
+function localizePlayabilityLabel(playability: PlayabilityInfo, locale: Locale): string {
+  const key = PLAYABILITY_LABEL_TH_TO_KEY[playability.label];
+  if (key) return t(locale, key);
+  return playability.label;
 }
 
 function hasPotentialTarget(match: MatchState, playerId: PlayerId, card: CardDefinition): boolean {
