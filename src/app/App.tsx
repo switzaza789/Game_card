@@ -6,7 +6,7 @@ import { gameConfig } from "../data/gameConfig";
 import { getCardDefinition, isAnimalInstance } from "../engine/cards/deck";
 import { createMatch } from "../engine/state/match";
 import { otherPlayerId } from "../engine/state/selectors";
-import type { Action, CardCategory, CardDefinition, GameMode, MatchState, PlayerId, Target } from "../types/game";
+import type { Action, AnimalInstance, CardCategory, CardDefinition, GameMode, MatchState, PlayerId, StatusEffectCode, Target } from "../types/game";
 import { validateAction } from "../engine/validation/validation";
 import { PersistenceCoordinator } from "../persistence/persistenceCoordinator";
 import {
@@ -25,7 +25,7 @@ import {
 } from "../persistence/localStorageAdapter";
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
-import { formatActionLogEntry, renderCombatOutcomeLines, statusLabel } from "../ui/effectFeedback";
+import { formatActionLogEntry, renderCombatOutcomeLines, statusLabel, statusDisplayMeta } from "../ui/effectFeedback";
 import { getLocalizedCard, getStoredLocale, localeOptions, setStoredLocale, t, type Locale, type TranslationKey } from "../i18n";
 import {
   buildPlaytestFeedbackPayload,
@@ -1087,7 +1087,7 @@ function BoardRow({
               {animal.attachedSupportIds.map((supportId) => (
                 <span className="attached-support" key={supportId}>{t(locale, "label.attachedSupport")}: {getLocalizedCard(match.cardsByInstanceId[supportId].definitionId, locale).name}</span>
               ))}
-              {animal.statuses.length > 0 && <small className="statuses">{t(locale, "label.statusCount")} {animal.statuses.length}: {animal.statuses.map((status) => statusLabel(status.code)).join(", ")}</small>}
+              {animal.statuses.length > 0 && <small className="statuses">{t(locale, "label.statusCount")} {animal.statuses.length}: {localizedAnimalStatuses(animal, locale)}</small>}
             </button>
           );
         })}
@@ -1484,6 +1484,26 @@ function localizePlayabilityLabel(playability: PlayabilityInfo, locale: Locale):
   const key = PLAYABILITY_LABEL_TH_TO_KEY[playability.label];
   if (key) return t(locale, key);
   return playability.label;
+}
+
+const STATUS_KEY_MAP: Record<StatusEffectCode, { label: TranslationKey; description: TranslationKey; duration: TranslationKey }> = {
+  SKIP_NEXT_SCORE: { label: "status.skipNextScore.label", description: "status.skipNextScore.description", duration: "status.skipNextScore.duration" },
+  NEXT_SCORE_MINUS_1: { label: "status.nextScoreMinus1.label", description: "status.nextScoreMinus1.description", duration: "status.nextScoreMinus1.duration" },
+  TEMP_WEAKNESS_IMMUNITY: { label: "status.tempWeaknessImmunity.label", description: "status.tempWeaknessImmunity.description", duration: "status.tempWeaknessImmunity.duration" },
+  TEMP_LEVEL_DOWN_IMMUNITY: { label: "status.tempLevelDownImmunity.label", description: "status.tempLevelDownImmunity.description", duration: "status.tempLevelDownImmunity.duration" },
+  REMOVAL_SHIELD: { label: "status.removalShield.label", description: "status.removalShield.description", duration: "status.removalShield.duration" },
+  UTILITY_LOCK: { label: "status.utilityLock.label", description: "status.utilityLock.description", duration: "status.utilityLock.duration" },
+};
+
+function localizedStatusLabel(statusCode: StatusEffectCode, locale: Locale): string {
+  const keys = STATUS_KEY_MAP[statusCode];
+  if (!keys) return statusLabel(statusCode, false);
+  const icon = statusDisplayMeta[statusCode]?.icon ?? "";
+  return `${icon} ${t(locale, keys.label)} (${t(locale, keys.duration)})`;
+}
+
+function localizedAnimalStatuses(animal: AnimalInstance, locale: Locale): string {
+  return animal.statuses.map((s) => localizedStatusLabel(s.code, locale)).join(", ");
 }
 
 function hasPotentialTarget(match: MatchState, playerId: PlayerId, card: CardDefinition): boolean {

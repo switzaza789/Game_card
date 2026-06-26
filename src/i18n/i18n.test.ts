@@ -184,4 +184,28 @@ describe("card localization data layer", () => {
       expect(card.logic_key).toBeDefined();
     }
   });
+
+  it("provides localized status labels in both locales", () => {
+    const codes = ["skipNextScore", "nextScoreMinus1", "tempWeaknessImmunity", "tempLevelDownImmunity", "removalShield", "utilityLock"] as const;
+    for (const code of codes) {
+      const thLabel = t("th", `status.${code}.label` as never);
+      const enLabel = t("en", `status.${code}.label` as never);
+      expect(thLabel).toBeTruthy();
+      expect(enLabel).toBeTruthy();
+      expect(thLabel.length).toBeGreaterThan(0);
+      expect(enLabel.length).toBeGreaterThan(0);
+      const thDesc = t("th", `status.${code}.description` as never);
+      const enDesc = t("en", `status.${code}.description` as never);
+      expect(thDesc).toBeTruthy();
+      expect(enDesc).toBeTruthy();
+      const thDur = t("th", `status.${code}.duration` as never);
+      const enDur = t("en", `status.${code}.duration` as never);
+      expect(thDur).toBeTruthy();
+      expect(enDur).toBeTruthy();
+    }
+  });
+
+  it("keeps Thai and English status key counts identical after adding status translations", () => {
+    expect(Object.keys(th).sort()).toEqual(Object.keys(en).sort());
+  });
 });

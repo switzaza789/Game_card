@@ -123,6 +123,24 @@ export type TranslationKey =
   | "playability.reason.targetProtected"
   | "playability.reason.animalMaxLevel"
   | "playability.reason.needsLevel1"
-  | "playability.reason.weaknessOffTarget";
+  | "playability.reason.weaknessOffTarget"
+  | "status.skipNextScore.label"
+  | "status.skipNextScore.description"
+  | "status.skipNextScore.duration"
+  | "status.nextScoreMinus1.label"
+  | "status.nextScoreMinus1.description"
+  | "status.nextScoreMinus1.duration"
+  | "status.tempWeaknessImmunity.label"
+  | "status.tempWeaknessImmunity.description"
+  | "status.tempWeaknessImmunity.duration"
+  | "status.tempLevelDownImmunity.label"
+  | "status.tempLevelDownImmunity.description"
+  | "status.tempLevelDownImmunity.duration"
+  | "status.removalShield.label"
+  | "status.removalShield.description"
+  | "status.removalShield.duration"
+  | "status.utilityLock.label"
+  | "status.utilityLock.description"
+  | "status.utilityLock.duration";
 
 export type TranslationParams = Record<string, string | number>;
