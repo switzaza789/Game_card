@@ -1146,9 +1146,8 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
               return (
                 <button key={id} type="button" className={stateClasses} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={cardState === "unavailable" || cardState === "used-this-turn"} aria-selected={isSelected} data-state={cardState} data-recommended={isRecommended ? "true" : undefined} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`} data-combat-source={sourceEvent && !controlsDisabled ? sourceEvent.kind : undefined}>
                   <CardArtwork cardId={definition.card_id} locale={props.locale} variant="compact" alt="" />
-                  <span>{definition.card_id}</span>
-                  <strong>{localizedCard.name}</strong>
-                  <small>{localizedCategory}</small>
+                  <span className="hand-card-name">{localizedCard.name}</span>
+                  <small className="hand-card-type">{localizedCategory}</small>
                   <small id={`playability-${id}`} className="playability-label">{localizedPlayabilityLabel}</small>
                   {sourceEvent && !controlsDisabled && <span className="combat-floating-label" role="status" aria-live="polite">{t(props.locale, visualLabelKey(sourceEvent.kind), visualLabelParams(sourceEvent))}</span>}
                 </button>
@@ -1299,13 +1298,11 @@ function BoardRow({
             <button key={instanceId} type="button" className={`slot filled ${animClass} ${legal ? "targetable" : "unavailable-target"}`} data-level-visual={visualState.tier} data-evolution-state={visualState.evolutionState} data-target-state={legal ? "valid" : undefined} disabled={!legal} aria-label={`${localizedBoardCard.name} ${levelBadgeLabel} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })} data-combat-source={sourceKind} data-combat-target={targetKind} data-effect-active={isSource || isTarget ? "true" : undefined} data-score-result={scoreTone}>
               <span className="level-badge" aria-label={levelBadgeLabel}>{t(locale, "level.label")} {animal.level}</span>
               <span className="target-badge">{legal ? t(locale, "label.select") : t(locale, "label.clearSelection")}</span>
+              {animal.attachedSupportIds.length > 0 && <span className="indicator support-indicator" title={t(locale, "label.attachedSupport")} aria-label={t(locale, "label.attachedSupport")}>S</span>}
+              {animal.statuses.length > 0 && <span className="indicator status-indicator" title={localizedAnimalStatuses(animal, locale)} aria-label={localizedAnimalStatuses(animal, locale)}>{animal.statuses.length > 1 ? `Sx${animal.statuses.length}` : "S"}</span>}
               <CardArtwork cardId={definition.card_id} locale={locale} variant="board" alt="" level={animal.level} />
-              <strong>{localizedBoardCard.name}</strong>
+              <span className="board-card-name">{localizedBoardCard.name}</span>
               <span className="evolution-progress" data-evolution-state={visualState.evolutionState} role="progressbar" aria-valuemin={0} aria-valuemax={visualState.progressRequired} aria-valuenow={visualState.progressCurrent} aria-label={evolutionProgressLabel}>{evolutionProgressLabel}</span>
-              {animal.attachedSupportIds.map((supportId) => (
-                <span className="attached-support" key={supportId}>{t(locale, "label.attachedSupport")}: {getLocalizedCard(match.cardsByInstanceId[supportId].definitionId, locale).name}</span>
-              ))}
-              {animal.statuses.length > 0 && <small className="statuses">{t(locale, "label.statusCount")} {animal.statuses.length}: {localizedAnimalStatuses(animal, locale)}</small>}
               {isLevelEvent && <span className={`level-floating-cue ${event.kind === "evolution-complete" ? "evolution-complete-cue" : event.kind === "level-down" ? "level-down-cue" : "level-up-cue"}`} role="status" aria-live="polite">{t(locale, visualLabelKey(event.kind), visualLabelParams(event))}</span>}
               {event && !isLevelEvent && (isSource || isTarget) && <span className="combat-floating-label" role="status" aria-live="polite">{t(locale, visualLabelKey(event.kind), visualLabelParams(event))}</span>}
               {scoreContribution && <span className="score-floating-label" aria-hidden="true">{signedScore}</span>}
