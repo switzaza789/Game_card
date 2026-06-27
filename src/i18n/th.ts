@@ -365,5 +365,19 @@ export const th = {
   "toast.playFailedNotInHand": "การ์ดไม่อยู่ในมือของคุณ",
   "toast.playFailedWrongPhase": "สามารถเล่นได้เฉพาะใน Action Phase",
   "label.actionsComplete": "ไม่มีการกระทำที่เหลือ — คุณสามารถจบเทิร์นได้",
-  "guidance.selectTarget": "เลือกเป้าหมายสำหรับการ์ดนี้"
+  "guidance.selectTarget": "เลือกเป้าหมายสำหรับการ์ดนี้",
+  "visual.weaknessFull": "โดนจุดอ่อน — ผลเต็ม",
+  "visual.weaknessReduced": "ผลอ่อน",
+  "visual.supportApplied": "ติดตั้ง Support",
+  "visual.buffApplied": "ได้รับ Buff",
+  "visual.debuffApplied": "ได้รับ Debuff",
+  "visual.shieldBlocked": "ป้องกันสำเร็จ",
+  "visual.shieldConsumed": "ใช้โล่แล้ว",
+  "visual.levelUp": "Level +{value}",
+  "visual.levelDown": "Level -{value}",
+  "visual.statusApplied": "ได้รับสถานะ",
+  "visual.statusRemoved": "สถานะหายไป",
+  "visual.draw": "จั่ว {count} ใบ",
+  "visual.discard": "ทิ้งการ์ด",
+  "visual.recycle": "รีไซเคิล"
 } satisfies Record<TranslationKey, string>;

@@ -368,6 +368,20 @@ export type TranslationKey =
   | "toast.playFailedNotInHand"
   | "toast.playFailedWrongPhase"
   | "label.actionsComplete"
-  | "guidance.selectTarget";
+  | "guidance.selectTarget"
+  | "visual.weaknessFull"
+  | "visual.weaknessReduced"
+  | "visual.supportApplied"
+  | "visual.buffApplied"
+  | "visual.debuffApplied"
+  | "visual.shieldBlocked"
+  | "visual.shieldConsumed"
+  | "visual.levelUp"
+  | "visual.levelDown"
+  | "visual.statusApplied"
+  | "visual.statusRemoved"
+  | "visual.draw"
+  | "visual.discard"
+  | "visual.recycle";
 
 export type TranslationParams = Record<string, string | number>;

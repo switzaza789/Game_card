@@ -26,6 +26,7 @@ import {
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
 import { formatActionLogEntry, localizedStatusLabel, renderActionFeedback, type ActionFeedback, type ToastFeedback } from "../ui/effectFeedback";
+import { mapEntryToCombatVisuals, type CombatVisualEvent, type CombatVisualKind } from "../ui/combatVisuals";
 import { getLocalizedCard, getStoredLocale, localeOptions, setStoredLocale, t, type Locale, type TranslationKey } from "../i18n";
 import { getCardArtwork, getArtworkAltText, ARTWORK_PLACEHOLDER } from "../ui/cardArtwork";
 import {
@@ -979,6 +980,51 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
   const guidance = getInteractionGuidanceState(match, selectedCardId);
   let firstPlayableFound = false;
 
+  const [combatVisualEvents, setCombatVisualEvents] = useState<CombatVisualEvent[]>([]);
+  const prevFeedbackSeqRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (props.actionFeedback?.type === "combat") {
+      const seq = props.actionFeedback.entry.seq;
+      if (prevFeedbackSeqRef.current === seq) return;
+      prevFeedbackSeqRef.current = seq;
+      const events = mapEntryToCombatVisuals(match, props.actionFeedback.entry);
+      setCombatVisualEvents(events);
+      if (events.length > 0) {
+        const timer = window.setTimeout(() => setCombatVisualEvents([]), 1400);
+        return () => window.clearTimeout(timer);
+      }
+    } else {
+      const wasCombat = prevFeedbackSeqRef.current !== null;
+      if (wasCombat) {
+        setCombatVisualEvents([]);
+        prevFeedbackSeqRef.current = null;
+      }
+    }
+  }, [props.actionFeedback, match]);
+
+  const activeSourceInstanceIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const ev of combatVisualEvents) {
+      if (ev.source?.instanceId) s.add(ev.source.instanceId);
+    }
+    return s;
+  }, [combatVisualEvents]);
+  const activeTargetInstanceIds = useMemo(() => {
+    const s = new Set<string>();
+    for (const ev of combatVisualEvents) {
+      if (ev.target?.instanceId) s.add(ev.target.instanceId);
+    }
+    return s;
+  }, [combatVisualEvents]);
+  const eventByInstanceId = useMemo(() => {
+    const m = new Map<string, CombatVisualEvent>();
+    for (const ev of combatVisualEvents) {
+      if (ev.target?.instanceId) m.set(ev.target.instanceId, ev);
+      if (ev.source?.instanceId && !m.has(ev.source.instanceId)) m.set(ev.source.instanceId, ev);
+    }
+    return m;
+  }, [combatVisualEvents]);
+
   useEffect(() => {
     if (props.resetConfirmOpen) {
       resetConfirmButtonRef.current?.focus();
@@ -1021,9 +1067,9 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
         {isPreparingHumanTurn && <div className="ai-banner" role="status" aria-live="polite">{t(props.locale, "label.preparingTurn")}</div>}
         <HiddenHand count={match.players[opponentId].hand.length} locale={props.locale} />
         <div className="zone-label">{t(props.locale, "label.player2")}</div>
-        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} />
+        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} />
         <div className="divider" />
-        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} />
+        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} />
         <div className="zone-label">{t(props.locale, "label.you")} — {t(props.locale, "label.score")} {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
       </section>
 
@@ -1063,13 +1109,15 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
               const isRecommended = !isSelected && cardState === "playable" && !firstPlayableFound;
               if (isRecommended) firstPlayableFound = true;
               const stateClasses = `hand-card ${categoryClass(definition.category)} ${isSelected ? "selected" : ""}`;
+              const sourceEvent = eventByInstanceId.get(id);
               return (
-                <button key={id} type="button" className={stateClasses} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={cardState === "unavailable" || cardState === "used-this-turn"} aria-selected={isSelected} data-state={cardState} data-recommended={isRecommended ? "true" : undefined} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`}>
+                <button key={id} type="button" className={stateClasses} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={cardState === "unavailable" || cardState === "used-this-turn"} aria-selected={isSelected} data-state={cardState} data-recommended={isRecommended ? "true" : undefined} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`} data-combat-source={sourceEvent && !controlsDisabled ? sourceEvent.kind : undefined}>
                   <CardArtwork cardId={definition.card_id} locale={props.locale} variant="compact" alt="" />
                   <span>{definition.card_id}</span>
                   <strong>{localizedCard.name}</strong>
                   <small>{localizedCategory}</small>
                   <small id={`playability-${id}`} className="playability-label">{localizedPlayabilityLabel}</small>
+                  {sourceEvent && !controlsDisabled && <span className="combat-floating-label" role="status" aria-live="polite">{t(props.locale, visualLabelKey(sourceEvent.kind), visualLabelParams(sourceEvent))}</span>}
                 </button>
               );
             })}
@@ -1155,7 +1203,10 @@ function BoardRow({
   onTarget,
   onSelectEmptySlot,
   onOpenGraveyard,
-  locale
+  locale,
+  activeSourceInstanceIds,
+  activeTargetInstanceIds,
+  eventByInstanceId
 }: {
   match: MatchState;
   ownerId: PlayerId;
@@ -1165,6 +1216,9 @@ function BoardRow({
   onSelectEmptySlot: (target: Target) => void;
   onOpenGraveyard: (playerId: PlayerId) => void;
   locale: Locale;
+  activeSourceInstanceIds: Set<string>;
+  activeTargetInstanceIds: Set<string>;
+  eventByInstanceId: Map<string, CombatVisualEvent>;
 }) {
   const player = match.players[ownerId];
   return (
@@ -1186,8 +1240,13 @@ function BoardRow({
           const definition = getCardDefinition(animal.definitionId);
           const localizedBoardCard = getLocalizedCard(definition.card_id, locale);
           const legal = selectedDefinition ? canTarget(selectedDefinition, ownerId, viewerId, animal.level) : false;
+          const isSource = activeSourceInstanceIds.has(instanceId);
+          const isTarget = activeTargetInstanceIds.has(instanceId);
+          const event = eventByInstanceId.get(instanceId);
+          const sourceKind = isSource && event ? event.kind : undefined;
+          const targetKind = isTarget && event ? event.kind : undefined;
           return (
-            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} data-target-state={legal ? "valid" : undefined} disabled={!legal} aria-label={`${localizedBoardCard.name} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
+            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} data-target-state={legal ? "valid" : undefined} disabled={!legal} aria-label={`${localizedBoardCard.name} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })} data-combat-source={sourceKind} data-combat-target={targetKind} data-effect-active={isSource || isTarget ? "true" : undefined}>
               <span className="level">{t(locale, "label.level")} {animal.level}</span>
               <span className="target-badge">{legal ? t(locale, "label.select") : t(locale, "label.clearSelection")}</span>
               <CardArtwork cardId={definition.card_id} locale={locale} variant="board" alt="" />
@@ -1197,6 +1256,7 @@ function BoardRow({
                 <span className="attached-support" key={supportId}>{t(locale, "label.attachedSupport")}: {getLocalizedCard(match.cardsByInstanceId[supportId].definitionId, locale).name}</span>
               ))}
               {animal.statuses.length > 0 && <small className="statuses">{t(locale, "label.statusCount")} {animal.statuses.length}: {localizedAnimalStatuses(animal, locale)}</small>}
+              {event && (isSource || isTarget) && <span className="combat-floating-label" role="status" aria-live="polite">{t(locale, visualLabelKey(event.kind), visualLabelParams(event))}</span>}
             </button>
           );
         })}
@@ -1823,6 +1883,36 @@ function evolutionLabel(level: number, points: number, locale: Locale): string {
   }
   const progress = t(locale, "log.evolutionPoint", { current: points, required: 2 });
   return `${progress} — ${t(locale, "preview.x003.evolutionLoss")}`;
+}
+
+function visualLabelKey(kind: CombatVisualKind): TranslationKey {
+  const map: Record<CombatVisualKind, TranslationKey> = {
+    "weakness-full": "visual.weaknessFull",
+    "weakness-reduced": "visual.weaknessReduced",
+    "support-applied": "visual.supportApplied",
+    "buff-applied": "visual.buffApplied",
+    "debuff-applied": "visual.debuffApplied",
+    "shield-blocked": "visual.shieldBlocked",
+    "shield-consumed": "visual.shieldConsumed",
+    "level-up": "visual.levelUp",
+    "level-down": "visual.levelDown",
+    "status-applied": "visual.statusApplied",
+    "status-removed": "visual.statusRemoved",
+    "draw": "visual.draw",
+    "discard": "visual.discard",
+    "recycle": "visual.recycle"
+  };
+  return map[kind];
+}
+
+function visualLabelParams(event: CombatVisualEvent): Record<string, string | number> | undefined {
+  if (event.kind === "level-up" || event.kind === "level-down") {
+    return { value: event.value ?? 1 };
+  }
+  if (event.kind === "draw") {
+    return { count: event.value ?? 1 };
+  }
+  return undefined;
 }
 
 function formatDuration(ms: number): string {

@@ -1515,3 +1515,223 @@ h1 {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Phase 3 — Combat Visual Effects                                    */
+/* ------------------------------------------------------------------ */
+
+[data-combat-source] {
+  position: relative;
+  z-index: 10;
+}
+[data-combat-source="weakness-full"],
+[data-combat-source="weakness-reduced"] {
+  outline: 3px solid #dc2626;
+  outline-offset: 2px;
+  animation: combatSourcePulse 1.2s ease-out;
+}
+[data-combat-source="support-applied"],
+[data-combat-source="buff-applied"] {
+  outline: 3px solid #16a34a;
+  outline-offset: 2px;
+  animation: combatSourcePulse 1.2s ease-out;
+}
+[data-combat-source="debuff-applied"] {
+  outline: 3px solid #9333ea;
+  outline-offset: 2px;
+  animation: combatSourcePulse 1.2s ease-out;
+}
+[data-combat-source="shield-consumed"] {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+  animation: combatSourcePulse 1.2s ease-out;
+}
+
+[data-combat-target] {
+  position: relative;
+  z-index: 10;
+}
+[data-combat-target="weakness-full"] {
+  outline: 4px solid #dc2626;
+  outline-offset: 2px;
+  box-shadow: 0 0 16px rgba(220, 38, 38, 0.5);
+  animation: combatShake 0.4s ease-out, combatFadeOutline 1.4s ease-out forwards;
+}
+[data-combat-target="weakness-reduced"] {
+  outline: 3px solid #f97316;
+  outline-offset: 2px;
+  box-shadow: 0 0 10px rgba(249, 115, 22, 0.35);
+  animation: combatShake 0.3s ease-out, combatFadeOutline 1.4s ease-out forwards;
+}
+[data-combat-target="support-applied"],
+[data-combat-target="buff-applied"] {
+  outline: 4px solid #16a34a;
+  outline-offset: 2px;
+  box-shadow: 0 0 14px rgba(22, 163, 74, 0.4);
+  animation: combatGlowGreen 1.4s ease-out forwards;
+}
+[data-combat-target="debuff-applied"] {
+  outline: 4px solid #9333ea;
+  outline-offset: 2px;
+  box-shadow: 0 0 14px rgba(147, 51, 234, 0.4);
+  animation: combatGlowPurple 1.4s ease-out forwards;
+}
+[data-combat-target="shield-blocked"] {
+  outline: 4px solid #2563eb;
+  outline-offset: 2px;
+  box-shadow: 0 0 14px rgba(37, 99, 235, 0.4);
+  animation: combatGlowBlue 1.4s ease-out forwards;
+}
+[data-combat-target="shield-consumed"] {
+  outline: 3px solid #2563eb;
+  outline-offset: 2px;
+  animation: combatShieldBreak 1s ease-out forwards;
+}
+[data-combat-target="level-up"] {
+  outline: 4px solid #eab308;
+  outline-offset: 2px;
+  box-shadow: 0 0 14px rgba(234, 179, 8, 0.4);
+  animation: combatGlowGold 1.4s ease-out forwards;
+}
+[data-combat-target="level-down"] {
+  outline: 3px solid #64748b;
+  outline-offset: 2px;
+  animation: combatFadeOutline 1.4s ease-out forwards;
+}
+[data-combat-target="status-applied"] {
+  outline: 3px solid #a855f7;
+  outline-offset: 2px;
+  animation: combatGlowPurple 1.4s ease-out forwards;
+}
+
+.combat-floating-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: combatLabelFade 1.4s ease-out forwards;
+}
+[data-combat-target="weakness-full"] .combat-floating-label,
+[data-combat-source="weakness-full"] .combat-floating-label {
+  background: rgba(220, 38, 38, 0.9);
+}
+[data-combat-target="weakness-reduced"] .combat-floating-label,
+[data-combat-source="weakness-reduced"] .combat-floating-label {
+  background: rgba(249, 115, 22, 0.9);
+  font-size: 0.65rem;
+}
+[data-combat-target="support-applied"] .combat-floating-label,
+[data-combat-source="support-applied"] .combat-floating-label,
+[data-combat-target="buff-applied"] .combat-floating-label,
+[data-combat-source="buff-applied"] .combat-floating-label {
+  background: rgba(22, 163, 74, 0.9);
+}
+[data-combat-target="debuff-applied"] .combat-floating-label,
+[data-combat-source="debuff-applied"] .combat-floating-label {
+  background: rgba(147, 51, 234, 0.9);
+}
+[data-combat-target="shield-blocked"] .combat-floating-label,
+[data-combat-target="shield-consumed"] .combat-floating-label,
+[data-combat-source="shield-consumed"] .combat-floating-label {
+  background: rgba(37, 99, 235, 0.9);
+}
+[data-combat-target="level-up"] .combat-floating-label,
+[data-combat-source=""] .combat-floating-label {
+  background: rgba(234, 179, 8, 0.9);
+}
+[data-combat-target="level-down"] .combat-floating-label {
+  background: rgba(100, 116, 139, 0.9);
+}
+[data-combat-target="status-applied"] .combat-floating-label {
+  background: rgba(168, 85, 247, 0.9);
+}
+
+@keyframes combatSourcePulse {
+  0% { box-shadow: 0 0 0 0 currentColor; }
+  50% { box-shadow: 0 0 12px 4px currentColor; }
+  100% { box-shadow: 0 0 0 0 currentColor; }
+}
+@keyframes combatShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-4px); }
+  40% { transform: translateX(4px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+@keyframes combatGlowGreen {
+  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.6); outline-color: #16a34a; }
+  70% { box-shadow: 0 0 16px 6px rgba(22, 163, 74, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); outline-color: transparent; }
+}
+@keyframes combatGlowPurple {
+  0% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0.6); outline-color: #9333ea; }
+  70% { box-shadow: 0 0 16px 6px rgba(147, 51, 234, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(147, 51, 234, 0); outline-color: transparent; }
+}
+@keyframes combatGlowBlue {
+  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.6); outline-color: #2563eb; }
+  70% { box-shadow: 0 0 16px 6px rgba(37, 99, 235, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); outline-color: transparent; }
+}
+@keyframes combatGlowGold {
+  0% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.6); outline-color: #eab308; }
+  70% { box-shadow: 0 0 16px 6px rgba(234, 179, 8, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); outline-color: transparent; }
+}
+@keyframes combatShieldBreak {
+  0% { outline-color: #2563eb; box-shadow: 0 0 12px 4px rgba(37, 99, 235, 0.5); }
+  50% { outline-color: #60a5fa; box-shadow: 0 0 8px 2px rgba(37, 99, 235, 0.3); }
+  100% { outline-color: transparent; box-shadow: none; }
+}
+@keyframes combatFadeOutline {
+  0% { outline-color: currentColor; }
+  100% { outline-color: transparent; }
+}
+@keyframes combatLabelFade {
+  0% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  60% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -60%) scale(0.9); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-combat-source],
+  [data-combat-target] {
+    animation: none;
+    transition: none;
+  }
+  [data-combat-target="weakness-full"] {
+    box-shadow: 0 0 0 2px #dc2626;
+  }
+  [data-combat-target="weakness-reduced"] {
+    box-shadow: 0 0 0 2px #f97316;
+  }
+  [data-combat-target="support-applied"],
+  [data-combat-target="buff-applied"] {
+    box-shadow: 0 0 0 2px #16a34a;
+  }
+  [data-combat-target="debuff-applied"] {
+    box-shadow: 0 0 0 2px #9333ea;
+  }
+  [data-combat-target="shield-blocked"],
+  [data-combat-target="shield-consumed"] {
+    box-shadow: 0 0 0 2px #2563eb;
+  }
+  [data-combat-target="level-up"] {
+    box-shadow: 0 0 0 2px #eab308;
+  }
+  [data-combat-target="level-down"] {
+    box-shadow: 0 0 0 2px #64748b;
+  }
+  .combat-floating-label {
+    animation: none;
+    opacity: 1;
+  }
+}

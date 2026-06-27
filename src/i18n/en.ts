@@ -365,5 +365,19 @@ export const en = {
   "toast.playFailedNotInHand": "Card is not in your hand",
   "toast.playFailedWrongPhase": "Can only play during your Action Phase",
   "label.actionsComplete": "No remaining actions — you may end your turn",
-  "guidance.selectTarget": "Select a target for this card"
+  "guidance.selectTarget": "Select a target for this card",
+  "visual.weaknessFull": "Weakness hit — Full effect",
+  "visual.weaknessReduced": "Reduced effect",
+  "visual.supportApplied": "Support attached",
+  "visual.buffApplied": "Buff applied",
+  "visual.debuffApplied": "Debuff applied",
+  "visual.shieldBlocked": "Blocked",
+  "visual.shieldConsumed": "Shield consumed",
+  "visual.levelUp": "Level +{value}",
+  "visual.levelDown": "Level -{value}",
+  "visual.statusApplied": "Status applied",
+  "visual.statusRemoved": "Status removed",
+  "visual.draw": "Draw {count}",
+  "visual.discard": "Discard",
+  "visual.recycle": "Recycle"
 } satisfies Record<TranslationKey, string>;
