@@ -1431,3 +1431,87 @@ h1 {
     padding: 0.6rem 0.9rem;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/*  Phase 2 — Interaction Guidance and Feedback Hierarchy              */
+/* ------------------------------------------------------------------ */
+
+.hand-card[data-state="playable"] {
+  box-shadow: 0 0 0 2px #22c55e;
+}
+
+.hand-card[data-state="needs-target"] {
+  box-shadow: 0 0 0 2px #f59e0b;
+}
+
+.hand-card[data-state="selected"] {
+  outline: 3px solid #245a85;
+}
+
+.hand-card[data-state="used-this-turn"] {
+  opacity: 0.6;
+}
+
+.hand-card[data-state="unavailable"] {
+  color: #475569;
+  background-image: repeating-linear-gradient(135deg, rgba(148, 163, 184, 0.18) 0 8px, transparent 8px 16px);
+}
+
+.hand-card[data-state="unavailable"] .playability-label {
+  background: #e2e8f0;
+}
+
+.hand-card[data-state="used-this-turn"] .playability-label {
+  background: #e2e8f0;
+}
+
+.hand-card[data-recommended="true"] {
+  outline: 3px solid #22c55e;
+  outline-offset: 2px;
+}
+
+.slot[data-target-state="valid"] {
+  outline: 3px solid #22c55e;
+  outline-offset: 2px;
+}
+
+.toast-banner {
+  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  background: #1f2937;
+  color: #ffffff;
+  font-size: 0.85rem;
+  text-align: center;
+  animation: toastFadeIn 200ms ease-out;
+}
+
+@keyframes toastFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.guidance-text {
+  margin: 4px 0;
+  color: #64748b;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.end-turn-recommended {
+  animation: endTurnPulse 2s ease-in-out infinite;
+  box-shadow: 0 0 0 2px #f59e0b;
+}
+
+@keyframes endTurnPulse {
+  0%, 100% { box-shadow: 0 0 0 2px #f59e0b; }
+  50% { box-shadow: 0 0 0 4px #f59e0b, 0 0 12px rgba(245, 158, 11, 0.35); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .end-turn-recommended {
+    animation: none;
+  }
+  .toast-banner {
+    animation: none;
+  }
+}

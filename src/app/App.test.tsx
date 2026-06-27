@@ -1686,12 +1686,22 @@ describe("invalid-use reason localization", () => {
 
   it("shows localized card names in Action Log", () => {
     const state = createMatch({ seed: "log-card-names" });
-    const lastEntry = state.actionLog[state.actionLog.length - 1];
-    const thai = formatActionLogEntry(state, lastEntry, "th");
-    const eng = formatActionLogEntry(state, lastEntry, "en");
-    expect(thai).not.toBe(eng);
-    expect(thai).not.toContain("undefined");
-    expect(eng).not.toContain("undefined");
+    const cardId = state.players.P1.hand[0];
+    const entry: ActionLogEntry = {
+      seq: 1,
+      action: { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: cardId } },
+      phase: "ACTION", turnNumber: 1, actor: "P1",
+      validation: { valid: true }, result: "played",
+      outcomes: [{ code: "CARD_PLAYED", cardInstanceId: cardId, definitionId: state.cardsByInstanceId[cardId].definitionId, playerId: "P1", actionKind: "PLAY_ANIMAL", effectResult: "FULL_EFFECT" }],
+      rng: state.rng, timestamp: 1
+    };
+    const thai = formatActionLogEntry(state, entry, "th");
+    const eng = formatActionLogEntry(state, entry, "en");
+    expect(thai).not.toBeNull();
+    expect(eng).not.toBeNull();
+    expect(thai!).not.toBe(eng!);
+    expect(thai!).not.toContain("undefined");
+    expect(eng!).not.toContain("undefined");
   });
 
   it("shows localized player labels in Action Log", () => {
@@ -1705,9 +1715,11 @@ describe("invalid-use reason localization", () => {
       rng: state.rng, timestamp: 1
     };
     const thai = formatActionLogEntry(state, entry, "th");
-    expect(thai).toContain("คุณ");
+    expect(thai).not.toBeNull();
+    expect(thai!).toContain("คุณ");
     const eng = formatActionLogEntry(state, entry, "en");
-    expect(eng).toContain("You");
+    expect(eng).not.toBeNull();
+    expect(eng!).toContain("You");
   });
 
   it("shows Thai Animal placement preview when an Animal card is selected", async () => {
@@ -1802,8 +1814,82 @@ describe("invalid-use reason localization", () => {
       outcomes: [{ code: "CARD_PLAYED", cardInstanceId: state.players.P1.hand[0], definitionId: state.cardsByInstanceId[state.players.P1.hand[0]].definitionId, playerId: "P1", actionKind: "PLAY_ANIMAL", effectResult: "FULL_EFFECT" }],
       rng: state.rng, timestamp: 1
     };
-    expect(formatActionLogEntry(state, entry, "th")).toContain("เทิร์น");
-    expect(formatActionLogEntry(state, entry, "en")).toContain("Turn");
+    const thaiLog2 = formatActionLogEntry(state, entry, "th");
+    expect(thaiLog2).not.toBeNull();
+    expect(thaiLog2!).toContain("เทิร์น");
+    const enLog2 = formatActionLogEntry(state, entry, "en");
+    expect(enLog2).not.toBeNull();
+    expect(enLog2!).toContain("Turn");
+  });
+
+  it("renders log.noAction when only ADVANCE_PHASE entries exist", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const logRegion = screen.getByRole("status");
+    const logText = logRegion.textContent ?? "";
+    expect(logText).not.toContain("ADVANCE_PHASE");
+  });
+
+  it("meaningful entries preserve chronological order", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const logRegion = screen.getByRole("status");
+    const logText = logRegion.textContent ?? "";
+    expect(logText).toContain("เทิร์น");
+    expect(logText).not.toContain("undefined");
+  });
+
+  it("no empty Action Log row is rendered — log.noAction does not appear when entries exist", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const logRegion = screen.getByRole("status");
+    expect(logRegion.textContent).not.toContain("ยังไม่มี action");
+  });
+
+  it("unknown player-facing events still use localized fallback", () => {
+    const state = createMatch({ seed: "unknown-log-fallback" });
+    const entry: ActionLogEntry = {
+      seq: 1, action: { type: "START_MATCH", playerId: "P1", payload: { seed: "test" } },
+      phase: "READY", turnNumber: 1, actor: "P1",
+      validation: { valid: true }, result: "START_MATCH resolved",
+      rng: state.rng, timestamp: 1
+    };
+    const thai = formatActionLogEntry(state, entry, "th");
+    expect(thai).not.toBeNull();
+    expect(thai!).toContain("START_MATCH");
+    expect(thai!).not.toContain("undefined");
+    const eng = formatActionLogEntry(state, entry, "en");
+    expect(eng).not.toBeNull();
+    expect(eng!).toContain("START_MATCH");
+    expect(eng!).not.toContain("undefined");
+  });
+
+  it("mixed internal and meaningful entries render only meaningful entries", () => {
+    const state = createMatch({ seed: "mixed-log-filter" });
+    const meaningfulEntry: ActionLogEntry = {
+      seq: 2,
+      action: { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: state.players.P1.hand[0] } },
+      phase: "ACTION", turnNumber: 1, actor: "P1",
+      validation: { valid: true }, result: "played",
+      outcomes: [{ code: "CARD_PLAYED", cardInstanceId: state.players.P1.hand[0], definitionId: state.cardsByInstanceId[state.players.P1.hand[0]].definitionId, playerId: "P1", actionKind: "PLAY_ANIMAL", effectResult: "FULL_EFFECT" }],
+      rng: state.rng, timestamp: 2
+    };
+    const advanceEntry: ActionLogEntry = {
+      seq: 1,
+      action: { type: "ADVANCE_PHASE", playerId: "P1", payload: {} },
+      phase: "DRAW", turnNumber: 1, actor: "P1",
+      validation: { valid: true }, result: "ADVANCE_PHASE DRAW done",
+      rng: state.rng, timestamp: 1
+    };
+    const filtered = [advanceEntry, meaningfulEntry]
+      .map((e) => formatActionLogEntry(state, e, "th"))
+      .filter((e): e is string => e !== null);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0]).toContain("เทิร์น");
+    expect(filtered[0]).not.toContain("ADVANCE_PHASE");
   });
 
   /* ------------------------------------------------------------------ */

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createMatch } from "../engine/state/match";
 import type { ActionLogEntry, EffectOutcome } from "../types/game";
-import { formatActionLogEntry, renderActionFeedback, renderCombatOutcomeLines, statusDisplayMeta, statusLabel, summarizeOutcomes } from "./effectFeedback";
+import { formatActionLogEntry, localizedStatusLabel, renderActionFeedback, renderCombatOutcomeLines, statusDisplayMeta, statusLabel, summarizeOutcomes, type FeedbackSeverity, type ToastFeedback } from "./effectFeedback";
 
 describe("effect feedback display", () => {
   it("keeps raw outcome codes language-independent while rendering Thai summaries", () => {
@@ -18,6 +18,54 @@ describe("effect feedback display", () => {
     expect(statusDisplayMeta.REMOVAL_SHIELD.tone).toBe("beneficial");
     expect(statusLabel("TEMP_LEVEL_DOWN_IMMUNITY")).toContain("ป้องกันการลด Level");
     expect(summarizeOutcomes(createMatch({ seed: "legacy-log" }), undefined, "th")).toContain("ไม่มีรายละเอียดเพิ่มเติม");
+  });
+
+  it("localizedStatusLabel renders Thai status through TranslationKey", () => {
+    expect(localizedStatusLabel("TEMP_LEVEL_DOWN_IMMUNITY", "th")).toContain("ป้องกันการลด Level");
+    expect(localizedStatusLabel("REMOVAL_SHIELD", "th")).toContain("โล่ป้องกันการนำออก");
+  });
+
+  it("localizedStatusLabel renders English status through TranslationKey", () => {
+    expect(localizedStatusLabel("TEMP_LEVEL_DOWN_IMMUNITY", "en")).toContain("Level-down immunity");
+    expect(localizedStatusLabel("REMOVAL_SHIELD", "en")).toContain("Removal shield");
+  });
+
+  it("localizedStatusLabel switches locale", () => {
+    const thai = localizedStatusLabel("SKIP_NEXT_SCORE", "th");
+    const eng = localizedStatusLabel("SKIP_NEXT_SCORE", "en");
+    expect(thai).not.toBe(eng);
+    expect(thai).toContain("ข้าม");
+    expect(eng).toContain("Skip");
+  });
+
+  it("localizedStatusLabel includes duration by default", () => {
+    const thai = localizedStatusLabel("SKIP_NEXT_SCORE", "th");
+    expect(thai).toContain("⏭");
+    expect(thai).toContain("SCORE phase");
+  });
+
+  it("localizedStatusLabel omits duration when includeDuration is false", () => {
+    const thai = localizedStatusLabel("SKIP_NEXT_SCORE", "th", false);
+    expect(thai).toContain("⏭");
+    expect(thai).not.toContain("(");
+  });
+
+  it("every supported status renders through localizedStatusLabel without undefined", () => {
+    for (const code of ["SKIP_NEXT_SCORE", "NEXT_SCORE_MINUS_1", "TEMP_WEAKNESS_IMMUNITY", "TEMP_LEVEL_DOWN_IMMUNITY", "REMOVAL_SHIELD", "UTILITY_LOCK"] as const) {
+      const thai = localizedStatusLabel(code, "th");
+      const eng = localizedStatusLabel(code, "en");
+      expect(thai).not.toContain("undefined");
+      expect(eng).not.toContain("undefined");
+      expect(thai.length).toBeGreaterThan(0);
+      expect(eng.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("status rendering does not depend on hardcoded bilingual metadata", () => {
+    const { labelKey, descriptionKey, durationKey } = statusDisplayMeta.REMOVAL_SHIELD;
+    expect(labelKey).toBe("status.removalShield.label");
+    expect(descriptionKey).toBe("status.removalShield.description");
+    expect(durationKey).toBe("status.removalShield.duration");
   });
 
   it("formats opponent-target, score-change, prevention, and legacy action log entries in Thai", () => {
@@ -45,7 +93,9 @@ describe("effect feedback display", () => {
     expect(thaiLines.join("\n")).toContain("ผลอ่อน");
     expect(thaiLines.join("\n")).toContain("คะแนน 7 → 5 (-2)");
     expect(thaiLines.join("\n")).toContain("โล่ป้องกัน");
-    expect(formatActionLogEntry(state, { ...entry, outcomes: undefined, result: "old result" }, "th")).toContain("ผลลัพธ์เก่า");
+    const thaiLog = formatActionLogEntry(state, { ...entry, outcomes: undefined, result: "old result" }, "th");
+    expect(thaiLog).not.toBeNull();
+    expect(thaiLog!).toContain("ผลลัพธ์เก่า");
   });
 
   it("formats action log entries in English", () => {
@@ -73,7 +123,9 @@ describe("effect feedback display", () => {
     expect(enLines.join("\n")).toContain("Partial");
     expect(enLines.join("\n")).toContain("score 7 → 5 (-2)");
     expect(enLines.join("\n")).toContain("shield prevented");
-    expect(formatActionLogEntry(state, { ...entry, outcomes: undefined, result: "old result" }, "en")).toContain("Old result");
+    const enLog = formatActionLogEntry(state, { ...entry, outcomes: undefined, result: "old result" }, "en");
+    expect(enLog).not.toBeNull();
+    expect(enLog!).toContain("Old result");
   });
 
   it("renders Undo event in both locales", () => {
@@ -90,10 +142,12 @@ describe("effect feedback display", () => {
       timestamp: 1
     };
     const thai = formatActionLogEntry(state, undoEntry, "th");
-    expect(thai).toContain("ผู้เล่นย้อนกลับการกระทำ");
+    expect(thai).not.toBeNull();
+    expect(thai!).toContain("ผู้เล่นย้อนกลับการกระทำ");
     const eng = formatActionLogEntry(state, undoEntry, "en");
-    expect(eng).toContain("Player undid action");
-    expect(eng).toContain("เล่นการ์ด Playful Dog");
+    expect(eng).not.toBeNull();
+    expect(eng!).toContain("Player undid action");
+    expect(eng!).toContain("เล่นการ์ด Playful Dog");
   });
 
   it("shows localized card names in log entries", () => {
@@ -134,10 +188,12 @@ describe("effect feedback display", () => {
       timestamp: 1
     };
     const thai = formatActionLogEntry(state, unknownEntry, "th");
-    expect(thai).toContain("START_MATCH");
-    expect(thai).not.toContain("undefined");
+    expect(thai).not.toBeNull();
+    expect(thai!).toContain("START_MATCH");
+    expect(thai!).not.toContain("undefined");
     const eng = formatActionLogEntry(state, unknownEntry, "en");
-    expect(eng).toContain("START_MATCH");
+    expect(eng).not.toBeNull();
+    expect(eng!).toContain("START_MATCH");
     expect(eng).not.toContain("undefined");
   });
 });
@@ -317,5 +373,84 @@ describe("renderActionFeedback — centered action feedback", () => {
     const thai = summarizeOutcomes(state, outcomes, "th");
     const eng = summarizeOutcomes(state, outcomes, "en");
     expect(thai).not.toBe(eng);
+  });
+});
+
+describe("Phase 2 — FeedbackSeverity, ToastFeedback, ADVANCE_PHASE filtering", () => {
+  it("defines FeedbackSeverity type with expected values", () => {
+    const minor: FeedbackSeverity = "minor";
+    const important: FeedbackSeverity = "important";
+    const confirmation: FeedbackSeverity = "confirmation";
+    expect(minor).toBe("minor");
+    expect(important).toBe("important");
+    expect(confirmation).toBe("confirmation");
+  });
+
+  it("defines ToastFeedback interface with required fields", () => {
+    const toast: ToastFeedback = { key: "toast.playFailed", severity: "minor" };
+    expect(toast.key).toBe("toast.playFailed");
+    expect(toast.severity).toBe("minor");
+  });
+
+  it("ToastFeedback accepts optional params", () => {
+    const toast: ToastFeedback = { key: "log.header", params: { turn: "1", player: "Player 1" }, severity: "minor" };
+    expect(toast.params).toBeDefined();
+    expect(toast.params!.turn).toBe("1");
+  });
+
+  it("formatActionLogEntry returns null for ADVANCE_PHASE entries", () => {
+    const state = createMatch({ seed: "adv-phase-filter" });
+    const advanceEntry: ActionLogEntry = {
+      seq: 1,
+      action: { type: "ADVANCE_PHASE", playerId: "P1", payload: {} },
+      phase: "DRAW",
+      turnNumber: 1,
+      actor: "P1",
+      validation: { valid: true },
+      result: "ADVANCE_PHASE resolved",
+      rng: state.rng,
+      timestamp: 1
+    };
+    expect(formatActionLogEntry(state, advanceEntry, "th")).toBeNull();
+    expect(formatActionLogEntry(state, advanceEntry, "en")).toBeNull();
+  });
+
+  it("formatActionLogEntry returns string for non-ADVANCE_PHASE entries", () => {
+    const state = createMatch({ seed: "non-adv-phase" });
+    const entry: ActionLogEntry = {
+      seq: 1,
+      action: { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: state.players.P1.hand[0] } },
+      phase: "ACTION",
+      turnNumber: 1,
+      actor: "P1",
+      validation: { valid: true },
+      result: "played card",
+      rng: state.rng,
+      timestamp: 1
+    };
+    const result = formatActionLogEntry(state, entry, "th");
+    expect(result).not.toBeNull();
+    expect(result!).toContain("เทิร์น");
+  });
+
+  it("formatActionLogEntry returns null for undefined entry", () => {
+    const state = createMatch({ seed: "undefined-entry" });
+    expect(formatActionLogEntry(state, undefined, "th")).toBeNull();
+  });
+
+  it("formatActionLogEntry returns null for ADVANCE_PHASE with empty result", () => {
+    const state = createMatch({ seed: "adv-empty-result" });
+    const advanceEntry: ActionLogEntry = {
+      seq: 1,
+      action: { type: "ADVANCE_PHASE", playerId: "P1", payload: {} },
+      phase: "DRAW",
+      turnNumber: 1,
+      actor: "P1",
+      validation: { valid: true },
+      result: "",
+      rng: state.rng,
+      timestamp: 1
+    };
+    expect(formatActionLogEntry(state, advanceEntry, "th")).toBeNull();
   });
 });

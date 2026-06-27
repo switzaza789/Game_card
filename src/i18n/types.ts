@@ -360,6 +360,14 @@ export type TranslationKey =
   | "confirm.deleteSave"
   | "confirm.importOverwrite"
   | "confirm.clearHistory"
-  | "confirm.weaknessShield";
+  | "confirm.weaknessShield"
+  | "toast.playFailed"
+  | "toast.recycleFailed"
+  | "toast.undoFailed"
+  | "toast.playFailedNoTarget"
+  | "toast.playFailedNotInHand"
+  | "toast.playFailedWrongPhase"
+  | "label.actionsComplete"
+  | "guidance.selectTarget";
 
 export type TranslationParams = Record<string, string | number>;

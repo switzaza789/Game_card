@@ -357,5 +357,13 @@ export const en = {
   "confirm.deleteSave": "Are you sure you want to delete this save file?",
   "confirm.importOverwrite": "You are currently playing. Import this save and overwrite the current game?",
   "confirm.clearHistory": "Are you sure you want to clear all play history?",
-  "confirm.weaknessShield": "Does {player} use Weakness Shield?"
+  "confirm.weaknessShield": "Does {player} use Weakness Shield?",
+  "toast.playFailed": "Cannot play that card",
+  "toast.recycleFailed": "Recycle failed",
+  "toast.undoFailed": "Undo failed",
+  "toast.playFailedNoTarget": "No valid target for this card",
+  "toast.playFailedNotInHand": "Card is not in your hand",
+  "toast.playFailedWrongPhase": "Can only play during your Action Phase",
+  "label.actionsComplete": "No remaining actions — you may end your turn",
+  "guidance.selectTarget": "Select a target for this card"
 } satisfies Record<TranslationKey, string>;

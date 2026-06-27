@@ -6,7 +6,7 @@ import { gameConfig } from "../data/gameConfig";
 import { getCardDefinition, isAnimalInstance } from "../engine/cards/deck";
 import { createMatch } from "../engine/state/match";
 import { otherPlayerId } from "../engine/state/selectors";
-import type { Action, AnimalInstance, CardCategory, CardDefinition, GameMode, MatchState, PlayerId, StatusEffectCode, Target } from "../types/game";
+import type { Action, ActionLogEntry, AnimalInstance, CardCategory, CardDefinition, GameMode, MatchState, PlayerId, Target } from "../types/game";
 import { validateAction } from "../engine/validation/validation";
 import { PersistenceCoordinator } from "../persistence/persistenceCoordinator";
 import {
@@ -25,7 +25,7 @@ import {
 } from "../persistence/localStorageAdapter";
 import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
-import { formatActionLogEntry, renderActionFeedback, statusLabel, statusDisplayMeta, type ActionFeedback } from "../ui/effectFeedback";
+import { formatActionLogEntry, localizedStatusLabel, renderActionFeedback, type ActionFeedback, type ToastFeedback } from "../ui/effectFeedback";
 import { getLocalizedCard, getStoredLocale, localeOptions, setStoredLocale, t, type Locale, type TranslationKey } from "../i18n";
 import { getCardArtwork, getArtworkAltText, ARTWORK_PLACEHOLDER } from "../ui/cardArtwork";
 import {
@@ -93,6 +93,27 @@ export function App() {
   const lastFeedbackExportRef = useRef<string | null>(null);
   const aiExecutionRef = useRef<string | null>(null);
   const humanTurnPrepRef = useRef<string | null>(null);
+  const [toastFeedback, setToastFeedback] = useState<ToastFeedback | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function showMinorToast(key: ToastFeedback["key"], params?: Record<string, string | number>) {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    setToastFeedback({ key, params, severity: "minor" });
+    toastTimerRef.current = setTimeout(() => {
+      setToastFeedback(null);
+      toastTimerRef.current = null;
+    }, 3000);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     setStoredLocale(locale);
@@ -471,7 +492,8 @@ export function App() {
     if (!result.validation.valid) {
       const reason = result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", ");
       setMessage(reason);
-      setActionFeedback({ type: "recycle", success: false, reason });
+      showMinorToast("toast.recycleFailed");
+      setActionFeedback(null);
     } else {
       setMessage(t(locale, "feedback.recycle.success"));
       const drawnId = result.state.players[match.currentPlayerId].hand.find((id) => !before.players[match.currentPlayerId].hand.includes(id));
@@ -548,7 +570,8 @@ export function App() {
       const errors = result.validation.errors;
       const reason = errors.map(e => localizeValidationReason(e, locale)).join(", ");
       setMessage(reason);
-      setActionFeedback({ type: "playFailed", cardInstanceId, reason });
+      showMinorToast("toast.playFailed");
+      setActionFeedback(null);
     } else {
       const localizedCard = getLocalizedCard(definition.card_id, locale);
       setMessage(`${localizedCard.name} ${t(locale, "log.result.full")}`);
@@ -586,7 +609,12 @@ export function App() {
     const success = result.validation.valid;
     const text = success ? t(locale, "feedback.undo.success") : result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", ");
     setMessage(text);
-    setActionFeedback({ type: "undo", success, reason: success ? undefined : text, lastLogResult: result.state.actionLog[result.state.actionLog.length - 1]?.result ?? "" });
+    if (success) {
+      setActionFeedback({ type: "undo", success, lastLogResult: result.state.actionLog[result.state.actionLog.length - 1]?.result ?? "" });
+    } else {
+      showMinorToast("toast.undoFailed");
+      setActionFeedback(null);
+    }
   }
 
   const selectedDefinition = useMemo(() => {
@@ -695,6 +723,7 @@ export function App() {
           }}
           locale={locale}
           onLocaleChange={setLocale}
+          toastFeedback={toastFeedback}
           resetConfirmOpen={resetConfirmOpen}
           onCancelReset={cancelResetMatch}
           onConfirmReset={resetMatch}
@@ -871,6 +900,38 @@ function CardLibrary({
   );
 }
 
+function getInteractionGuidanceState(match: MatchState, selectedCardId: string | null): {
+  recommendedAction: "play" | "target" | "end-turn" | null;
+  guidanceKey: TranslationKey | null;
+} {
+  if (match.phase !== "ACTION" || match.status === "FINISHED") {
+    return { recommendedAction: null, guidanceKey: null };
+  }
+  const playerId = match.currentPlayerId;
+
+  if (selectedCardId) {
+    const playability = getCardPlayability(match, playerId, selectedCardId);
+    if (playability.state === "PLAYABLE_AFTER_TARGET") {
+      return { recommendedAction: "target", guidanceKey: "guidance.selectTarget" };
+    }
+    if (playability.state === "PLAYABLE_NOW") {
+      return { recommendedAction: "play", guidanceKey: null };
+    }
+  }
+
+  const player = match.players[playerId];
+  const hasPlayable = player.hand.some((id) => {
+    const p = getCardPlayability(match, playerId, id);
+    return p.state === "PLAYABLE_NOW" || p.state === "PLAYABLE_AFTER_TARGET";
+  });
+
+  if (!hasPlayable) {
+    return { recommendedAction: "end-turn", guidanceKey: "label.actionsComplete" };
+  }
+
+  return { recommendedAction: null, guidanceKey: null };
+}
+
 function BattleScreen(props: {
   match: MatchState;
   activePlayerId: PlayerId;
@@ -897,6 +958,7 @@ function BattleScreen(props: {
   onConfirmEndTurn: () => void;
   locale: Locale;
   onLocaleChange: (locale: Locale) => void;
+  toastFeedback: ToastFeedback | null;
   resetConfirmOpen: boolean;
   onCancelReset: () => void;
   onConfirmReset: () => void;
@@ -906,12 +968,16 @@ function BattleScreen(props: {
   const isAiTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2";
   const isPreparingHumanTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P1" && match.phase !== "ACTION";
   const resetConfirmButtonRef = useRef<HTMLButtonElement>(null);
-  const lastLog = [...match.actionLog].reverse().find((entry) => entry.action.type === "PLAY_CARD" && (entry.outcomes?.length ?? 0) > 0)
-    ?? [...match.actionLog].reverse().find((entry) => (entry.outcomes?.length ?? 0) > 0)
-    ?? match.actionLog[match.actionLog.length - 1];
-  const scoreDeltas = scoreDeltaByPlayer(lastLog);
+const visibleLogEntries = match.actionLog
+  .map((entry) => ({ entry, formatted: formatActionLogEntry(match, entry, props.locale) }))
+  .filter((item) => item.formatted !== null)
+  .map((item) => item as { entry: ActionLogEntry; formatted: string });
+const lastLogEntry = visibleLogEntries.length > 0 ? visibleLogEntries[visibleLogEntries.length - 1].entry : undefined;
+const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
   const selectedPlayability = selectedCardId ? getCardPlayability(match, activePlayerId, selectedCardId) : null;
   const feedbackLines = props.actionFeedback ? renderActionFeedback(match, props.actionFeedback, props.locale) : null;
+  const guidance = getInteractionGuidanceState(match, selectedCardId);
+  let firstPlayableFound = false;
 
   useEffect(() => {
     if (props.resetConfirmOpen) {
@@ -965,7 +1031,10 @@ function BattleScreen(props: {
         <div className="log" role="status">
           <strong>{t(props.locale, "label.actionLog")}</strong>
           <p>{props.message}</p>
-          <small>{formatActionLogEntry(match, lastLog, props.locale)}</small>
+          {visibleLogEntries.length === 0
+            ? <small>{t(props.locale, "log.noAction")}</small>
+            : visibleLogEntries.map((item, i) => <small key={i} className="log-entry">{item.formatted}</small>)
+          }
         </div>
         <div className="bottom-right">
           <div className="player-hand" aria-label={t(props.locale, "label.playerHand")} tabIndex={0}>
@@ -975,8 +1044,27 @@ function BattleScreen(props: {
               const localizedCard = getLocalizedCard(definition.card_id, props.locale);
               const localizedPlayabilityLabel = localizePlayabilityLabel(playability, props.locale);
               const localizedCategory = localizedCategoryLabel(definition.category, props.locale);
+              const playerState = match.players[activePlayerId];
+              const isAnimal = definition.category === "Animal";
+              const usedThisTurn = isAnimal ? playerState.animalActionUsed : (playerState.utilityActionUsed || playerState.utilityLocked);
+              const isSelected = id === selectedCardId;
+              let cardState: string;
+              if (isSelected) {
+                cardState = playability.state === "PLAYABLE_AFTER_TARGET" ? "needs-target" : "selected";
+              } else if (usedThisTurn) {
+                cardState = "used-this-turn";
+              } else if (playability.state === "PLAYABLE_NOW") {
+                cardState = "playable";
+              } else if (playability.state === "PLAYABLE_AFTER_TARGET") {
+                cardState = "needs-target";
+              } else {
+                cardState = "unavailable";
+              }
+              const isRecommended = !isSelected && cardState === "playable" && !firstPlayableFound;
+              if (isRecommended) firstPlayableFound = true;
+              const stateClasses = `hand-card ${categoryClass(definition.category)} ${isSelected ? "selected" : ""}`;
               return (
-                <button key={id} type="button" className={`hand-card ${categoryClass(definition.category)} state-${playability.state.toLowerCase()} ${selectedCardId === id ? "selected" : ""}`} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={playability.state === "NOT_PLAYABLE"} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`}>
+                <button key={id} type="button" className={stateClasses} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={cardState === "unavailable" || cardState === "used-this-turn"} aria-selected={isSelected} data-state={cardState} data-recommended={isRecommended ? "true" : undefined} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`}>
                   <CardArtwork cardId={definition.card_id} locale={props.locale} variant="compact" alt="" />
                   <span>{definition.card_id}</span>
                   <strong>{localizedCard.name}</strong>
@@ -995,9 +1083,15 @@ function BattleScreen(props: {
               <button type="button" className="secondary-button" onClick={() => props.onOpenGraveyard(activePlayerId)}>{t(props.locale, "label.graveyard")}</button>
               <button type="button" className="secondary-button" onClick={() => selectedDefinition && props.onOpenCard(selectedDefinition)} disabled={!selectedDefinition}>{t(props.locale, "label.details")}</button>
               <button type="button" className="secondary-button" onClick={props.onUndo} disabled={!match.undoSnapshot}>{t(props.locale, "label.undo")}</button>
-              <button type="button" className="danger-button" onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")}>{t(props.locale, "label.endTurn")}</button>
+              <button type="button" className={`danger-button${guidance.recommendedAction === "end-turn" ? " end-turn-recommended" : ""}`} onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")} data-recommended={guidance.recommendedAction === "end-turn" ? "true" : undefined}>{t(props.locale, "label.endTurn")}</button>
             </div>
             <button type="button" className="destructive-button reset-trigger" onClick={props.onResetMatch}>{t(props.locale, "label.reset")}</button>
+            {guidance.guidanceKey && <p className="guidance-text">{t(props.locale, guidance.guidanceKey)}</p>}
+            {props.toastFeedback && (
+              <div className="toast-banner" role="status" aria-live="polite">
+                {t(props.locale, props.toastFeedback.key, props.toastFeedback.params)}
+              </div>
+            )}
             {selectedDefinition && (
               <div className="effect-preview" aria-label={t(props.locale, "label.effectPreview")}>
                 <strong>{t(props.locale, "label.effectPreview")}</strong>
@@ -1082,7 +1176,7 @@ function BoardRow({
             const slotNo = (index + 1) as 1 | 2 | 3;
             const canPlace = ownerId === viewerId && (!selectedDefinition || selectedDefinition.category === "Animal");
             return canPlace
-              ? <button key={index} type="button" className={`slot empty-slot ${selectedDefinition?.category === "Animal" ? "targetable" : ""}`} aria-label={`${t(locale, "label.animalZone")} ${index + 1} ${t(locale, "label.clearSelection")}`} onClick={() => onSelectEmptySlot({ playerId: ownerId, zone: "BOARD", slotNo })}>{t(locale, "label.animalZone")} {index + 1}</button>
+              ? <button key={index} type="button" className={`slot empty-slot ${selectedDefinition?.category === "Animal" ? "targetable" : ""}`} data-target-state={selectedDefinition?.category === "Animal" ? "valid" : undefined} aria-label={`${t(locale, "label.animalZone")} ${index + 1} ${t(locale, "label.clearSelection")}`} onClick={() => onSelectEmptySlot({ playerId: ownerId, zone: "BOARD", slotNo })}>{t(locale, "label.animalZone")} {index + 1}</button>
               : <div key={index} className="slot" aria-label={`${t(locale, "label.animalZone")} ${index + 1}`}>{t(locale, "label.animalZone")} {index + 1}</div>;
           }
           const animal = match.cardsByInstanceId[instanceId];
@@ -1093,7 +1187,7 @@ function BoardRow({
           const localizedBoardCard = getLocalizedCard(definition.card_id, locale);
           const legal = selectedDefinition ? canTarget(selectedDefinition, ownerId, viewerId, animal.level) : false;
           return (
-            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} disabled={!legal} aria-label={`${localizedBoardCard.name} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
+            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} data-target-state={legal ? "valid" : undefined} disabled={!legal} aria-label={`${localizedBoardCard.name} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
               <span className="level">{t(locale, "label.level")} {animal.level}</span>
               <span className="target-badge">{legal ? t(locale, "label.select") : t(locale, "label.clearSelection")}</span>
               <CardArtwork cardId={definition.card_id} locale={locale} variant="board" alt="" />
@@ -1579,22 +1673,6 @@ function asTranslationKey(value: string | undefined): TranslationKey | null {
   if (!value) return null;
   if (value.startsWith("playability.")) return value as TranslationKey;
   return null;
-}
-
-const STATUS_KEY_MAP: Record<StatusEffectCode, { label: TranslationKey; description: TranslationKey; duration: TranslationKey }> = {
-  SKIP_NEXT_SCORE: { label: "status.skipNextScore.label", description: "status.skipNextScore.description", duration: "status.skipNextScore.duration" },
-  NEXT_SCORE_MINUS_1: { label: "status.nextScoreMinus1.label", description: "status.nextScoreMinus1.description", duration: "status.nextScoreMinus1.duration" },
-  TEMP_WEAKNESS_IMMUNITY: { label: "status.tempWeaknessImmunity.label", description: "status.tempWeaknessImmunity.description", duration: "status.tempWeaknessImmunity.duration" },
-  TEMP_LEVEL_DOWN_IMMUNITY: { label: "status.tempLevelDownImmunity.label", description: "status.tempLevelDownImmunity.description", duration: "status.tempLevelDownImmunity.duration" },
-  REMOVAL_SHIELD: { label: "status.removalShield.label", description: "status.removalShield.description", duration: "status.removalShield.duration" },
-  UTILITY_LOCK: { label: "status.utilityLock.label", description: "status.utilityLock.description", duration: "status.utilityLock.duration" },
-};
-
-function localizedStatusLabel(statusCode: StatusEffectCode, locale: Locale): string {
-  const keys = STATUS_KEY_MAP[statusCode];
-  if (!keys) return statusLabel(statusCode, false);
-  const icon = statusDisplayMeta[statusCode]?.icon ?? "";
-  return `${icon} ${t(locale, keys.label)} (${t(locale, keys.duration)})`;
 }
 
 function localizedAnimalStatuses(animal: AnimalInstance, locale: Locale): string {

@@ -4,72 +4,63 @@ import { t, getLocalizedCard } from "../i18n";
 import type { Locale, TranslationKey } from "../i18n";
 
 export type StatusDisplayMeta = {
-  label: string;
-  description: string;
-  duration: string;
+  labelKey: TranslationKey;
+  descriptionKey: TranslationKey;
+  durationKey: TranslationKey;
   icon: string;
   tone: "beneficial" | "harmful" | "neutral";
 };
 
-const STATUS_T_KEY: Record<StatusEffectCode, { label: TranslationKey; duration: TranslationKey }> = {
-  SKIP_NEXT_SCORE: { label: "status.skipNextScore.label", duration: "status.skipNextScore.duration" },
-  NEXT_SCORE_MINUS_1: { label: "status.nextScoreMinus1.label", duration: "status.nextScoreMinus1.duration" },
-  TEMP_WEAKNESS_IMMUNITY: { label: "status.tempWeaknessImmunity.label", duration: "status.tempWeaknessImmunity.duration" },
-  TEMP_LEVEL_DOWN_IMMUNITY: { label: "status.tempLevelDownImmunity.label", duration: "status.tempLevelDownImmunity.duration" },
-  REMOVAL_SHIELD: { label: "status.removalShield.label", duration: "status.removalShield.duration" },
-  UTILITY_LOCK: { label: "status.utilityLock.label", duration: "status.utilityLock.duration" },
-};
-
 export const statusDisplayMeta: Record<StatusEffectCode, StatusDisplayMeta> = {
   SKIP_NEXT_SCORE: {
-    label: "ข้ามการคิดคะแนนครั้งถัดไป",
-    description: "Animal นี้จะไม่ได้คะแนนใน SCORE phase ถัดไปที่สถานะยังมีผล",
-    duration: "หมดอายุหลัง SCORE phase ถัดไป",
+    labelKey: "status.skipNextScore.label",
+    descriptionKey: "status.skipNextScore.description",
+    durationKey: "status.skipNextScore.duration",
     icon: "⏭",
     tone: "harmful"
   },
   NEXT_SCORE_MINUS_1: {
-    label: "-1 คะแนนรอบถัดไป",
-    description: "ลดคะแนนที่ Animal นี้จะทำได้ลง 1 คะแนนใน SCORE phase ถัดไป",
-    duration: "หมดอายุหลัง SCORE phase ถัดไป",
+    labelKey: "status.nextScoreMinus1.label",
+    descriptionKey: "status.nextScoreMinus1.description",
+    durationKey: "status.nextScoreMinus1.duration",
     icon: "−1",
     tone: "harmful"
   },
   TEMP_WEAKNESS_IMMUNITY: {
-    label: "ป้องกัน Weakness",
-    description: "Animal นี้ไม่ตกเป็นเป้าหมายของ Weakness ระหว่างที่สถานะยังมีผล",
-    duration: "หมดอายุเมื่อจบเทิร์นถัดไปของคู่ต่อสู้",
+    labelKey: "status.tempWeaknessImmunity.label",
+    descriptionKey: "status.tempWeaknessImmunity.description",
+    durationKey: "status.tempWeaknessImmunity.duration",
     icon: "🛡",
     tone: "beneficial"
   },
   TEMP_LEVEL_DOWN_IMMUNITY: {
-    label: "ป้องกันการลด Level",
-    description: "ป้องกันผลที่ลด Level ของ Animal นี้",
-    duration: "หมดอายุเมื่อจบเทิร์นถัดไปของคู่ต่อสู้",
+    labelKey: "status.tempLevelDownImmunity.label",
+    descriptionKey: "status.tempLevelDownImmunity.description",
+    durationKey: "status.tempLevelDownImmunity.duration",
     icon: "⬆",
     tone: "beneficial"
   },
   REMOVAL_SHIELD: {
-    label: "โล่ป้องกันการนำออก",
-    description: "ป้องกันการถูกนำออกจากสนาม 1 ครั้งหรือคงคะแนนขั้นต่ำตามแหล่งที่มา",
-    duration: "คงอยู่จนถูกใช้หรือจนถึง SCORE phase ตามชนิดของผล",
+    labelKey: "status.removalShield.label",
+    descriptionKey: "status.removalShield.description",
+    durationKey: "status.removalShield.duration",
     icon: "🛡",
     tone: "beneficial"
   },
   UTILITY_LOCK: {
-    label: "ล็อก Utility",
-    description: "ผู้เล่นถูกจำกัดการใช้ Utility Action",
-    duration: "หมดอายุตามผลของการ์ดที่สร้างสถานะ",
+    labelKey: "status.utilityLock.label",
+    descriptionKey: "status.utilityLock.description",
+    durationKey: "status.utilityLock.duration",
     icon: "🔒",
     tone: "harmful"
   }
 };
 
-function localizedStatusLabel(statusCode: StatusEffectCode, locale: Locale, includeDuration = true): string {
-  const keys = STATUS_T_KEY[statusCode];
-  if (!keys) return statusLabel(statusCode, includeDuration);
-  const icon = statusDisplayMeta[statusCode]?.icon ?? "";
-  return `${icon} ${t(locale, keys.label)}${includeDuration ? ` (${t(locale, keys.duration)})` : ""}`;
+export function localizedStatusLabel(statusCode: StatusEffectCode, locale: Locale, includeDuration = true): string {
+  const meta = statusDisplayMeta[statusCode];
+  if (!meta) return statusLabel(statusCode, locale, includeDuration);
+  const icon = meta.icon ?? "";
+  return `${icon} ${t(locale, meta.labelKey)}${includeDuration ? ` (${t(locale, meta.durationKey)})` : ""}`;
 }
 
 export function renderOutcomeLines(match: MatchState, outcomes: EffectOutcome[] | undefined, locale: Locale): string[] {
@@ -107,9 +98,23 @@ export function renderCombatOutcomeLines(match: MatchState, entry: ActionLogEntr
   return lines;
 }
 
-export function formatActionLogEntry(match: MatchState, entry: ActionLogEntry | undefined, locale: Locale): string {
+export type FeedbackSeverity = "minor" | "important" | "confirmation";
+
+export interface ToastFeedback {
+  key: TranslationKey;
+  params?: Record<string, string | number>;
+  severity: FeedbackSeverity;
+}
+
+export function formatActionLogEntry(match: MatchState, entry: ActionLogEntry | undefined, locale: Locale): string | null {
   if (!entry) {
-    return t(locale, "log.noAction");
+    return null;
+  }
+  if (entry.action.type === "ADVANCE_PHASE") {
+    const result = entry.result?.trim() ?? "";
+    if (result === "" || /^ADVANCE_PHASE/.test(result)) {
+      return null;
+    }
   }
   const header = t(locale, "log.header", { turn: entry.turnNumber, player: playerName(entry.actor, match.gameMode, locale) });
   const lines = renderCombatOutcomeLines(match, entry, locale);
@@ -162,9 +167,13 @@ export function renderActionFeedback(match: MatchState, feedback: ActionFeedback
   }
 }
 
-export function statusLabel(statusCode: StatusEffectCode, includeDuration = true): string {
+export function statusLabel(statusCode: StatusEffectCode, locale?: Locale, includeDuration = true): string {
   const meta = statusDisplayMeta[statusCode];
-  return includeDuration ? `${meta.icon} ${meta.label} (${meta.duration})` : `${meta.icon} ${meta.label}`;
+  if (!meta) return statusCode;
+  const l = locale ?? "th";
+  return includeDuration
+    ? `${meta.icon} ${t(l, meta.labelKey)} (${t(l, meta.durationKey)})`
+    : `${meta.icon} ${t(l, meta.labelKey)}`;
 }
 
 function renderOutcome(match: MatchState, outcome: EffectOutcome, locale: Locale): string {

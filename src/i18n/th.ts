@@ -357,5 +357,13 @@ export const th = {
   "confirm.deleteSave": "คุณแน่ใจหรือไม่ว่าต้องการลบเกมเซฟนี้?",
   "confirm.importOverwrite": "คุณกำลังเล่นเกมอยู่ ต้องการนำเข้าไฟล์เซฟทับเกมปัจจุบันหรือไม่?",
   "confirm.clearHistory": "คุณแน่ใจหรือไม่ว่าต้องการลบประวัติการเล่นทั้งหมด?",
-  "confirm.weaknessShield": "{player} ใช้ Weakness Shield หรือไม่?"
+  "confirm.weaknessShield": "{player} ใช้ Weakness Shield หรือไม่?",
+  "toast.playFailed": "ไม่สามารถใช้การ์ดนี้ได้",
+  "toast.recycleFailed": "รีไซเคิลไม่สำเร็จ",
+  "toast.undoFailed": "ย้อนกลับไม่สำเร็จ",
+  "toast.playFailedNoTarget": "ไม่มีเป้าหมายที่ถูกต้องสำหรับการ์ดนี้",
+  "toast.playFailedNotInHand": "การ์ดไม่อยู่ในมือของคุณ",
+  "toast.playFailedWrongPhase": "สามารถเล่นได้เฉพาะใน Action Phase",
+  "label.actionsComplete": "ไม่มีการกระทำที่เหลือ — คุณสามารถจบเทิร์นได้",
+  "guidance.selectTarget": "เลือกเป้าหมายสำหรับการ์ดนี้"
 } satisfies Record<TranslationKey, string>;
