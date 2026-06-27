@@ -293,7 +293,8 @@ describe("App Phase 4 UI", () => {
 
     expect(await screen.findByText(/ถึงตาคุณ/, undefined, { timeout: 1500 })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "จบเทิร์น" })).not.toBeDisabled());
-    expect(screen.getByText((_content, element) => element?.textContent === "TURN 2 — ACTION")).toBeInTheDocument();
+    const turnElements = screen.getAllByText((_content, element) => element?.textContent === "TURN 2 — ACTION");
+    expect(turnElements.length).toBeGreaterThanOrEqual(1);
 
     await user.click(findFirstHandCardByCategory("สัตว์"));
     await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
@@ -1480,6 +1481,107 @@ describe("App Phase 5 persistence UI", () => {
 
     expect(screen.getByText(/rulesClarity ต้องเป็นจำนวนเต็ม 1 ถึง 5/)).toBeInTheDocument();
     expect(screen.queryByRole("textbox", { name: "ข้อมูล JSON สำหรับส่งออก" })).not.toBeInTheDocument();
+  });
+});
+
+describe("compact Battle HUD header (Phase 1.1)", () => {
+  it("renders player score exactly once in the visual Battle HUD", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Local PvP" }));
+    const header = screen.getByLabelText("สถานะการแข่งขัน");
+    const scoreTexts = Array.from(header.querySelectorAll(".scoreboard-player strong")).map((el) => el?.textContent ?? "");
+    expect(scoreTexts.length).toBe(2);
+  });
+
+  it("removes the duplicated large Player 1 score panel", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Local PvP" }));
+    const largeScores = document.querySelectorAll(".score");
+    expect(largeScores.length).toBe(0);
+  });
+
+  it("opponent score remains visible in the header", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Local PvP" }));
+    const header = screen.getByLabelText("สถานะการแข่งขัน");
+    expect(header.textContent).toContain("/ 15");
+  });
+
+  it("Turn and Phase remain visible in the header", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Local PvP" }));
+    expect(screen.getByText(/TURN 1/)).toBeInTheDocument();
+  });
+
+  it("Utility status remains visible in the header", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Local PvP" }));
+    const header = screen.getByLabelText("สถานะการแข่งขัน");
+    expect(header.textContent).toMatch(/Utility Action/);
+  });
+
+  it("opponent Deck and Hand counts remain visible in the header", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Local PvP" }));
+    const opponentSummary = document.querySelector(".opponent-summary");
+    expect(opponentSummary?.textContent).toMatch(/เด็ค|Deck/);
+    expect(opponentSummary?.textContent).toMatch(/มือ|Hand/);
+  });
+
+  it("language selector remains accessible in the header", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Local PvP" }));
+    expect(screen.getByRole("group", { name: "เลือกภาษา" })).toBeInTheDocument();
+  });
+
+  it("compact header structure renders with battle-header class", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Local PvP" }));
+    expect(document.querySelector(".battle-header")).toBeInTheDocument();
+    expect(document.querySelector(".header-row-2")).toBeInTheDocument();
+  });
+
+  it("locale switching preserves match state", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "Local PvP" }));
+    const before = localStorage.getItem("animal_score_saved_match");
+    await user.click(screen.getByRole("button", { name: "English" }));
+    expect(localStorage.getItem("animal_score_saved_match")).toBe(before);
+    await user.click(screen.getByRole("button", { name: "ไทย" }));
+    expect(localStorage.getItem("animal_score_saved_match")).toBe(before);
+  });
+
+  it("Phase 1 layout tests remain passing", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    expect(screen.getByLabelText("สนามต่อสู้")).toBeInTheDocument();
+    expect(screen.getByLabelText("มือผู้เล่นปัจจุบัน")).toBeInTheDocument();
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    expect(hand.querySelectorAll("button").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("เด็ค").length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: /สุสาน/ }).length).toBeGreaterThan(0);
+    expect(screen.getByRole("button", { name: "เล่นการ์ด" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "จบเทิร์น" })).toBeInTheDocument();
+  });
+
+  it("no gameplay regression: can play an Animal from hand", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const animalCard = findFirstHandCardByCategory("สัตว์");
+    await user.click(animalCard);
+    await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
+    expect(screen.getByLabelText("สรุปผลของการ์ด")).toBeInTheDocument();
   });
 });
 

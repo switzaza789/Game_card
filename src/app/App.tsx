@@ -921,29 +921,32 @@ function BattleScreen(props: {
 
   return (
     <main className="battle-app">
-      <section className="scoreboard" aria-label={t(props.locale, "label.scoreboard")} aria-live="polite">
-        {(["P1", "P2"] as PlayerId[]).map((playerId) => (
-          <div key={playerId} className={`scoreboard-player ${match.currentPlayerId === playerId ? "active" : ""}`}>
-            <span>{playerNameForMode(playerId, match.gameMode, props.locale)}</span>
-            <strong>{match.players[playerId].score} / {gameConfig.target_score}</strong>
-            {scoreDeltas[playerId] !== 0 && <em>{scoreDeltas[playerId] > 0 ? "+" : ""}{scoreDeltas[playerId]}</em>}
+      <section className="battle-header" aria-label={t(props.locale, "label.matchStatus")}>
+        <section className="scoreboard" aria-label={t(props.locale, "label.scoreboard")} aria-live="polite">
+          <div className={`scoreboard-player ${match.currentPlayerId === "P1" ? "active" : ""}`}>
+            <span>{playerNameForMode("P1", match.gameMode, props.locale)}</span>
+            <strong>{match.players.P1.score} / {gameConfig.target_score}</strong>
+            {scoreDeltas.P1 !== 0 && <em>{scoreDeltas.P1 > 0 ? "+" : ""}{scoreDeltas.P1}</em>}
           </div>
-        ))}
-      </section>
-
-      <section className="topbar" aria-label={t(props.locale, "label.matchStatus")}>
-        <LocaleSelector locale={props.locale} onChange={props.onLocaleChange} />
-        <div className="player-panel">
-          <strong>{playerName(opponentId, props.locale)}</strong>
-          <span>{t(props.locale, "label.deck")} {match.players[opponentId].deck.length} | {t(props.locale, "label.hand")} {match.players[opponentId].hand.length}</span>
-        </div>
-        <div className="phase-panel">
-          <strong>{t(props.locale, "label.turn")} {match.turnNumber} — {phaseLabel(match.phase, props.locale)}</strong>
-          <small>{match.players[activePlayerId].utilityLocked ? t(props.locale, "label.utilityUsed") : match.players[activePlayerId].utilityActionUsed ? t(props.locale, "label.utilityUsed") : t(props.locale, "label.utilityAvailable")}</small>
-        </div>
-        <div className="player-panel right">
-          <strong>{playerName(activePlayerId, props.locale)}</strong>
-          <span className="score">{match.players[activePlayerId].score} / {gameConfig.target_score}</span>
+          <div className="phase-panel">
+            <strong>{t(props.locale, "label.turn")} {match.turnNumber} — {phaseLabel(match.phase, props.locale)}</strong>
+          </div>
+          <div className={`scoreboard-player ${match.currentPlayerId === "P2" ? "active" : ""}`}>
+            <span>{playerNameForMode("P2", match.gameMode, props.locale)}</span>
+            <strong>{match.players.P2.score} / {gameConfig.target_score}</strong>
+            {scoreDeltas.P2 !== 0 && <em>{scoreDeltas.P2 > 0 ? "+" : ""}{scoreDeltas.P2}</em>}
+          </div>
+        </section>
+        <div className="header-row-2">
+          <div className="header-left">
+            <LocaleSelector locale={props.locale} onChange={props.onLocaleChange} />
+          </div>
+          <div className="header-center utility-status">
+            <span>{match.players[activePlayerId].utilityLocked ? t(props.locale, "label.utilityUsed") : match.players[activePlayerId].utilityActionUsed ? t(props.locale, "label.utilityUsed") : t(props.locale, "label.utilityAvailable")}</span>
+          </div>
+          <div className="header-right opponent-summary">
+            <span>{t(props.locale, "label.deck")} {match.players[opponentId].deck.length} | {t(props.locale, "label.hand")} {match.players[opponentId].hand.length}</span>
+          </div>
         </div>
       </section>
 
