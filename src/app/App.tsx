@@ -930,6 +930,7 @@ function BattleScreen(props: {
           </div>
         ))}
       </section>
+
       <section className="topbar" aria-label={t(props.locale, "label.matchStatus")}>
         <LocaleSelector locale={props.locale} onChange={props.onLocaleChange} />
         <div className="player-panel">
@@ -955,54 +956,57 @@ function BattleScreen(props: {
         <div className="divider" />
         <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} />
         <div className="zone-label">{t(props.locale, "label.you")} — {t(props.locale, "label.score")} {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
-        <div className="player-hand" aria-label={t(props.locale, "label.playerHand")} tabIndex={0}>
-          {match.players[activePlayerId].hand.map((id) => {
-            const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
-            const playability = getCardPlayability(match, activePlayerId, id);
-            const localizedCard = getLocalizedCard(definition.card_id, props.locale);
-            const localizedPlayabilityLabel = localizePlayabilityLabel(playability, props.locale);
-            const localizedCategory = localizedCategoryLabel(definition.category, props.locale);
-            return (
-              <button key={id} type="button" className={`hand-card ${categoryClass(definition.category)} state-${playability.state.toLowerCase()} ${selectedCardId === id ? "selected" : ""}`} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={playability.state === "NOT_PLAYABLE"} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`}>
-                <CardArtwork cardId={definition.card_id} locale={props.locale} variant="compact" alt="" />
-                <span>{definition.card_id}</span>
-                <strong>{localizedCard.name}</strong>
-                <small>{localizedCategory}</small>
-                <small id={`playability-${id}`} className="playability-label">{localizedPlayabilityLabel}</small>
-              </button>
-            );
-          })}
-        </div>
       </section>
 
-      <section className="actions">
+      <section className="battle-bottom">
         <div className="log" role="status">
           <strong>{t(props.locale, "label.actionLog")}</strong>
           <p>{props.message}</p>
           <small>{formatActionLogEntry(match, lastLog, props.locale)}</small>
         </div>
-        <div className="utility-actions">
-          <button type="button" className="destructive-button" onClick={props.onResetMatch}>{t(props.locale, "label.reset")}</button>
-        </div>
-        <div className="buttons">
-          <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || selectedPlayability?.state === "NOT_PLAYABLE" || needsTarget(selectedDefinition)}>
-            {t(props.locale, "label.playCard")}
-          </button>
-          <button type="button" className="secondary-button" onClick={props.onRecycle} disabled={controlsDisabled}>{t(props.locale, "label.recycle")}</button>
-          <button type="button" className="secondary-button" onClick={() => props.onOpenGraveyard(activePlayerId)}>{t(props.locale, "label.graveyard")}</button>
-          <button type="button" className="secondary-button" onClick={() => selectedDefinition && props.onOpenCard(selectedDefinition)} disabled={!selectedDefinition}>{t(props.locale, "label.details")}</button>
-          <button type="button" className="secondary-button" onClick={props.onUndo} disabled={!match.undoSnapshot}>{t(props.locale, "label.undo")}</button>
-          <button type="button" className="danger-button" onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")}>{t(props.locale, "label.endTurn")}</button>
-        </div>
-        {selectedDefinition && (
-          <div className="effect-preview" aria-label={t(props.locale, "label.effectPreview")}>
-            <strong>{t(props.locale, "label.effectPreview")}</strong>
-            <ul>
-              {previewLines(selectedDefinition, getCardPlayability(match, activePlayerId, selectedCardId ?? ""), props.locale).map((line) => <li key={line}>{line}</li>)}
-            </ul>
+        <div className="bottom-right">
+          <div className="player-hand" aria-label={t(props.locale, "label.playerHand")} tabIndex={0}>
+            {match.players[activePlayerId].hand.map((id) => {
+              const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
+              const playability = getCardPlayability(match, activePlayerId, id);
+              const localizedCard = getLocalizedCard(definition.card_id, props.locale);
+              const localizedPlayabilityLabel = localizePlayabilityLabel(playability, props.locale);
+              const localizedCategory = localizedCategoryLabel(definition.category, props.locale);
+              return (
+                <button key={id} type="button" className={`hand-card ${categoryClass(definition.category)} state-${playability.state.toLowerCase()} ${selectedCardId === id ? "selected" : ""}`} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={playability.state === "NOT_PLAYABLE"} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`}>
+                  <CardArtwork cardId={definition.card_id} locale={props.locale} variant="compact" alt="" />
+                  <span>{definition.card_id}</span>
+                  <strong>{localizedCard.name}</strong>
+                  <small>{localizedCategory}</small>
+                  <small id={`playability-${id}`} className="playability-label">{localizedPlayabilityLabel}</small>
+                </button>
+              );
+            })}
           </div>
-        )}
+          <div className="action-controls">
+            <div className="buttons">
+              <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || selectedPlayability?.state === "NOT_PLAYABLE" || needsTarget(selectedDefinition)}>
+                {t(props.locale, "label.playCard")}
+              </button>
+              <button type="button" className="secondary-button" onClick={props.onRecycle} disabled={controlsDisabled}>{t(props.locale, "label.recycle")}</button>
+              <button type="button" className="secondary-button" onClick={() => props.onOpenGraveyard(activePlayerId)}>{t(props.locale, "label.graveyard")}</button>
+              <button type="button" className="secondary-button" onClick={() => selectedDefinition && props.onOpenCard(selectedDefinition)} disabled={!selectedDefinition}>{t(props.locale, "label.details")}</button>
+              <button type="button" className="secondary-button" onClick={props.onUndo} disabled={!match.undoSnapshot}>{t(props.locale, "label.undo")}</button>
+              <button type="button" className="danger-button" onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")}>{t(props.locale, "label.endTurn")}</button>
+            </div>
+            <button type="button" className="destructive-button reset-trigger" onClick={props.onResetMatch}>{t(props.locale, "label.reset")}</button>
+            {selectedDefinition && (
+              <div className="effect-preview" aria-label={t(props.locale, "label.effectPreview")}>
+                <strong>{t(props.locale, "label.effectPreview")}</strong>
+                <ul>
+                  {previewLines(selectedDefinition, getCardPlayability(match, activePlayerId, selectedCardId ?? ""), props.locale).map((line) => <li key={line}>{line}</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
       </section>
+
       {feedbackLines && feedbackLines.length > 0 && (
         <section className="effect-feedback" role="status" aria-live="polite" aria-label={t(props.locale, "label.effectFeedback")}>
           <div>
@@ -1014,6 +1018,7 @@ function BattleScreen(props: {
           <button type="button" className="secondary-button" onClick={props.onDismissFeedback}>{t(props.locale, "label.close")}</button>
         </section>
       )}
+
       {props.resetConfirmOpen && (
         <section className="action-modal" role="dialog" aria-modal="true" aria-label={t(props.locale, "label.resetGameConfirmTitle")} onKeyDown={(event) => { if (event.key === "Escape") { props.onCancelReset(); } }}>
           <div className="action-modal-panel">
@@ -1026,6 +1031,7 @@ function BattleScreen(props: {
           </div>
         </section>
       )}
+
       {props.endTurnConfirmOpen && (
         <section className="action-modal" role="dialog" aria-modal="true" aria-label={t(props.locale, "label.endTurnConfirm")}>
           <div className="action-modal-panel">
@@ -1038,6 +1044,7 @@ function BattleScreen(props: {
           </div>
         </section>
       )}
+
       <Modal modal={props.modal} match={match} onClose={props.onCloseModal} locale={props.locale} />
     </main>
   );

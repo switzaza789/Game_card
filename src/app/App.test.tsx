@@ -401,9 +401,9 @@ describe("App Phase 4 UI", () => {
     render(<App />);
     await startBattle(user);
 
-    const utilityArea = document.querySelector(".utility-actions");
+    const utilityArea = document.querySelector(".action-controls");
     expect(utilityArea).toBeInTheDocument();
-    expect(utilityArea?.querySelector("button")).toHaveTextContent("เริ่มเกมใหม่");
+    expect(utilityArea?.querySelector(".reset-trigger")).toHaveTextContent("เริ่มเกมใหม่");
     expect(document.querySelector(".buttons")?.textContent).not.toContain("เริ่มเกมใหม่");
 
     await user.click(screen.getByRole("button", { name: "เริ่มเกมใหม่" }));
