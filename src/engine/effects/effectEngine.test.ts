@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cardsSeed } from "../../data/cardsSeed";
-import type { AnimalInstance, CardInstance, MatchState, PlayerId, Action } from "../../types/game";
+import type { AnimalInstance, CardInstance, MatchState, PlayerId, Action, StructuredScoreResolution } from "../../types/game";
 import { dispatchAction as originalDispatchAction, forcePhase } from "../actions/reducer";
 import { getCardDefinition } from "../cards/deck";
 import { createMatch } from "../state/match";
@@ -528,7 +528,66 @@ describe("card effects", () => {
     expect(scored.players.P2.score).toBe(0);
     expect(getBoardAnimal(scored, "P2", "A005").statuses.some((status) => status.code === "SKIP_NEXT_SCORE")).toBe(false);
   });
+
+  it("emits structured score contributions for multiple Animals in board order", () => {
+    let state = setupActionState();
+    state = forceAnimalToBoard(state, "P1", "A001", 2);
+    state = forceAnimalToBoard(state, "P1", "A006", 1);
+    state = { ...state, turnNumber: 2, phase: "DRAW" };
+
+    const result = dispatchAction(state, { type: "ADVANCE_PHASE", playerId: "P1", payload: {} });
+    const resolution = scoreResolution(result.state);
+
+    expect(resolution.totalGained).toBe(4);
+    expect(resolution.scoreAfter - resolution.scoreBefore).toBe(resolution.totalGained);
+    expect(resolution.animalContributions.map((item) => item.animalCardId)).toEqual(["A001", "A006"]);
+    expect(resolution.animalContributions.map((item) => item.finalContribution)).toEqual([2, 2]);
+    expect(resolution.animalContributions[0].components.map((component) => component.kind)).toEqual(["base", "level-bonus"]);
+    expect(resolution.animalContributions[1].components.map((component) => component.kind)).toEqual(["base", "special-bonus"]);
+  });
+
+  it("emits support and reduction components without changing score totals", () => {
+    let state = setupActionState();
+    state = forceAnimalToBoard(state, "P1", "A001", 1);
+    state = forceCardToHand(state, "P1", "S001");
+    state = play(state, "P1", "S001", targetOf(state, "P1", "A001")).state;
+    state = addStatus(state, "P1-A001-1", { code: "NEXT_SCORE_MINUS_1", expiresAt: "NEXT_SCORE" });
+    state = { ...state, turnNumber: 2, phase: "DRAW" };
+
+    const result = dispatchAction(state, { type: "ADVANCE_PHASE", playerId: "P1", payload: {} });
+    const [contribution] = scoreResolution(result.state).animalContributions;
+
+    expect(result.state.players.P1.score).toBe(1);
+    expect(contribution.finalContribution).toBe(1);
+    expect(contribution.state).toBe("reduced");
+    expect(contribution.components.map((component) => component.kind)).toEqual(["base", "support-bonus", "reduction"]);
+    expect(contribution.components.reduce((sum, component) => sum + component.amount, 0)).toBe(contribution.finalContribution);
+  });
+
+  it("emits skipped zero contribution with status reason", () => {
+    let state = setupActionState();
+    state = forceAnimalToBoard(state, "P1", "A002", 2);
+    state = addStatus(state, "P1-A002-1", { code: "SKIP_NEXT_SCORE", expiresAt: "NEXT_SCORE" });
+    state = { ...state, turnNumber: 2, phase: "DRAW" };
+
+    const result = dispatchAction(state, { type: "ADVANCE_PHASE", playerId: "P1", payload: {} });
+    const [contribution] = scoreResolution(result.state).animalContributions;
+
+    expect(contribution.finalContribution).toBe(0);
+    expect(contribution.state).toBe("skipped");
+    expect(contribution.statusCode).toBe("SKIP_NEXT_SCORE");
+    expect(contribution.components[0]).toMatchObject({ kind: "skipped", amount: 0, statusCode: "SKIP_NEXT_SCORE", reasonCode: "skip-next-score" });
+  });
 });
+
+function scoreResolution(state: MatchState): StructuredScoreResolution {
+  const lastEntry = state.actionLog[state.actionLog.length - 1];
+  const outcome = lastEntry?.outcomes?.find((item) => item.code === "SCORE_CHANGED");
+  if (!outcome?.resolution) {
+    throw new Error("Expected structured score resolution");
+  }
+  return outcome.resolution;
+}
 
 function setupActionState(): MatchState {
   return forcePhase(createMatch({ seed: "phase-3-effects" }), "ACTION");

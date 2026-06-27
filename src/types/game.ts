@@ -71,6 +71,66 @@ export type StatusEffect = {
     | "IMMEDIATE";
 };
 
+export type ScoreContributionState =
+  | "scored"
+  | "reduced"
+  | "blocked"
+  | "skipped"
+  | "penalized";
+
+export type ScoreComponentKind =
+  | "base"
+  | "level-bonus"
+  | "support-bonus"
+  | "special-bonus"
+  | "status-bonus"
+  | "penalty"
+  | "reduction"
+  | "blocked"
+  | "skipped";
+
+export type ScoreComponent = {
+  kind: ScoreComponentKind;
+  amount: number;
+  sourceCardInstanceId?: string;
+  sourceCardId?: string;
+  statusCode?: StatusEffectCode;
+  reasonCode?: string;
+};
+
+export type AnimalScoreContribution = {
+  animalInstanceId: string;
+  animalCardId: string;
+  ownerId: PlayerId;
+  slotIndex: number;
+  state: ScoreContributionState;
+  components: readonly ScoreComponent[];
+  finalContribution: number;
+  reasonCode?: string;
+  statusCode?: StatusEffectCode;
+};
+
+export type TeamScoreAdjustment = {
+  id: string;
+  amount: number;
+  reasonCode: "score-cap" | "score-floor" | "global-bonus" | "global-penalty";
+  sourceCardInstanceId?: string;
+  sourceCardId?: string;
+  statusCode?: StatusEffectCode;
+};
+
+export type StructuredScoreResolution = {
+  resolutionId: string;
+  turnNumber: number;
+  sequence: number;
+  scoringPlayerId: PlayerId;
+  scoreBefore: number;
+  scoreAfter: number;
+  totalGained: number;
+  animalContributions: readonly AnimalScoreContribution[];
+  teamAdjustments: readonly TeamScoreAdjustment[];
+};
+
 export type AnimalInstance = CardInstance & {
   zone: "BOARD";
   level: 1 | 2 | 3;
@@ -111,6 +171,7 @@ export type MatchState = {
   finishReason?: "TARGET_SCORE" | "TURN_LIMIT";
   actionLog: ActionLogEntry[];
   undoSnapshot?: UndoSnapshot;
+  lastScoreResolution?: StructuredScoreResolution;
 };
 
 export type UndoSnapshot = {
@@ -261,6 +322,7 @@ export type EffectOutcome =
       amount: number;
       fromScore: number;
       toScore: number;
+      resolution?: StructuredScoreResolution;
     }
   | {
       code: "EVOLUTION_POINT_GAINED";

@@ -5,6 +5,8 @@ import type {
   CardInstance,
   MatchState,
   PlayerId,
+  ScoreComponent,
+  StructuredScoreResolution,
   Target,
   ValidationResult
 } from "../../types/game";
@@ -122,7 +124,8 @@ export function resolveEffect(state: MatchState, action: Extract<Action, { type:
 
 export function calculateScorePhase(state: MatchState, playerId: PlayerId): MatchState {
   let nextState = state;
-  let scoreGain = 0;
+  const scoreBefore = state.players[playerId].score;
+  const animalContributions: Array<StructuredScoreResolution["animalContributions"][number]> = [];
 
   for (const animal of getAnimalInstances(state, playerId)) {
     if (animal.enteredTurn >= state.turnNumber) {
@@ -136,13 +139,34 @@ export function calculateScorePhase(state: MatchState, playerId: PlayerId): Matc
       continue;
     }
 
-    let animalScore: number = freshAnimal.level;
+    const components = initialScoreComponents(nextState, freshAnimal);
+    let animalScore = componentTotal(components);
     const scoreLevel = freshAnimal.level;
+    let contributionState: StructuredScoreResolution["animalContributions"][number]["state"] = "scored";
+    let reasonCode: string | undefined;
+    let statusCode: StructuredScoreResolution["animalContributions"][number]["statusCode"];
 
     if (hasStatus(freshAnimal, "SKIP_NEXT_SCORE")) {
+      const status = freshAnimal.statuses.find((item) => item.code === "SKIP_NEXT_SCORE");
       animalScore = 0;
+      components.length = 0;
+      components.push({
+        kind: "skipped",
+        amount: 0,
+        statusCode: "SKIP_NEXT_SCORE",
+        ...sourceFields(nextState, status?.sourceInstanceId),
+        reasonCode: "skip-next-score"
+      });
+      contributionState = "skipped";
+      statusCode = "SKIP_NEXT_SCORE";
+      reasonCode = "skip-next-score";
       if (freshAnimal.definitionId === "A007" && !freshAnimal.onceFlags.includes("prevent_first_skip_score")) {
         animalScore = freshAnimal.level;
+        components.length = 0;
+        components.push(...initialScoreComponents(nextState, freshAnimal));
+        contributionState = "scored";
+        statusCode = undefined;
+        reasonCode = "prevent-first-skip-score";
         nextState = updateAnimal(nextState, freshAnimal.instanceId, {
           statuses: freshAnimal.statuses.filter((status) => status.code !== "SKIP_NEXT_SCORE"),
           onceFlags: [...freshAnimal.onceFlags, "prevent_first_skip_score"]
@@ -151,21 +175,63 @@ export function calculateScorePhase(state: MatchState, playerId: PlayerId): Matc
     }
 
     if (hasStatus(freshAnimal, "NEXT_SCORE_MINUS_1")) {
+      const beforeReduction = animalScore;
       animalScore = Math.max(0, animalScore - 1);
+      if (beforeReduction !== animalScore) {
+        const status = freshAnimal.statuses.find((item) => item.code === "NEXT_SCORE_MINUS_1");
+        components.push({
+          kind: "reduction",
+          amount: animalScore - beforeReduction,
+          statusCode: "NEXT_SCORE_MINUS_1",
+          ...sourceFields(nextState, status?.sourceInstanceId),
+          reasonCode: "next-score-minus-1"
+        });
+        contributionState = animalScore > 0 ? "reduced" : "penalized";
+        statusCode = "NEXT_SCORE_MINUS_1";
+        reasonCode = "next-score-minus-1";
+      }
     }
 
     if (hasStatus(freshAnimal, "REMOVAL_SHIELD") && freshAnimal.statuses.some((status) => status.sourceInstanceId === "S004")) {
+      const beforeMinimum = animalScore;
       animalScore = Math.max(1, animalScore);
+      if (animalScore > beforeMinimum) {
+        const status = freshAnimal.statuses.find((item) => item.code === "REMOVAL_SHIELD" && item.sourceInstanceId === "S004");
+        components.push({
+          kind: "status-bonus",
+          amount: animalScore - beforeMinimum,
+          statusCode: "REMOVAL_SHIELD",
+          ...sourceFields(nextState, status?.sourceInstanceId),
+          reasonCode: "minimum-next-score-1"
+        });
+      }
     }
 
     if (freshAnimal.definitionId === "A006" && !freshAnimal.onceFlags.includes("first_score_bonus_1")) {
       animalScore += 1;
+      components.push({
+        kind: "special-bonus",
+        amount: 1,
+        sourceCardInstanceId: freshAnimal.instanceId,
+        sourceCardId: freshAnimal.definitionId,
+        reasonCode: "fish-first-score-bonus"
+      });
       nextState = updateAnimal(nextState, freshAnimal.instanceId, {
         onceFlags: [...freshAnimal.onceFlags, "first_score_bonus_1"]
       });
     }
 
-    scoreGain += animalScore;
+    animalContributions.push({
+      animalInstanceId: freshAnimal.instanceId,
+      animalCardId: freshAnimal.definitionId,
+      ownerId: freshAnimal.ownerId,
+      slotIndex: freshAnimal.slotNo - 1,
+      state: contributionState,
+      components,
+      finalContribution: animalScore,
+      ...(reasonCode ? { reasonCode } : {}),
+      ...(statusCode ? { statusCode } : {})
+    });
 
     if (scoreLevel === 2 && animalScore > 0) {
       const nextPoints = Math.min(2, (freshAnimal.evolutionPoints ?? 0) + 1) as 0 | 1 | 2;
@@ -176,6 +242,21 @@ export function calculateScorePhase(state: MatchState, playerId: PlayerId): Matc
     }
   }
 
+  const scoreGain = animalContributions.reduce((sum, item) => sum + item.finalContribution, 0);
+  const sequence = state.actionLog.length + 1;
+  const scoreAfter = nextState.players[playerId].score + scoreGain;
+  const resolution: StructuredScoreResolution = {
+    resolutionId: `score:${sequence}:${playerId}:${state.turnNumber}:${scoreBefore}->${scoreAfter}`,
+    turnNumber: state.turnNumber,
+    sequence,
+    scoringPlayerId: playerId,
+    scoreBefore,
+    scoreAfter,
+    totalGained: scoreAfter - scoreBefore,
+    animalContributions,
+    teamAdjustments: []
+  };
+
   nextState = {
     ...nextState,
     players: {
@@ -184,10 +265,47 @@ export function calculateScorePhase(state: MatchState, playerId: PlayerId): Matc
         ...nextState.players[playerId],
         score: nextState.players[playerId].score + scoreGain
       }
-    }
+    },
+    lastScoreResolution: resolution
   };
 
   return removeExpiredStatus(nextState, playerId);
+}
+
+function initialScoreComponents(state: MatchState, animal: AnimalInstance): ScoreComponent[] {
+  const components: ScoreComponent[] = [{ kind: "base", amount: 1 }];
+  const supportId = animal.attachedSupportIds.find((id) => state.cardsByInstanceId[id]?.increasedLevel);
+  const supportBonus = supportId ? Math.min(1, animal.level - 1) : 0;
+  const levelBonus = Math.max(0, animal.level - 1 - supportBonus);
+  if (levelBonus > 0) {
+    components.push({ kind: "level-bonus", amount: levelBonus });
+  }
+  if (supportBonus > 0 && supportId) {
+    components.push({
+      kind: "support-bonus",
+      amount: supportBonus,
+      ...sourceFields(state, supportId)
+    });
+  }
+  return components;
+}
+
+function sourceFields(state: MatchState, sourceCardInstanceId: string | undefined): Pick<ScoreComponent, "sourceCardInstanceId" | "sourceCardId"> {
+  if (!sourceCardInstanceId) {
+    return {};
+  }
+  const sourceCardId = state.cardsByInstanceId[sourceCardInstanceId]?.definitionId;
+  if (!sourceCardId) {
+    return { sourceCardInstanceId };
+  }
+  return {
+    sourceCardInstanceId,
+    sourceCardId
+  };
+}
+
+function componentTotal(components: ScoreComponent[]): number {
+  return components.reduce((sum, component) => sum + component.amount, 0);
 }
 
 function resolveAnimalOnPlay(state: MatchState, action: Extract<Action, { type: "PLAY_CARD" }>): MatchState {
