@@ -110,6 +110,18 @@ export function formatActionLogEntry(match: MatchState, entry: ActionLogEntry | 
   if (!entry) {
     return null;
   }
+  const scoreOutcome = entry.outcomes?.find((outcome) => outcome.code === "SCORE_CHANGED");
+  if (scoreOutcome && entry.action.type === "ADVANCE_PHASE") {
+    const delta = `${scoreOutcome.amount > 0 ? "+" : ""}${scoreOutcome.amount}`;
+    const header = t(locale, "log.header", { turn: entry.turnNumber, player: playerName(entry.actor, match.gameMode, locale) });
+    const summary = t(locale, "log.scoreResolved", {
+      player: playerName(scoreOutcome.playerId, match.gameMode, locale),
+      from: scoreOutcome.fromScore,
+      to: scoreOutcome.toScore,
+      delta
+    });
+    return `${header}\n${summary}`;
+  }
   if (entry.action.type === "ADVANCE_PHASE") {
     const result = entry.result?.trim() ?? "";
     if (result === "" || /^ADVANCE_PHASE/.test(result)) {

@@ -176,6 +176,7 @@ export type TranslationKey =
   | "log.evolutionPoint"
   | "log.evolved"
   | "log.removalPrevented"
+  | "log.scoreResolved"
   | "log.action.weakness"
   | "log.action.support"
   | "log.action.protect"
@@ -382,6 +383,13 @@ export type TranslationKey =
   | "visual.statusRemoved"
   | "visual.draw"
   | "visual.discard"
-  | "visual.recycle";
+  | "visual.recycle"
+  | "score.bannerTitle"
+  | "score.scoreChange"
+  | "score.details"
+  | "score.closeDetails"
+  | "score.detailsIncomplete"
+  | "score.unattributedAmount"
+  | "score.noAnimalContributions";
 
 export type TranslationParams = Record<string, string | number>;

@@ -176,6 +176,7 @@ export const th = {
   "log.evolutionPoint": "ได้แต้มวิวัฒนาการ {current}/{required}",
   "log.evolved": "วิวัฒนาการเป็น Level {level}",
   "log.removalPrevented": "โล่ป้องกันการนำออกทำงาน",
+  "log.scoreResolved": "สรุป SCORE: {player} {from} → {to} ({delta})",
   "log.action.weakness": "ใช้จุดอ่อนใส่",
   "log.action.support": "สนับสนุน",
   "log.action.protect": "ป้องกัน",
@@ -379,5 +380,12 @@ export const th = {
   "visual.statusRemoved": "สถานะหายไป",
   "visual.draw": "จั่ว {count} ใบ",
   "visual.discard": "ทิ้งการ์ด",
-  "visual.recycle": "รีไซเคิล"
+  "visual.recycle": "รีไซเคิล",
+  "score.bannerTitle": "สรุปคะแนนรอบนี้",
+  "score.scoreChange": "{player} ได้คะแนน {delta}",
+  "score.details": "ดูรายละเอียด",
+  "score.closeDetails": "ซ่อนรายละเอียด",
+  "score.detailsIncomplete": "ยังไม่มีข้อมูลแยกคะแนนรายสัตว์จากระบบ จึงแสดงผลรวมอย่างปลอดภัย",
+  "score.unattributedAmount": "ผลรวมที่ตรวจพบ: {delta}",
+  "score.noAnimalContributions": "ไม่มีข้อมูล contribution ราย Animal ให้แสดง"
 } satisfies Record<TranslationKey, string>;

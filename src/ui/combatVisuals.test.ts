@@ -1,14 +1,14 @@
 import { describe, expect, it, beforeEach } from "vitest";
 import { mapEntryToCombatVisuals, resetSequenceId } from "./combatVisuals";
-import type { ActionLogEntry, EffectOutcome, MatchState, PlayerId, Phase } from "../types/game";
+import type { ActionLogEntry, EffectOutcome, MatchState, PlayerId } from "../types/game";
 
 function makeEntry(overrides: Partial<ActionLogEntry> & { outcomes: EffectOutcome[] }): ActionLogEntry {
   return {
     seq: 1,
     action: { type: "PLAY_CARD" as const, playerId: "P1" as PlayerId, payload: { cardInstanceId: "c1" } },
-    phase: "ACTION" as Phase,
+    phase: "ACTION",
     turnNumber: 1,
-    actor: "P1" as PlayerId,
+    actor: "P1",
     validation: { valid: true },
     result: "",
     rng: { seed: "test", step: 0 },
@@ -25,7 +25,7 @@ function makeAnimalInstance(id: string, owner: PlayerId, overrides?: Partial<imp
     zone: "BOARD" as const,
     level: 1,
     evolutionPoints: 0,
-    slotNo: 1 as 1 | 2 | 3,
+    slotNo: 1,
     enteredTurn: 1,
     attachedSupportIds: [],
     statuses: [],
@@ -50,11 +50,11 @@ function makeMatch(overrides?: Partial<MatchState>): MatchState {
     status: "ACTIVE" as const,
     gameMode: "LOCAL_PVP" as const,
     turnNumber: 1,
-    currentPlayerId: "P1" as PlayerId,
-    phase: "ACTION" as Phase,
+    currentPlayerId: "P1",
+    phase: "ACTION",
     players: {
-      P1: { id: "P1" as PlayerId, score: 0, deck: [], hand: ["c1"], board: [null, null, null], graveyard: [], animalActionUsed: false, utilityActionUsed: false, utilityLocked: false, recycleUsed: false, mulligansUsed: 0, turnsTaken: 0 },
-      P2: { id: "P2" as PlayerId, score: 0, deck: [], hand: [], board: [null, null, null], graveyard: [], animalActionUsed: false, utilityActionUsed: false, utilityLocked: false, recycleUsed: false, mulligansUsed: 0, turnsTaken: 0 },
+      P1: { id: "P1", score: 0, deck: [], hand: ["c1"], board: [null, null, null], graveyard: [], animalActionUsed: false, utilityActionUsed: false, utilityLocked: false, recycleUsed: false, mulligansUsed: 0, turnsTaken: 0 },
+      P2: { id: "P2", score: 0, deck: [], hand: [], board: [null, null, null], graveyard: [], animalActionUsed: false, utilityActionUsed: false, utilityLocked: false, recycleUsed: false, mulligansUsed: 0, turnsTaken: 0 },
     },
     cardsByInstanceId: {
       c1: makeCardInstance("c1", "P1", { definitionId: "A001" }),
@@ -354,9 +354,9 @@ describe("mapEntryToCombatVisuals", () => {
     const entry: ActionLogEntry = {
       seq: 2,
       action: { type: "ADVANCE_PHASE" as const, playerId: "P1" as PlayerId, payload: {} },
-      phase: "ACTION" as Phase,
+      phase: "ACTION",
       turnNumber: 1,
-      actor: "P1" as PlayerId,
+      actor: "P1",
       validation: { valid: true },
       result: "",
       outcomes: [],

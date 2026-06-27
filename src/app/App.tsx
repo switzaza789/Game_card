@@ -27,6 +27,7 @@ import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
 import { formatActionLogEntry, localizedStatusLabel, renderActionFeedback, type ActionFeedback, type ToastFeedback } from "../ui/effectFeedback";
 import { mapEntryToCombatVisuals, type CombatVisualEvent, type CombatVisualKind } from "../ui/combatVisuals";
+import { mapScoreResolutionToBreakdown, type TurnScoreBreakdown } from "../ui/turnScoreBreakdown";
 import { getLocalizedCard, getStoredLocale, localeOptions, setStoredLocale, t, type Locale, type TranslationKey } from "../i18n";
 import { getCardArtwork, getArtworkAltText, ARTWORK_PLACEHOLDER } from "../ui/cardArtwork";
 import {
@@ -339,6 +340,7 @@ export function App() {
     }
 
     let currentMatch = match;
+    const startingLogLength = currentMatch.actionLog.length;
     let loopRes = { state: currentMatch };
     while (currentMatch.status !== "FINISHED" && currentMatch.phase !== "ACTION") {
       loopRes = coordinator.dispatch({
@@ -351,6 +353,8 @@ export function App() {
 
     setMatch(currentMatch);
     setSelectedCardId(null);
+    const scoreEntry = findLatestScoreEntry(currentMatch.actionLog, startingLogLength);
+    setActionFeedback(scoreEntry ? { type: "combat", entry: scoreEntry } : null);
     setMessage(t(locale, "feedback.turnResumed", { player: playerName(currentMatch.currentPlayerId, locale) }));
     setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
   }
@@ -977,6 +981,11 @@ const lastLogEntry = visibleLogEntries.length > 0 ? visibleLogEntries[visibleLog
 const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
   const selectedPlayability = selectedCardId ? getCardPlayability(match, activePlayerId, selectedCardId) : null;
   const feedbackLines = props.actionFeedback ? renderActionFeedback(match, props.actionFeedback, props.locale) : null;
+  const incomingScoreBreakdown = useMemo(() => props.actionFeedback?.type === "combat" && props.actionFeedback.entry.action.type === "ADVANCE_PHASE"
+    ? mapScoreResolutionToBreakdown({ after: match, entry: props.actionFeedback.entry })
+    : null, [match, props.actionFeedback]);
+  const [scoreBreakdown, setScoreBreakdown] = useState<TurnScoreBreakdown | null>(incomingScoreBreakdown);
+  const [scoreDetailsOpen, setScoreDetailsOpen] = useState(false);
   const guidance = getInteractionGuidanceState(match, selectedCardId);
   let firstPlayableFound = false;
 
@@ -1001,6 +1010,13 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
       }
     }
   }, [props.actionFeedback, match]);
+
+  useEffect(() => {
+    if (incomingScoreBreakdown) {
+      setScoreBreakdown(incomingScoreBreakdown);
+      setScoreDetailsOpen(false);
+    }
+  }, [incomingScoreBreakdown]);
 
   const activeSourceInstanceIds = useMemo(() => {
     const s = new Set<string>();
@@ -1074,6 +1090,15 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
       </section>
 
       <section className="battle-bottom">
+        {scoreBreakdown && (
+          <ScoreBreakdownBanner
+            breakdown={scoreBreakdown}
+            gameMode={match.gameMode}
+            locale={props.locale}
+            expanded={scoreDetailsOpen}
+            onToggle={() => setScoreDetailsOpen((open) => !open)}
+          />
+        )}
         <div className="log" role="status">
           <strong>{t(props.locale, "label.actionLog")}</strong>
           <p>{props.message}</p>
@@ -1850,6 +1875,49 @@ function playerNameForMode(playerId: PlayerId, gameMode: GameMode, locale: Local
     return playerId === "P1" ? t(locale, "label.you") : t(locale, "label.computer");
   }
   return playerName(playerId, locale);
+}
+
+function findLatestScoreEntry(actionLog: ActionLogEntry[], startIndex = 0): ActionLogEntry | undefined {
+  for (let i = actionLog.length - 1; i >= startIndex; i -= 1) {
+    const entry = actionLog[i];
+    if (entry.phase === "SCORE" && entry.outcomes?.some((outcome) => outcome.code === "SCORE_CHANGED")) {
+      return entry;
+    }
+  }
+  return undefined;
+}
+
+function ScoreBreakdownBanner(props: {
+  breakdown: TurnScoreBreakdown;
+  gameMode: GameMode;
+  locale: Locale;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const { breakdown, locale } = props;
+  const player = playerNameForMode(breakdown.playerId, props.gameMode, locale);
+  const signedDelta = `${breakdown.totalDelta > 0 ? "+" : ""}${breakdown.totalDelta}`;
+  const detailsId = `score-breakdown-${breakdown.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+  const resultTone = breakdown.totalDelta > 0 ? "positive" : breakdown.totalDelta < 0 ? "negative" : "zero";
+
+  return (
+    <section className="score-breakdown-banner" role="status" aria-live="polite" aria-label={t(locale, "score.bannerTitle")} data-score-result={resultTone}>
+      <div className="score-breakdown-summary">
+        <strong>{t(locale, "score.scoreChange", { player, delta: signedDelta })}</strong>
+        <span>{breakdown.scoreBefore} → {breakdown.scoreAfter}</span>
+      </div>
+      <button type="button" className="secondary-button" aria-expanded={props.expanded} aria-controls={detailsId} onClick={props.onToggle}>
+        {props.expanded ? t(locale, "score.closeDetails") : t(locale, "score.details")}
+      </button>
+      {props.expanded && (
+        <div id={detailsId} className="score-breakdown-details">
+          <p>{t(locale, "score.unattributedAmount", { delta: signedDelta })}</p>
+          <p>{t(locale, "score.detailsIncomplete")}</p>
+          <p>{t(locale, "score.noAnimalContributions")}</p>
+        </div>
+      )}
+    </section>
+  );
 }
 
 function scoreDeltaByPlayer(entry: MatchState["actionLog"][number] | undefined): Record<PlayerId, number> {

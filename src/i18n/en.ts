@@ -176,6 +176,7 @@ export const en = {
   "log.evolutionPoint": "Evolution {current}/{required}",
   "log.evolved": "Evolved to Level {level}",
   "log.removalPrevented": "Removal shield prevented removal",
+  "log.scoreResolved": "SCORE summary: {player} {from} → {to} ({delta})",
   "log.action.weakness": "Weakness on",
   "log.action.support": "Support to",
   "log.action.protect": "shield for",
@@ -379,5 +380,12 @@ export const en = {
   "visual.statusRemoved": "Status removed",
   "visual.draw": "Draw {count}",
   "visual.discard": "Discard",
-  "visual.recycle": "Recycle"
+  "visual.recycle": "Recycle",
+  "score.bannerTitle": "Turn score summary",
+  "score.scoreChange": "{player} scored {delta}",
+  "score.details": "Details",
+  "score.closeDetails": "Hide details",
+  "score.detailsIncomplete": "Structured per-Animal score data is not available, so only the safe total is shown.",
+  "score.unattributedAmount": "Detected total: {delta}",
+  "score.noAnimalContributions": "No Animal contribution records are available."
 } satisfies Record<TranslationKey, string>;

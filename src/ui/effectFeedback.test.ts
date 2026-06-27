@@ -415,6 +415,28 @@ describe("Phase 2 — FeedbackSeverity, ToastFeedback, ADVANCE_PHASE filtering",
     expect(formatActionLogEntry(state, advanceEntry, "en")).toBeNull();
   });
 
+  it("formatActionLogEntry renders one score summary for ADVANCE_PHASE score entries", () => {
+    const state = createMatch({ seed: "adv-score-summary", gameMode: "PVE_NORMAL" });
+    const advanceEntry: ActionLogEntry = {
+      seq: 1,
+      action: { type: "ADVANCE_PHASE", playerId: "P1", payload: {} },
+      phase: "SCORE",
+      turnNumber: 2,
+      actor: "P1",
+      validation: { valid: true },
+      result: "ADVANCE_PHASE SCORE done",
+      outcomes: [{ code: "SCORE_CHANGED", playerId: "P1", amount: 3, fromScore: 2, toScore: 5 }],
+      rng: state.rng,
+      timestamp: 1
+    };
+    const thai = formatActionLogEntry(state, advanceEntry, "th");
+    const english = formatActionLogEntry(state, advanceEntry, "en");
+    expect(thai).toContain("สรุป SCORE");
+    expect(thai).toContain("คุณ");
+    expect(english).toContain("SCORE summary");
+    expect(english).toContain("+3");
+  });
+
   it("formatActionLogEntry returns string for non-ADVANCE_PHASE entries", () => {
     const state = createMatch({ seed: "non-adv-phase" });
     const entry: ActionLogEntry = {
