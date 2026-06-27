@@ -20,7 +20,7 @@ const artworkMap: Record<string, ArtworkEntry> = {
   S004: { th: "/Card/S004-th.png", en: "/Card/S004-en.png" },
   S005: { th: "/Card/S005-th.png", en: "/Card/S005-en.png" },
   S006: { th: "/Card/S006-th.png", en: "/Card/S006-en.png" },
-  W001: { th: null, en: null },
+  W001: { th: "/Card/W001-th.png", en: "/Card/W001-en.png" },
   W002: { th: "/Card/W002-th.png", en: "/Card/W002-en.png" },
   W003: { th: "/Card/W003-th.png", en: "/Card/W003-en.png" },
   W004: { th: "/Card/W004-th.png", en: "/Card/W004-en.png" },

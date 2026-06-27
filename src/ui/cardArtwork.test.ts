@@ -8,7 +8,7 @@ const ALL_CARD_IDS = [
   "X001", "X002", "X003", "X004", "X005",
 ];
 
-const NON_W001_IDS = ALL_CARD_IDS.filter((id) => id !== "W001");
+const ALL_WITH_ARTWORK = ALL_CARD_IDS;
 
 describe("cardArtwork", () => {
   it("has exactly 24 Card IDs in the lookup", () => {
@@ -21,8 +21,8 @@ describe("cardArtwork", () => {
     }
   });
 
-  it("23 Card IDs resolve to Thai artwork", () => {
-    for (const id of NON_W001_IDS) {
+  it("all 24 Card IDs resolve to Thai artwork", () => {
+    for (const id of ALL_WITH_ARTWORK) {
       const path = getCardArtwork(id, "th");
       expect(path).not.toBeNull();
       expect(path).not.toBe(ARTWORK_PLACEHOLDER);
@@ -31,8 +31,8 @@ describe("cardArtwork", () => {
     }
   });
 
-  it("23 Card IDs resolve to English artwork", () => {
-    for (const id of NON_W001_IDS) {
+  it("all 24 Card IDs resolve to English artwork", () => {
+    for (const id of ALL_WITH_ARTWORK) {
       const path = getCardArtwork(id, "en");
       expect(path).not.toBeNull();
       expect(path).not.toBe(ARTWORK_PLACEHOLDER);
@@ -41,9 +41,11 @@ describe("cardArtwork", () => {
     }
   });
 
-  it("W001 resolves to fallback for both locales", () => {
-    expect(getCardArtwork("W001", "th")).toBe(ARTWORK_PLACEHOLDER);
-    expect(getCardArtwork("W001", "en")).toBe(ARTWORK_PLACEHOLDER);
+  it("W001 now resolves to artwork (not fallback)", () => {
+    expect(getCardArtwork("W001", "th")).not.toBe(ARTWORK_PLACEHOLDER);
+    expect(getCardArtwork("W001", "en")).not.toBe(ARTWORK_PLACEHOLDER);
+    expect(getCardArtwork("W001", "th")).toMatch(/-th\.\w+$/);
+    expect(getCardArtwork("W001", "en")).toMatch(/-en\.\w+$/);
   });
 
   it("unknown Card ID resolves to fallback", () => {
@@ -65,7 +67,7 @@ describe("cardArtwork", () => {
         }
       }
     }
-    expect(paths.size).toBe(46);
+    expect(paths.size).toBe(48);
   });
 
   it("every non-null path starts with /Card/", () => {

@@ -18,7 +18,7 @@ Where:
 - `A001-th.png` — Thai artwork for Playful Dog (A001)
 - `A001-en.png` — English artwork for Playful Dog (A001)
 
-## Bilingual Card IDs Covered (23 of 24)
+## Bilingual Card IDs Covered (24 of 24)
 
 | ID   | Thai name       | English name    |
 |------|-----------------|-----------------|
@@ -36,6 +36,7 @@ Where:
 | S004 | น้ำผึ้งหวาน       | Sweet Honey     |
 | S005 | เมล็ดพืชชั้นดี    | Premium Seeds   |
 | S006 | อาหารปลาพิเศษ    | Special Fish Food |
+| W001 | ที่ครอบปาก         | Muzzle          |
 | W002 | เลเซอร์พอยน์เตอร์  | Laser Pointer   |
 | W003 | กับดักบนพื้น      | Ground Trap     |
 | W004 | กรงนก            | Bird Cage       |
@@ -48,14 +49,7 @@ Where:
 
 ## Missing Artwork
 
-**W001 — ที่ครอบปาก / Muzzle** has no artwork yet.
-
-Both locale paths (`th` and `en`) are set to `null` in the manifest.
-
-When artwork is available, place files at:
-
-- `/Card/W001-th.<extension>`
-- `/Card/W001-en.<extension>`
+All 24 Card IDs now have bilingual artwork.
 
 ## Supported Locales
 
