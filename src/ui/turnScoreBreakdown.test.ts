@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createMatch } from "../engine/state/match";
-import type { ActionLogEntry, MatchState } from "../types/game";
+import type { ActionLogEntry, MatchState, StructuredScoreResolution } from "../types/game";
 import { mapScoreResolutionToBreakdown } from "./turnScoreBreakdown";
 
 function scoreEntry(state: MatchState, amount: number, fromScore = 2, toScore = fromScore + amount): ActionLogEntry {
@@ -67,5 +67,78 @@ describe("turn score breakdown mapper", () => {
     expect(zero?.isFullyAttributed).toBe(true);
     expect(negative?.totalDelta).toBe(-1);
     expect(before).toEqual(snapshot);
+  });
+
+  it("prefers structured score resolution and preserves per-Animal components", () => {
+    const state = createMatch({ seed: "score-breakdown-structured" });
+    const resolution: StructuredScoreResolution = {
+      resolutionId: "score:7:P1:3:2->5",
+      turnNumber: 3,
+      sequence: 7,
+      scoringPlayerId: "P1",
+      scoreBefore: 2,
+      scoreAfter: 5,
+      totalGained: 3,
+      animalContributions: [
+        {
+          animalInstanceId: "P1-A001-1",
+          animalCardId: "A001",
+          ownerId: "P1",
+          slotIndex: 0,
+          state: "scored",
+          finalContribution: 2,
+          components: [{ kind: "base", amount: 1 }, { kind: "level-bonus", amount: 1 }]
+        },
+        {
+          animalInstanceId: "P1-A006-1",
+          animalCardId: "A006",
+          ownerId: "P1",
+          slotIndex: 1,
+          state: "scored",
+          finalContribution: 1,
+          components: [{ kind: "base", amount: 1 }]
+        }
+      ],
+      teamAdjustments: []
+    };
+    const entry = {
+      ...scoreEntry(state, 3, 2, 5),
+      outcomes: [{ code: "SCORE_CHANGED" as const, playerId: "P1" as const, amount: 3, fromScore: 2, toScore: 5, resolution }]
+    };
+    const result = mapScoreResolutionToBreakdown({ after: state, entry });
+    expect(result?.isFullyAttributed).toBe(true);
+    expect(result?.unattributedDelta).toBe(0);
+    expect(result?.animalContributions).toHaveLength(2);
+    expect(result?.animalContributions[0].components.map((component) => component.kind)).toEqual(["base", "level-bonus"]);
+  });
+
+  it("marks structured resolution incomplete when component totals do not match", () => {
+    const state = createMatch({ seed: "score-breakdown-invalid-structured" });
+    const resolution: StructuredScoreResolution = {
+      resolutionId: "score:7:P1:3:0->2",
+      turnNumber: 3,
+      sequence: 7,
+      scoringPlayerId: "P1",
+      scoreBefore: 0,
+      scoreAfter: 2,
+      totalGained: 2,
+      animalContributions: [{
+        animalInstanceId: "P1-A001-1",
+        animalCardId: "A001",
+        ownerId: "P1",
+        slotIndex: 0,
+        state: "scored",
+        finalContribution: 2,
+        components: [{ kind: "base", amount: 1 }]
+      }],
+      teamAdjustments: []
+    };
+    const entry = {
+      ...scoreEntry(state, 2, 0, 2),
+      outcomes: [{ code: "SCORE_CHANGED" as const, playerId: "P1" as const, amount: 2, fromScore: 0, toScore: 2, resolution }]
+    };
+    const result = mapScoreResolutionToBreakdown({ after: state, entry });
+    expect(result?.isFullyAttributed).toBe(false);
+    expect(result?.unattributedDelta).toBe(0);
   });
 });

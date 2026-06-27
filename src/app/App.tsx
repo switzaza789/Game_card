@@ -27,7 +27,7 @@ import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
 import { formatActionLogEntry, localizedStatusLabel, renderActionFeedback, type ActionFeedback, type ToastFeedback } from "../ui/effectFeedback";
 import { mapEntryToCombatVisuals, type CombatVisualEvent, type CombatVisualKind } from "../ui/combatVisuals";
-import { mapScoreResolutionToBreakdown, type TurnScoreBreakdown } from "../ui/turnScoreBreakdown";
+import { mapScoreResolutionToBreakdown, type AnimalScoreContribution, type ScoreComponent, type TeamScoreAdjustment, type TurnScoreBreakdown } from "../ui/turnScoreBreakdown";
 import { getLocalizedCard, getStoredLocale, localeOptions, setStoredLocale, t, type Locale, type TranslationKey } from "../i18n";
 import { getCardArtwork, getArtworkAltText, ARTWORK_PLACEHOLDER } from "../ui/cardArtwork";
 import {
@@ -986,6 +986,13 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
     : null, [match, props.actionFeedback]);
   const [scoreBreakdown, setScoreBreakdown] = useState<TurnScoreBreakdown | null>(incomingScoreBreakdown);
   const [scoreDetailsOpen, setScoreDetailsOpen] = useState(false);
+  const scoreContributionByAnimalId = useMemo(() => {
+    const map = new Map<string, AnimalScoreContribution>();
+    for (const contribution of scoreBreakdown?.animalContributions ?? []) {
+      map.set(contribution.animalInstanceId, contribution);
+    }
+    return map;
+  }, [scoreBreakdown]);
   const guidance = getInteractionGuidanceState(match, selectedCardId);
   let firstPlayableFound = false;
 
@@ -1083,9 +1090,9 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
         {isPreparingHumanTurn && <div className="ai-banner" role="status" aria-live="polite">{t(props.locale, "label.preparingTurn")}</div>}
         <HiddenHand count={match.players[opponentId].hand.length} locale={props.locale} />
         <div className="zone-label">{t(props.locale, "label.player2")}</div>
-        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} />
+        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} />
         <div className="divider" />
-        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} />
+        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} />
         <div className="zone-label">{t(props.locale, "label.you")} — {t(props.locale, "label.score")} {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
       </section>
 
@@ -1231,7 +1238,8 @@ function BoardRow({
   locale,
   activeSourceInstanceIds,
   activeTargetInstanceIds,
-  eventByInstanceId
+  eventByInstanceId,
+  scoreContributionByAnimalId
 }: {
   match: MatchState;
   ownerId: PlayerId;
@@ -1244,6 +1252,7 @@ function BoardRow({
   activeSourceInstanceIds: Set<string>;
   activeTargetInstanceIds: Set<string>;
   eventByInstanceId: Map<string, CombatVisualEvent>;
+  scoreContributionByAnimalId: Map<string, AnimalScoreContribution>;
 }) {
   const player = match.players[ownerId];
   return (
@@ -1270,8 +1279,13 @@ function BoardRow({
           const event = eventByInstanceId.get(instanceId);
           const sourceKind = isSource && event ? event.kind : undefined;
           const targetKind = isTarget && event ? event.kind : undefined;
+          const scoreContribution = scoreContributionByAnimalId.get(instanceId);
+          const scoreTone = scoreContribution
+            ? scoreContribution.finalContribution > 0 ? "positive" : scoreContribution.finalContribution < 0 ? "negative" : scoreContribution.state === "skipped" || scoreContribution.state === "blocked" ? "blocked" : "zero"
+            : undefined;
+          const signedScore = scoreContribution ? `${scoreContribution.finalContribution > 0 ? "+" : ""}${scoreContribution.finalContribution}` : "";
           return (
-            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} data-target-state={legal ? "valid" : undefined} disabled={!legal} aria-label={`${localizedBoardCard.name} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })} data-combat-source={sourceKind} data-combat-target={targetKind} data-effect-active={isSource || isTarget ? "true" : undefined}>
+            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} data-target-state={legal ? "valid" : undefined} disabled={!legal} aria-label={`${localizedBoardCard.name} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })} data-combat-source={sourceKind} data-combat-target={targetKind} data-effect-active={isSource || isTarget ? "true" : undefined} data-score-result={scoreTone}>
               <span className="level">{t(locale, "label.level")} {animal.level}</span>
               <span className="target-badge">{legal ? t(locale, "label.select") : t(locale, "label.clearSelection")}</span>
               <CardArtwork cardId={definition.card_id} locale={locale} variant="board" alt="" />
@@ -1282,6 +1296,7 @@ function BoardRow({
               ))}
               {animal.statuses.length > 0 && <small className="statuses">{t(locale, "label.statusCount")} {animal.statuses.length}: {localizedAnimalStatuses(animal, locale)}</small>}
               {event && (isSource || isTarget) && <span className="combat-floating-label" role="status" aria-live="polite">{t(locale, visualLabelKey(event.kind), visualLabelParams(event))}</span>}
+              {scoreContribution && <span className="score-floating-label" aria-hidden="true">{signedScore}</span>}
             </button>
           );
         })}
@@ -1911,13 +1926,70 @@ function ScoreBreakdownBanner(props: {
       </button>
       {props.expanded && (
         <div id={detailsId} className="score-breakdown-details">
-          <p>{t(locale, "score.unattributedAmount", { delta: signedDelta })}</p>
-          <p>{t(locale, "score.detailsIncomplete")}</p>
-          <p>{t(locale, "score.noAnimalContributions")}</p>
+          <p>{t(locale, "score.turn", { turn: breakdown.turnNumber })}</p>
+          <p>{t(locale, "score.finalContribution", { value: signedDelta })}</p>
+          {breakdown.animalContributions.map((contribution) => (
+            <div className="score-animal-breakdown" key={contribution.animalInstanceId}>
+              <strong>{getLocalizedCard(contribution.animalCardId, locale).name}: {signedValue(contribution.finalContribution)}</strong>
+              <ul>
+                {contribution.components.map((component, index) => (
+                  <li key={`${component.kind}-${index}`}>{componentLabel(component, locale)}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          {breakdown.teamAdjustments.length > 0 && (
+            <div className="score-animal-breakdown">
+              <strong>{t(locale, "score.teamAdjustments")}</strong>
+              <ul>
+                {breakdown.teamAdjustments.map((adjustment) => (
+                  <li key={adjustment.id}>{teamAdjustmentLabel(adjustment, locale)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {!breakdown.isFullyAttributed && (
+            <>
+              <p>{t(locale, "score.unattributedAmount", { delta: signedValue(breakdown.unattributedDelta) })}</p>
+              <p>{t(locale, "score.detailsIncomplete")}</p>
+              {breakdown.animalContributions.length === 0 && <p>{t(locale, "score.noAnimalContributions")}</p>}
+            </>
+          )}
         </div>
       )}
     </section>
   );
+}
+
+function signedValue(value: number): string {
+  return `${value > 0 ? "+" : ""}${value}`;
+}
+
+function componentLabel(component: ScoreComponent, locale: Locale): string {
+  const labelKeys: Record<ScoreComponent["kind"], TranslationKey> = {
+    base: "score.base",
+    "level-bonus": "score.levelBonus",
+    "support-bonus": "score.supportBonus",
+    "special-bonus": "score.specialBonus",
+    "status-bonus": "score.statusBonus",
+    penalty: "score.penalty",
+    reduction: "score.reduction",
+    blocked: "score.blocked",
+    skipped: "score.skipped"
+  };
+  const label = t(locale, labelKeys[component.kind]);
+  const source = component.sourceCardId ? ` · ${t(locale, "score.sourceCard", { card: getLocalizedCard(component.sourceCardId, locale).name })}` : "";
+  return `${label}: ${signedValue(component.amount)}${source}`;
+}
+
+function teamAdjustmentLabel(adjustment: TeamScoreAdjustment, locale: Locale): string {
+  const labelKeys: Record<TeamScoreAdjustment["reasonCode"], TranslationKey> = {
+    "score-cap": "score.scoreCapAdjustment",
+    "score-floor": "score.scoreFloorAdjustment",
+    "global-bonus": "score.globalBonus",
+    "global-penalty": "score.globalPenalty"
+  };
+  return `${t(locale, labelKeys[adjustment.reasonCode])}: ${signedValue(adjustment.amount)}`;
 }
 
 function scoreDeltaByPlayer(entry: MatchState["actionLog"][number] | undefined): Record<PlayerId, number> {

@@ -753,6 +753,42 @@ h1 {
   line-height: 1.4;
 }
 
+.score-animal-breakdown {
+  display: grid;
+  gap: 2px;
+}
+
+.score-animal-breakdown ul {
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.score-floating-label {
+  position: absolute;
+  right: 8px;
+  top: 28px;
+  z-index: 4;
+  border-radius: 999px;
+  padding: 2px 7px;
+  color: #174c39;
+  background: #d1fae5;
+  font-size: 0.8rem;
+  font-weight: 800;
+  pointer-events: none;
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.18);
+}
+
+[data-score-result="zero"] .score-floating-label,
+[data-score-result="blocked"] .score-floating-label {
+  color: #334155;
+  background: #e2e8f0;
+}
+
+[data-score-result="negative"] .score-floating-label {
+  color: #8b1e1e;
+  background: #ffe4e6;
+}
+
 .bottom-right {
   display: flex;
   gap: 8px;
