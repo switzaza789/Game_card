@@ -190,7 +190,19 @@ function scoreOutcomes(before: MatchState, after: MatchState): EffectOutcome[] {
   return (["P1", "P2"] as PlayerId[]).flatMap((playerId) => {
     const fromScore = before.players[playerId].score;
     const toScore = after.players[playerId].score;
-    return fromScore === toScore ? [] : [{ code: "SCORE_CHANGED", playerId, amount: toScore - fromScore, fromScore, toScore } satisfies EffectOutcome];
+    const resolution = after.lastScoreResolution?.scoringPlayerId === playerId
+      && after.lastScoreResolution.scoreBefore === fromScore
+      && after.lastScoreResolution.scoreAfter === toScore
+      ? after.lastScoreResolution
+      : undefined;
+    return fromScore === toScore && !resolution ? [] : [{
+      code: "SCORE_CHANGED",
+      playerId,
+      amount: toScore - fromScore,
+      fromScore,
+      toScore,
+      ...(resolution ? { resolution } : {})
+    } satisfies EffectOutcome];
   });
 }
 

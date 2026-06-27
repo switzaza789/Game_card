@@ -1,26 +1,14 @@
-import type { ActionLogEntry, MatchState, PlayerId } from "../types/game";
+import type {
+  ActionLogEntry,
+  AnimalScoreContribution,
+  MatchState,
+  PlayerId,
+  ScoreComponent,
+  StructuredScoreResolution,
+  TeamScoreAdjustment
+} from "../types/game";
 
-export type ScoreComponentKind = "unattributed";
-
-export type ScoreComponent = {
-  kind: ScoreComponentKind;
-  amount: number;
-};
-
-export type AnimalScoreContribution = {
-  ownerId: PlayerId;
-  animalInstanceId: string;
-  slotNo: number;
-  baseAmount: number;
-  components: ScoreComponent[];
-  total: number;
-};
-
-export type TeamScoreAdjustment = {
-  playerId: PlayerId;
-  amount: number;
-  reason: "structured-team-adjustment";
-};
+export type { AnimalScoreContribution, ScoreComponent, TeamScoreAdjustment };
 
 export type TurnScoreBreakdown = {
   id: string;
@@ -29,8 +17,8 @@ export type TurnScoreBreakdown = {
   scoreBefore: number;
   scoreAfter: number;
   totalDelta: number;
-  animalContributions: AnimalScoreContribution[];
-  teamAdjustments: TeamScoreAdjustment[];
+  animalContributions: readonly AnimalScoreContribution[];
+  teamAdjustments: readonly TeamScoreAdjustment[];
   unattributedDelta: number;
   isFullyAttributed: boolean;
 };
@@ -43,6 +31,10 @@ export function mapScoreResolutionToBreakdown(input: {
   const scoreOutcome = input.entry?.outcomes?.find((outcome) => outcome.code === "SCORE_CHANGED");
   if (!input.entry || !scoreOutcome || input.entry.phase !== "SCORE") {
     return null;
+  }
+
+  if (scoreOutcome.resolution) {
+    return structuredResolutionToBreakdown(scoreOutcome.resolution);
   }
 
   const scoreBefore = scoreOutcome.fromScore;
@@ -60,5 +52,28 @@ export function mapScoreResolutionToBreakdown(input: {
     teamAdjustments: [],
     unattributedDelta: totalDelta,
     isFullyAttributed: totalDelta === 0
+  };
+}
+
+function structuredResolutionToBreakdown(resolution: StructuredScoreResolution): TurnScoreBreakdown {
+  const totalDelta = resolution.scoreAfter - resolution.scoreBefore;
+  const attributedTotal = resolution.animalContributions.reduce((sum, item) => sum + item.finalContribution, 0)
+    + resolution.teamAdjustments.reduce((sum, item) => sum + item.amount, 0);
+  const componentSumsValid = resolution.animalContributions.every((animal) =>
+    animal.components.reduce((sum, component) => sum + component.amount, 0) === animal.finalContribution
+  );
+  const unattributedDelta = totalDelta - attributedTotal;
+
+  return {
+    id: resolution.resolutionId,
+    playerId: resolution.scoringPlayerId,
+    turnNumber: resolution.turnNumber,
+    scoreBefore: resolution.scoreBefore,
+    scoreAfter: resolution.scoreAfter,
+    totalDelta,
+    animalContributions: resolution.animalContributions,
+    teamAdjustments: resolution.teamAdjustments,
+    unattributedDelta,
+    isFullyAttributed: unattributedDelta === 0 && componentSumsValid && resolution.totalGained === totalDelta
   };
 }

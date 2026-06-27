@@ -390,6 +390,24 @@ export type TranslationKey =
   | "score.closeDetails"
   | "score.detailsIncomplete"
   | "score.unattributedAmount"
-  | "score.noAnimalContributions";
+  | "score.noAnimalContributions"
+  | "score.turn"
+  | "score.base"
+  | "score.levelBonus"
+  | "score.supportBonus"
+  | "score.specialBonus"
+  | "score.statusBonus"
+  | "score.penalty"
+  | "score.reduction"
+  | "score.blocked"
+  | "score.skipped"
+  | "score.blockedByStatus"
+  | "score.teamAdjustments"
+  | "score.scoreCapAdjustment"
+  | "score.scoreFloorAdjustment"
+  | "score.globalBonus"
+  | "score.globalPenalty"
+  | "score.sourceCard"
+  | "score.finalContribution";
 
 export type TranslationParams = Record<string, string | number>;
