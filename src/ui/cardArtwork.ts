@@ -35,6 +35,29 @@ const artworkMap: Record<string, ArtworkEntry> = {
 export const ARTWORK_PLACEHOLDER = "/Card/card-placeholder.png";
 
 export function getCardArtwork(cardId: string, locale: Locale): string {
+  return resolveCardArtwork(cardId, locale);
+}
+
+export type ArtworkLevelVariant = 1 | 2 | 3;
+
+export function getCardArtworkVariant(
+  cardId: string,
+  locale: Locale,
+  level: ArtworkLevelVariant
+): string {
+  const levelPath = `/Card/${cardId}-lv${level}-${locale}.png`;
+  return levelPath;
+}
+
+export function resolveCardArtwork(
+  cardId: string,
+  locale: Locale,
+  level?: ArtworkLevelVariant
+): string {
+  if (level && level > 1) {
+    const levelPath = getCardArtworkVariant(cardId, locale, level);
+    return levelPath;
+  }
   const entry = artworkMap[cardId];
   if (!entry) {
     return ARTWORK_PLACEHOLDER;

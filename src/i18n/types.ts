@@ -379,6 +379,7 @@ export type TranslationKey =
   | "visual.shieldConsumed"
   | "visual.levelUp"
   | "visual.levelDown"
+  | "visual.evolutionComplete"
   | "visual.statusApplied"
   | "visual.statusRemoved"
   | "visual.draw"
@@ -408,6 +409,21 @@ export type TranslationKey =
   | "score.globalBonus"
   | "score.globalPenalty"
   | "score.sourceCard"
-  | "score.finalContribution";
+  |   "score.finalContribution"
+  | "evolution.levelOne"
+  | "evolution.levelTwo"
+  | "evolution.levelThree"
+  | "evolution.label"
+  | "evolution.progress"
+  | "evolution.complete"
+  | "evolution.notStarted"
+  | "evolution.inProgress"
+  | "evolution.artworkFallback"
+  | "level.label"
+  | "level.current"
+  | "level.maximum"
+  | "level.up"
+  | "level.down"
+  | "level.fromTo";
 
 export type TranslationParams = Record<string, string | number>;

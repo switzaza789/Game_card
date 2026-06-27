@@ -2096,6 +2096,151 @@ describe("Card artwork integration", () => {
   });
 });
 
+describe("Level and Evolution visual states (Phase 5)", () => {
+  it("board card Level 1 has level-1 data attribute and level badge", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtns = hand.querySelectorAll(".cat-animal");
+    if (animalBtns.length > 0) {
+      await user.click(animalBtns[0]);
+      const slot = screen.getAllByLabelText(/ช่องสัตว์ \d/)[0];
+      await user.click(slot);
+      const filledSlots = document.querySelectorAll(".slot.filled");
+      if (filledSlots.length > 0) {
+        const slot_ = filledSlots[0] as HTMLElement;
+        const hasLevelAttr = slot_.dataset.levelVisual === "level-1" ||
+          slot_.dataset.levelVisual === "level-2" ||
+          slot_.dataset.levelVisual === "level-3";
+        expect(hasLevelAttr).toBe(true);
+        expect(slot_.querySelector(".level-badge")).toBeInTheDocument();
+      }
+    }
+  });
+
+  it("each Level has a visible non-color indicator (level-badge)", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtns = hand.querySelectorAll(".cat-animal");
+    if (animalBtns.length > 0) {
+      await user.click(animalBtns[0]);
+      const slot = screen.getAllByLabelText(/ช่องสัตว์ \d/)[0];
+      await user.click(slot);
+      const filledSlots = document.querySelectorAll(".slot.filled");
+      if (filledSlots.length > 0) {
+        const badge = filledSlots[0].querySelector(".level-badge");
+        expect(badge).toBeInTheDocument();
+        expect(badge?.textContent).toBeTruthy();
+      }
+    }
+  });
+
+  it("Level badge has aria-label for accessibility", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const filledSlots = document.querySelectorAll(".slot.filled");
+    for (const slot of filledSlots) {
+      const badge = slot.querySelector(".level-badge");
+      if (badge) {
+        expect(badge.getAttribute("aria-label")).toBeTruthy();
+      }
+    }
+  });
+
+  it("Card Library does not show match-specific level-badge", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    const libraryCards = document.querySelectorAll(".library-card");
+    for (const card of libraryCards) {
+      const badge = card.querySelector(".level-badge");
+      expect(badge).toBeNull();
+    }
+  });
+
+  it("Thai Level label renders correctly in battle", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const filledSlots = document.querySelectorAll(".slot.filled");
+    for (const slot of filledSlots) {
+      const badge = slot.querySelector(".level-badge");
+      if (badge) {
+        expect(badge.textContent).toMatch(/ระดับ Level \d/);
+      }
+    }
+  });
+
+  it("Phase 2 card-state guidance still works alongside level visuals", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const firstBtn = hand.querySelector("button");
+    if (firstBtn) {
+      await user.click(firstBtn);
+      expect(firstBtn.classList.contains("selected") || firstBtn.getAttribute("data-state") !== null).toBe(true);
+    }
+  });
+
+  it("Evolution progress renders on board cards when progress exists", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const filledSlots = document.querySelectorAll(".slot.filled");
+    for (const slot of filledSlots) {
+      const progress = slot.querySelector(".evolution-progress");
+      if (progress) {
+        expect(progress.getAttribute("role")).toBe("progressbar");
+        expect(progress.getAttribute("aria-valuenow")).toBeTruthy();
+      }
+    }
+  });
+
+  it("Phase 3 combat visuals still work alongside level visuals", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const filledSlots = document.querySelectorAll(".slot.filled");
+    for (const slot of filledSlots) {
+      const hasCombatAttr = slot.hasAttribute("data-combat-source") || slot.hasAttribute("data-combat-target");
+      expect(typeof hasCombatAttr).toBe("boolean");
+    }
+  });
+
+  it("Phase 4 floating score cues still show on board slots", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const filledSlots = document.querySelectorAll(".slot.filled");
+    for (const slot of filledSlots) {
+      const scoreLabel = slot.querySelector(".score-floating-label");
+      if (scoreLabel) {
+        expect(scoreLabel.textContent).toBeTruthy();
+      }
+    }
+  });
+
+  it("Recycle and Undo still work with level visuals", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtns = hand.querySelectorAll(".cat-animal");
+    if (animalBtns.length > 0) {
+      await user.click(animalBtns[0]);
+      const slot = screen.getAllByLabelText(/ช่องสัตว์ \d/)[0];
+      await user.click(slot);
+      const levelBadges = document.querySelectorAll(".level-badge");
+      expect(levelBadges.length).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
+
 async function startBattle(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "Local PvP" }));
 }

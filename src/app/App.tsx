@@ -29,7 +29,8 @@ import { formatActionLogEntry, localizedStatusLabel, renderActionFeedback, type 
 import { mapEntryToCombatVisuals, type CombatVisualEvent, type CombatVisualKind } from "../ui/combatVisuals";
 import { mapScoreResolutionToBreakdown, type AnimalScoreContribution, type ScoreComponent, type TeamScoreAdjustment, type TurnScoreBreakdown } from "../ui/turnScoreBreakdown";
 import { getLocalizedCard, getStoredLocale, localeOptions, setStoredLocale, t, type Locale, type TranslationKey } from "../i18n";
-import { getCardArtwork, getArtworkAltText, ARTWORK_PLACEHOLDER } from "../ui/cardArtwork";
+import { getCardArtwork, getArtworkAltText, ARTWORK_PLACEHOLDER, resolveCardArtwork } from "../ui/cardArtwork";
+import { getCardLevelVisualState } from "../ui/cardLevelVisuals";
 import {
   buildPlaytestFeedbackPayload,
   humanFeedbackFilename,
@@ -1284,18 +1285,29 @@ function BoardRow({
             ? scoreContribution.finalContribution > 0 ? "positive" : scoreContribution.finalContribution < 0 ? "negative" : scoreContribution.state === "skipped" || scoreContribution.state === "blocked" ? "blocked" : "zero"
             : undefined;
           const signedScore = scoreContribution ? `${scoreContribution.finalContribution > 0 ? "+" : ""}${scoreContribution.finalContribution}` : "";
+          const visualState = getCardLevelVisualState(animal.level, animal.evolutionPoints);
+          const isLevelEvent = event && (event.kind === "level-up" || event.kind === "level-down" || event.kind === "evolution-complete");
+          const animClass = event?.kind === "evolution-complete" ? "evolution-complete-active"
+            : event?.kind === "level-up" ? "level-up-active"
+            : event?.kind === "level-down" ? "level-down-active"
+            : "";
+          const evolutionProgressLabel = visualState.isEvolutionComplete
+            ? t(locale, "evolution.complete")
+            : t(locale, "evolution.progress", { current: visualState.progressCurrent, required: visualState.progressRequired });
+          const levelBadgeLabel = t(locale, "level.label") + " " + animal.level;
           return (
-            <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} data-target-state={legal ? "valid" : undefined} disabled={!legal} aria-label={`${localizedBoardCard.name} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })} data-combat-source={sourceKind} data-combat-target={targetKind} data-effect-active={isSource || isTarget ? "true" : undefined} data-score-result={scoreTone}>
-              <span className="level">{t(locale, "label.level")} {animal.level}</span>
+            <button key={instanceId} type="button" className={`slot filled ${animClass} ${legal ? "targetable" : "unavailable-target"}`} data-level-visual={visualState.tier} data-evolution-state={visualState.evolutionState} data-target-state={legal ? "valid" : undefined} disabled={!legal} aria-label={`${localizedBoardCard.name} ${levelBadgeLabel} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })} data-combat-source={sourceKind} data-combat-target={targetKind} data-effect-active={isSource || isTarget ? "true" : undefined} data-score-result={scoreTone}>
+              <span className="level-badge" aria-label={levelBadgeLabel}>{t(locale, "level.label")} {animal.level}</span>
               <span className="target-badge">{legal ? t(locale, "label.select") : t(locale, "label.clearSelection")}</span>
-              <CardArtwork cardId={definition.card_id} locale={locale} variant="board" alt="" />
+              <CardArtwork cardId={definition.card_id} locale={locale} variant="board" alt="" level={animal.level} />
               <strong>{localizedBoardCard.name}</strong>
-              {animal.level >= 2 && <small className="statuses">{evolutionLabel(animal.level, animal.evolutionPoints ?? 0, locale)}</small>}
+              <span className="evolution-progress" data-evolution-state={visualState.evolutionState} role="progressbar" aria-valuemin={0} aria-valuemax={visualState.progressRequired} aria-valuenow={visualState.progressCurrent} aria-label={evolutionProgressLabel}>{evolutionProgressLabel}</span>
               {animal.attachedSupportIds.map((supportId) => (
                 <span className="attached-support" key={supportId}>{t(locale, "label.attachedSupport")}: {getLocalizedCard(match.cardsByInstanceId[supportId].definitionId, locale).name}</span>
               ))}
               {animal.statuses.length > 0 && <small className="statuses">{t(locale, "label.statusCount")} {animal.statuses.length}: {localizedAnimalStatuses(animal, locale)}</small>}
-              {event && (isSource || isTarget) && <span className="combat-floating-label" role="status" aria-live="polite">{t(locale, visualLabelKey(event.kind), visualLabelParams(event))}</span>}
+              {isLevelEvent && <span className={`level-floating-cue ${event.kind === "evolution-complete" ? "evolution-complete-cue" : event.kind === "level-down" ? "level-down-cue" : "level-up-cue"}`} role="status" aria-live="polite">{t(locale, visualLabelKey(event.kind), visualLabelParams(event))}</span>}
+              {event && !isLevelEvent && (isSource || isTarget) && <span className="combat-floating-label" role="status" aria-live="polite">{t(locale, visualLabelKey(event.kind), visualLabelParams(event))}</span>}
               {scoreContribution && <span className="score-floating-label" aria-hidden="true">{signedScore}</span>}
             </button>
           );
@@ -1316,23 +1328,24 @@ function HiddenHand({ count, locale }: { count: number; locale: Locale }) {
 
 type CardArtworkVariant = "compact" | "board" | "detail";
 
-function CardArtwork({ cardId, locale, variant = "compact", alt: altOverride, className }: {
+function CardArtwork({ cardId, locale, variant = "compact", alt: altOverride, className, level }: {
   cardId: string;
   locale: Locale;
   variant?: CardArtworkVariant;
   alt?: string;
   className?: string;
+  level?: number;
 }) {
-  const [imgSrc, setImgSrc] = useState<string>(() => getCardArtwork(cardId, locale));
+  const [imgSrc, setImgSrc] = useState<string>(() => resolveCardArtwork(cardId, locale, level as 1 | 2 | 3 | undefined));
   const [failed, setFailed] = useState(false);
   const localizedCard = getLocalizedCard(cardId, locale);
   const altText = altOverride ?? getArtworkAltText(cardId, locale, localizedCard.name);
   const isPlaceholder = imgSrc === ARTWORK_PLACEHOLDER;
 
   useEffect(() => {
-    setImgSrc(getCardArtwork(cardId, locale));
+    setImgSrc(resolveCardArtwork(cardId, locale, level as 1 | 2 | 3 | undefined));
     setFailed(false);
-  }, [cardId, locale]);
+  }, [cardId, locale, level]);
 
   function handleError() {
     if (failed) return;
@@ -1487,6 +1500,12 @@ function Modal({ modal, match, onClose, locale }: { modal: ModalState; match?: M
               <div className="card-detail-info">
                 <h2>{getLocalizedCard(modal.card.card_id, locale).name}</h2>
                 <p>{modal.card.card_id} — {getLocalizedCard(modal.card.card_id, locale).type}</p>
+                {modal.card.category === "Animal" && (
+                  <div className="card-detail-level">
+                    <span>{t(locale, "level.label")}: {modal.card.base_level || 1} / {t(locale, "level.maximum", { max: 3 })}</span>
+                    <span>{t(locale, "evolution.notStarted")}</span>
+                  </div>
+                )}
                 <div className="card-detail-lines" aria-label={t(locale, "label.details")}>
                   {localizedCardDetailLines(getLocalizedCard(modal.card.card_id, locale), locale).map((line) => <p key={line}>{line}</p>)}
                 </div>
@@ -1500,6 +1519,9 @@ function Modal({ modal, match, onClose, locale }: { modal: ModalState; match?: M
               <div className="card-detail-info">
                 <h2>{getLocalizedCard(modal.card.card_id, locale).name}</h2>
                 <p>{modal.card.card_id} — {getLocalizedCard(modal.card.card_id, locale).type}</p>
+                {modal.card.category === "Animal" && (
+                  <small className="level-preview-badge">{t(locale, "level.label")} {modal.card.base_level || 1} / 3</small>
+                )}
                 <div className="card-detail-lines" aria-label={t(locale, "label.details")}>
                   {localizedCardDetailLines(getLocalizedCard(modal.card.card_id, locale), locale).map((line) => <p key={line}>{line}</p>)}
                 </div>
@@ -2017,13 +2039,7 @@ function phaseLabel(phase: MatchState["phase"], locale: Locale) {
   return t(locale, keys[phase]);
 }
 
-function evolutionLabel(level: number, points: number, locale: Locale): string {
-  if (level >= 3) {
-    return t(locale, "log.evolved", { level });
-  }
-  const progress = t(locale, "log.evolutionPoint", { current: points, required: 2 });
-  return `${progress} — ${t(locale, "preview.x003.evolutionLoss")}`;
-}
+
 
 function visualLabelKey(kind: CombatVisualKind): TranslationKey {
   const map: Record<CombatVisualKind, TranslationKey> = {
@@ -2036,6 +2052,7 @@ function visualLabelKey(kind: CombatVisualKind): TranslationKey {
     "shield-consumed": "visual.shieldConsumed",
     "level-up": "visual.levelUp",
     "level-down": "visual.levelDown",
+    "evolution-complete": "visual.evolutionComplete",
     "status-applied": "visual.statusApplied",
     "status-removed": "visual.statusRemoved",
     "draw": "visual.draw",
@@ -2048,6 +2065,9 @@ function visualLabelKey(kind: CombatVisualKind): TranslationKey {
 function visualLabelParams(event: CombatVisualEvent): Record<string, string | number> | undefined {
   if (event.kind === "level-up" || event.kind === "level-down") {
     return { value: event.value ?? 1 };
+  }
+  if (event.kind === "evolution-complete") {
+    return undefined;
   }
   if (event.kind === "draw") {
     return { count: event.value ?? 1 };

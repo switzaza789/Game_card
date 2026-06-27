@@ -10,6 +10,7 @@ export type CombatVisualKind =
   | "shield-consumed"
   | "level-up"
   | "level-down"
+  | "evolution-complete"
   | "status-applied"
   | "status-removed"
   | "draw"
@@ -29,6 +30,7 @@ export interface CombatVisualEvent {
   source?: CombatVisualTarget;
   target?: CombatVisualTarget;
   value?: number;
+  fromValue?: number;
   statusId?: StatusEffectCode;
   isOpponentAction: boolean;
 }
@@ -108,6 +110,7 @@ export function mapEntryToCombatVisuals(match: MatchState, entry: ActionLogEntry
           actorPlayerId: actor,
           target: { playerId: ownerOf(match, outcome.targetInstanceId) ?? actor, instanceId: outcome.targetInstanceId, slotIndex: slotOf(match, outcome.targetInstanceId) },
           value: outcome.toLevel,
+          fromValue: outcome.fromLevel,
           isOpponentAction: isOpponent
         });
         break;
@@ -168,6 +171,18 @@ export function mapEntryToCombatVisuals(match: MatchState, entry: ActionLogEntry
             isOpponentAction: outcome.playerId !== viewerId
           });
         }
+        break;
+      }
+      case "EVOLVED": {
+        events.push({
+          id: nextId(),
+          kind: "evolution-complete",
+          actorPlayerId: actor,
+          target: { playerId: ownerOf(match, outcome.targetInstanceId) ?? actor, instanceId: outcome.targetInstanceId, slotIndex: slotOf(match, outcome.targetInstanceId) },
+          value: outcome.toLevel,
+          fromValue: outcome.fromLevel,
+          isOpponentAction: isOpponent
+        });
         break;
       }
       case "CARD_MOVED": {
