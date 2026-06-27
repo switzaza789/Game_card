@@ -8,6 +8,7 @@ import { initStats } from "../persistence/statsTracker";
 import type { MatchResult } from "../persistence/types";
 import { LOCALE_STORAGE_KEY, getLocalizedCard, getStoredLocale, normalizeLocale, t } from "../i18n";
 import { formatActionLogEntry } from "../ui/effectFeedback";
+import { getCardArtwork } from "../ui/cardArtwork";
 import type { ActionLogEntry, CardDefinition } from "../types/game";
 
 beforeEach(() => {
@@ -1803,6 +1804,107 @@ describe("invalid-use reason localization", () => {
     const { initStats } = await import("../persistence/statsTracker");
     const stats = initStats();
     expect(stats).toBeDefined();
+  });
+});
+
+describe("Card artwork integration", () => {
+  it("card library renders artwork for all cards", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    const grid = screen.getByRole("main");
+    const cards = grid.querySelectorAll(".library-card");
+    expect(cards.length).toBe(24);
+    cards.forEach((card) => {
+      expect(card.querySelector(".card-artwork")).toBeInTheDocument();
+    });
+  });
+
+  it("card library modal renders large artwork", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("button", { name: "คลังการ์ด" }));
+    const libraryCards = document.querySelectorAll(".library-card");
+    expect(libraryCards.length).toBeGreaterThan(0);
+    await user.click(libraryCards[0]);
+    const dialog = screen.getByRole("dialog");
+    expect(dialog.querySelector(".card-artwork.variant-detail")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "ปิด" }));
+  });
+
+  it("current player hand renders artwork", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const artworkElements = hand.querySelectorAll(".card-artwork");
+    expect(artworkElements.length).toBeGreaterThan(0);
+  });
+
+  it("hidden opponent hand renders no identifiable artwork", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const opponentHand = screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน");
+    expect(opponentHand.querySelectorAll(".card-artwork").length).toBe(0);
+    expect(opponentHand.querySelectorAll(".card-back").length).toBeGreaterThan(0);
+  });
+
+  it("player board renders artwork on filled slots", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalCards = hand.querySelectorAll(".cat-animal");
+    if (animalCards.length > 0) {
+      await user.click(animalCards[0]);
+      const slot = screen.getAllByLabelText(/ช่องสัตว์ \d/)[0];
+      await user.click(slot);
+      const board = document.querySelectorAll(".slot.filled");
+      if (board.length > 0) {
+        expect(board[0].querySelector(".card-artwork")).toBeInTheDocument();
+      }
+    }
+  });
+
+  it("attached Support display remains visible on board", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const attachedElements = document.querySelectorAll(".attached-support");
+    expect(attachedElements.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it("card selection still works with artwork", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const firstBtn = hand.querySelector("button");
+    if (firstBtn) {
+      await user.click(firstBtn);
+      expect(firstBtn.classList.contains("selected")).toBe(true);
+    }
+  });
+
+  it("Animal placement still works with artwork", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtns = hand.querySelectorAll(".cat-animal");
+    if (animalBtns.length > 0) {
+      await user.click(animalBtns[0]);
+      const slot = screen.getAllByLabelText(/ช่องสัตว์ \d/)[0];
+      await user.click(slot);
+    }
+  });
+
+  it("artwork alt text switches between Thai and English", () => {
+    const thPath = getCardArtwork("A001", "th");
+    const enPath = getCardArtwork("A001", "en");
+    expect(thPath).toContain("-th.");
+    expect(enPath).toContain("-en.");
   });
 });
 

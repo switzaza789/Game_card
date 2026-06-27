@@ -27,6 +27,7 @@ import { initStats, getHighestScoringCard } from "../persistence/statsTracker";
 import type { MatchResult, MatchStats, StorageError } from "../persistence/types";
 import { formatActionLogEntry, renderActionFeedback, statusLabel, statusDisplayMeta, type ActionFeedback } from "../ui/effectFeedback";
 import { getLocalizedCard, getStoredLocale, localeOptions, setStoredLocale, t, type Locale, type TranslationKey } from "../i18n";
+import { getCardArtwork, getArtworkAltText, ARTWORK_PLACEHOLDER } from "../ui/cardArtwork";
 import {
   buildPlaytestFeedbackPayload,
   humanFeedbackFilename,
@@ -857,6 +858,7 @@ function CardLibrary({
           const localized = getLocalizedCard(card.card_id, locale);
           return (
             <button key={card.card_id} type="button" className={`library-card ${categoryClass(card.category)}`} onClick={() => onOpenCard(card)} aria-label={`${card.card_id} ${localized.name} - ${localized.type}`}>
+              <CardArtwork cardId={card.card_id} locale={locale} variant="compact" />
               <span>{card.card_id}</span>
               <strong>{localized.name}</strong>
               <small>{localized.type}</small>
@@ -962,6 +964,7 @@ function BattleScreen(props: {
             const localizedCategory = localizedCategoryLabel(definition.category, props.locale);
             return (
               <button key={id} type="button" className={`hand-card ${categoryClass(definition.category)} state-${playability.state.toLowerCase()} ${selectedCardId === id ? "selected" : ""}`} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={playability.state === "NOT_PLAYABLE"} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`}>
+                <CardArtwork cardId={definition.card_id} locale={props.locale} variant="compact" alt="" />
                 <span>{definition.card_id}</span>
                 <strong>{localizedCard.name}</strong>
                 <small>{localizedCategory}</small>
@@ -1083,6 +1086,7 @@ function BoardRow({
             <button key={instanceId} type="button" className={`slot filled ${legal ? "targetable" : "unavailable-target"}`} disabled={!legal} aria-label={`${localizedBoardCard.name} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })}>
               <span className="level">{t(locale, "label.level")} {animal.level}</span>
               <span className="target-badge">{legal ? t(locale, "label.select") : t(locale, "label.clearSelection")}</span>
+              <CardArtwork cardId={definition.card_id} locale={locale} variant="board" alt="" />
               <strong>{localizedBoardCard.name}</strong>
               {animal.level >= 2 && <small className="statuses">{evolutionLabel(animal.level, animal.evolutionPoints ?? 0, locale)}</small>}
               {animal.attachedSupportIds.map((supportId) => (
@@ -1102,6 +1106,53 @@ function HiddenHand({ count, locale }: { count: number; locale: Locale }) {
   return (
     <div className="opponent-hand" aria-label={t(locale, "label.opponentHand")}>
       {Array.from({ length: count }).map((_, index) => <div className="card-back" key={index} aria-label={t(locale, "label.hiddenCard")} role="img" />)}
+    </div>
+  );
+}
+
+type CardArtworkVariant = "compact" | "board" | "detail";
+
+function CardArtwork({ cardId, locale, variant = "compact", alt: altOverride, className }: {
+  cardId: string;
+  locale: Locale;
+  variant?: CardArtworkVariant;
+  alt?: string;
+  className?: string;
+}) {
+  const [imgSrc, setImgSrc] = useState<string>(() => getCardArtwork(cardId, locale));
+  const [failed, setFailed] = useState(false);
+  const localizedCard = getLocalizedCard(cardId, locale);
+  const altText = altOverride ?? getArtworkAltText(cardId, locale, localizedCard.name);
+  const isPlaceholder = imgSrc === ARTWORK_PLACEHOLDER;
+
+  useEffect(() => {
+    setImgSrc(getCardArtwork(cardId, locale));
+    setFailed(false);
+  }, [cardId, locale]);
+
+  function handleError() {
+    if (failed) return;
+    setFailed(true);
+    const alternate = locale === "th"
+      ? getCardArtwork(cardId, "en")
+      : getCardArtwork(cardId, "th");
+    if (alternate !== imgSrc && alternate !== ARTWORK_PLACEHOLDER) {
+      setImgSrc(alternate);
+    } else {
+      setImgSrc(ARTWORK_PLACEHOLDER);
+    }
+  }
+
+  return (
+    <div className={`card-artwork variant-${variant}${isPlaceholder ? " artwork-placeholder" : ""}${className ? ` ${className}` : ""}`}>
+      <img
+        src={imgSrc}
+        alt={altText}
+        decoding="async"
+        loading={variant === "compact" ? "lazy" : "eager"}
+        onError={handleError}
+        draggable={false}
+      />
     </div>
   );
 }
@@ -1225,21 +1276,31 @@ function Modal({ modal, match, onClose, locale }: { modal: ModalState; match?: M
       <section className="modal-panel" tabIndex={-1}>
         {modal.type === "card" ? (
           match ? (
-            <>
-              <h2>{getLocalizedCard(modal.card.card_id, locale).name}</h2>
-              <p>{modal.card.card_id} — {getLocalizedCard(modal.card.card_id, locale).type}</p>
-              <div className="card-detail-lines" aria-label={t(locale, "label.details")}>
-                {localizedCardDetailLines(getLocalizedCard(modal.card.card_id, locale), locale).map((line) => <p key={line}>{line}</p>)}
+            <div className="card-detail-layout">
+              <div className="card-detail-artwork">
+                <CardArtwork cardId={modal.card.card_id} locale={locale} variant="detail" />
               </div>
-            </>
+              <div className="card-detail-info">
+                <h2>{getLocalizedCard(modal.card.card_id, locale).name}</h2>
+                <p>{modal.card.card_id} — {getLocalizedCard(modal.card.card_id, locale).type}</p>
+                <div className="card-detail-lines" aria-label={t(locale, "label.details")}>
+                  {localizedCardDetailLines(getLocalizedCard(modal.card.card_id, locale), locale).map((line) => <p key={line}>{line}</p>)}
+                </div>
+              </div>
+            </div>
           ) : (
-            <>
-              <h2>{getLocalizedCard(modal.card.card_id, locale).name}</h2>
-              <p>{modal.card.card_id} — {getLocalizedCard(modal.card.card_id, locale).type}</p>
-              <div className="card-detail-lines" aria-label={t(locale, "label.details")}>
-                {localizedCardDetailLines(getLocalizedCard(modal.card.card_id, locale), locale).map((line) => <p key={line}>{line}</p>)}
+            <div className="card-detail-layout">
+              <div className="card-detail-artwork">
+                <CardArtwork cardId={modal.card.card_id} locale={locale} variant="detail" />
               </div>
-            </>
+              <div className="card-detail-info">
+                <h2>{getLocalizedCard(modal.card.card_id, locale).name}</h2>
+                <p>{modal.card.card_id} — {getLocalizedCard(modal.card.card_id, locale).type}</p>
+                <div className="card-detail-lines" aria-label={t(locale, "label.details")}>
+                  {localizedCardDetailLines(getLocalizedCard(modal.card.card_id, locale), locale).map((line) => <p key={line}>{line}</p>)}
+                </div>
+              </div>
+            </div>
           )
         ) : (
           <>
@@ -1248,7 +1309,12 @@ function Modal({ modal, match, onClose, locale }: { modal: ModalState; match?: M
               {(match?.players[modal.playerId].graveyard ?? []).map((id) => {
                 const card = match ? getCardDefinition(match.cardsByInstanceId[id].definitionId) : null;
                 const localizedGrave = card ? getLocalizedCard(card.card_id, locale) : null;
-                return <li key={id}>{card?.card_id} {localizedGrave?.name} <small>{localizedGrave?.type}</small></li>;
+                return (
+                  <li key={id}>
+                    {card && <CardArtwork cardId={card.card_id} locale={locale} variant="compact" alt="" />}
+                    {card?.card_id} {localizedGrave?.name} <small>{localizedGrave?.type}</small>
+                  </li>
+                );
               })}
             </ul>
           </>

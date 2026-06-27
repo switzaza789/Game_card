@@ -235,12 +235,19 @@ h1 {
 .library-card,
 .hand-card {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   min-height: 112px;
   border: 1px solid #475569;
   color: var(--ink);
   text-align: left;
   background: #ffffff;
+  padding: 0.5rem;
+}
+
+.library-card .card-artwork,
+.hand-card .card-artwork {
+  margin: 0;
+  width: 100%;
 }
 
 .cat-animal {
@@ -752,8 +759,90 @@ h1 {
   margin-top: 1rem;
 }
 
+.card-artwork {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.card-artwork img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.card-artwork.artwork-placeholder {
+  background: #d1d8e0;
+  min-height: 60px;
+  min-width: 40px;
+}
+
+.card-artwork.variant-compact {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  max-height: 120px;
+}
+
+.card-artwork.variant-board {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  max-height: 140px;
+}
+
+.card-artwork.variant-detail {
+  width: 100%;
+  aspect-ratio: 5 / 7;
+  max-height: 320px;
+}
+
+.modal-panel .card-artwork.variant-detail {
+  max-height: 360px;
+}
+
+.card-detail-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+
+@media (min-width: 600px) {
+  .card-detail-layout {
+    grid-template-columns: 240px 1fr;
+  }
+}
+
+.card-detail-artwork {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.card-detail-info h2 {
+  margin-top: 0;
+}
+
 .graveyard-list {
   padding-left: 20px;
+  list-style: none;
+  padding-left: 0;
+}
+
+.graveyard-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.graveyard-list li .card-artwork.variant-compact {
+  width: 48px;
+  aspect-ratio: 5 / 7;
+  flex-shrink: 0;
 }
 
 .scroll-page {
