@@ -166,6 +166,7 @@ export type MatchState = {
   currentPlayerId: PlayerId;
   phase: Phase;
   turnNumber: number;
+  targetScore: number;
   rng: RngState;
   winner?: PlayerId | "DRAW";
   finishReason?: "TARGET_SCORE" | "TURN_LIMIT";
@@ -350,7 +351,7 @@ export type GameConfig = {
   starting_hand: 5;
   hand_limit: 7;
   animal_zone_slots: 3;
-  target_score: 15;
+  target_score: number;
   max_turns_per_player: 12;
   level_min: 1;
   level_max: 3;

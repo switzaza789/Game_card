@@ -431,15 +431,16 @@ describe("core engine reducer", () => {
     expect(state.players.P2.hand).toHaveLength(6);
   });
 
-  it("finishes when a player reaches 15 score", () => {
+  it("finishes when a player reaches the target score", () => {
     const state = createMatch({ seed: "win" });
+    const target = state.targetScore;
     const finished = evaluateWin({
       ...state,
       players: {
         ...state.players,
         P1: {
           ...state.players.P1,
-          score: 15
+          score: target
         }
       }
     });
@@ -451,13 +452,14 @@ describe("core engine reducer", () => {
 
   it("handles target-score winner branches", () => {
     const state = createMatch({ seed: "score-winner-branches" });
+    const target = state.targetScore;
 
     expect(
       evaluateWin({
         ...state,
         players: {
           ...state.players,
-          P2: { ...state.players.P2, score: 15 }
+          P2: { ...state.players.P2, score: target }
         }
       }).winner
     ).toBe("P2");
@@ -467,11 +469,64 @@ describe("core engine reducer", () => {
         ...state,
         players: {
           ...state.players,
-          P1: { ...state.players.P1, score: 15 },
-          P2: { ...state.players.P2, score: 16 }
+          P1: { ...state.players.P1, score: target },
+          P2: { ...state.players.P2, score: target + 1 }
         }
       }).winner
     ).toBe("P2");
+  });
+
+  it("does not finish at one below target score", () => {
+    const state = createMatch({ seed: "below-target" });
+    const belowResult = evaluateWin({
+      ...state,
+      players: {
+        ...state.players,
+        P1: { ...state.players.P1, score: state.targetScore - 1 }
+      }
+    });
+    expect(belowResult.status).toBe("ACTIVE");
+  });
+
+  it("finishes with overshoot from a multi-point action", () => {
+    const state = createMatch({ seed: "overshoot" });
+    const overshoot = evaluateWin({
+      ...state,
+      players: {
+        ...state.players,
+        P1: { ...state.players.P1, score: state.targetScore + 3 }
+      }
+    });
+    expect(overshoot.status).toBe("FINISHED");
+    expect(overshoot.winner).toBe("P1");
+    expect(overshoot.finishReason).toBe("TARGET_SCORE");
+  });
+
+  it("rejects actions after the match is finished via target score", () => {
+    const state = {
+      ...createMatch({ seed: "post-win" }),
+      status: "FINISHED" as const,
+      finishReason: "TARGET_SCORE" as const,
+      winner: "P1" as const
+    };
+    expect(dispatchAction(state, advance()).validation.valid).toBe(false);
+  });
+
+  it("preserves targetScore through Undo", () => {
+    let state = createMatch({ seed: "undo-target" });
+    const originalTarget = state.targetScore;
+    const snapshot: MatchState["undoSnapshot"] = {
+      state: { ...state, undoSnapshot: undefined },
+      actor: "P1",
+      summary: "test"
+    };
+    state = { ...state, undoSnapshot: snapshot };
+    const undone = dispatchAction(state, {
+      type: "UNDO_LAST_REVERSIBLE_ACTION",
+      playerId: "P1",
+      payload: {}
+    }).state;
+    expect(undone.targetScore).toBe(originalTarget);
   });
 
   it("uses tiebreakers when both players reach the turn limit", () => {
@@ -480,8 +535,8 @@ describe("core engine reducer", () => {
       ...state,
       players: {
         ...state.players,
-        P1: { ...state.players.P1, score: 10, turnsTaken: 12 },
-        P2: { ...state.players.P2, score: 9, turnsTaken: 12 }
+        P1: { ...state.players.P1, score: 5, turnsTaken: 12 },
+        P2: { ...state.players.P2, score: 4, turnsTaken: 12 }
       }
     });
 
@@ -497,8 +552,8 @@ describe("core engine reducer", () => {
       ...state,
       players: {
         ...state.players,
-        P1: { ...state.players.P1, score: 10, turnsTaken: 12, deck: [] },
-        P2: { ...state.players.P2, score: 10, turnsTaken: 12 }
+        P1: { ...state.players.P1, score: 5, turnsTaken: 12, deck: [] },
+        P2: { ...state.players.P2, score: 5, turnsTaken: 12 }
       }
     });
     expect(p2DeckWinner.winner).toBe("P2");

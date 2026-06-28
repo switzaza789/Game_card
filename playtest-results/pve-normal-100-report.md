@@ -3,15 +3,15 @@
 This deterministic simulation checks stability only. It is not human balance evidence.
 
 - Completed matches: 100/100
-- P1 wins: 57
-- AI wins: 43
+- P1 wins: 59
+- AI wins: 41
 - Draws: 0
-- Average turns: 6.62
-- Median turns: 7
+- Average turns: 5.49
+- Median turns: 6
 - Stuck matches: 0
 - Invalid AI actions: 0
 - AI action-limit fallbacks: 0
 - Finish reasons: {"TARGET_SCORE":100}
-- Level 3 evolutions: 142
-- Average evolutions per match: 1.42
-- Matches ending before any evolution: 9
+- Level 3 evolutions: 73
+- Average evolutions per match: 0.73
+- Matches ending before any evolution: 33

@@ -304,8 +304,9 @@ export function evaluateWin(state: MatchState): MatchState {
 }
 
 function findScoreWinner(state: MatchState): PlayerId | undefined {
-  const p1Reached = state.players.P1.score >= engineConfig.target_score;
-  const p2Reached = state.players.P2.score >= engineConfig.target_score;
+  const targetScore = state.targetScore;
+  const p1Reached = state.players.P1.score >= targetScore;
+  const p2Reached = state.players.P2.score >= targetScore;
 
   if (p1Reached && p2Reached) {
     return state.players.P1.score >= state.players.P2.score ? "P1" : "P2";

@@ -1225,7 +1225,7 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
         <div className="hud-primary">
           <div className={`scoreboard-player ${match.currentPlayerId === "P1" ? "active" : ""}`}>
             <span>{playerNameForMode("P1", match.gameMode, props.locale)}</span>
-            <strong>{match.players.P1.score} / {gameConfig.target_score}</strong>
+            <strong>{match.players.P1.score} / {match.targetScore}</strong>
             {scoreDeltas.P1 !== 0 && <em className={props.scoreAnimPlayerId === "P1" ? "score-cue" : ""}>{scoreDeltas.P1 > 0 ? "+" : ""}{scoreDeltas.P1}</em>}
           </div>
           <div className="phase-panel">
@@ -1233,7 +1233,7 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
           </div>
           <div className={`scoreboard-player ${match.currentPlayerId === "P2" ? "active" : ""}`}>
             <span>{playerNameForMode("P2", match.gameMode, props.locale)}</span>
-            <strong>{match.players.P2.score} / {gameConfig.target_score}</strong>
+            <strong>{match.players.P2.score} / {match.targetScore}</strong>
             {scoreDeltas.P2 !== 0 && <em className={props.scoreAnimPlayerId === "P2" ? "score-cue" : ""}>{scoreDeltas.P2 > 0 ? "+" : ""}{scoreDeltas.P2}</em>}
           </div>
         </div>
@@ -1288,7 +1288,7 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
         <div className="divider" />
         <BoardAnimalSlots match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} filledNewAnimSet={props.filledNewAnimSet} supportAttachAnimSet={props.supportAttachAnimSet} />
         <BoardResourceRow match={match} ownerId={activePlayerId} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} />
-        <div className="zone-label">{t(props.locale, "label.you")} — {t(props.locale, "label.score")} {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
+        <div className="zone-label">{t(props.locale, "label.you")} — {t(props.locale, "label.score")} {match.players[activePlayerId].score} / {match.targetScore}</div>
       </section>
 
       {/* Action Context Strip */}

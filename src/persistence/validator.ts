@@ -218,6 +218,11 @@ export function validateStoredMatch(data: unknown): StorageResult<PersistedActiv
     }
   }
 
+  // Set legacy default for targetScore if missing
+  if (typeof state.targetScore !== "number" || state.targetScore < 1) {
+    state.targetScore = 15;
+  }
+
   if (errors.length > 0) {
     return { ok: false, error: { type: "ValidationFailed", errors } };
   }

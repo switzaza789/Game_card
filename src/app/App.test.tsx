@@ -1509,7 +1509,7 @@ describe("compact Battle HUD header (Phase 1.1)", () => {
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Local PvP" }));
     const header = screen.getByLabelText("สถานะการแข่งขัน");
-    expect(header.textContent).toContain("/ 15");
+    expect(header.textContent).toContain("/ 10");
   });
 
   it("Turn and Phase remain visible in the header", async () => {

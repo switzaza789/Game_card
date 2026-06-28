@@ -20,7 +20,7 @@ export function validateGameConfig(input: unknown): GameConfig {
   assertExact(config.starting_hand, 5, "starting_hand");
   assertExact(config.hand_limit, 7, "hand_limit");
   assertExact(config.animal_zone_slots, 3, "animal_zone_slots");
-  assertExact(config.target_score, 15, "target_score");
+  assertTargetScore(config.target_score, "target_score");
   assertExact(config.max_turns_per_player, 12, "max_turns_per_player");
   assertExact(config.level_min, 1, "level_min");
   assertExact(config.level_max, 3, "level_max");
@@ -151,6 +151,12 @@ function assertString(value: unknown, label: string): asserts value is string {
 function assertStringArray(value: unknown, label: string): asserts value is string[] {
   if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
     throw new Error(`${label} must be a string array`);
+  }
+}
+
+function assertTargetScore(value: unknown, label: string): asserts value is number {
+  if (typeof value !== "number" || !Number.isFinite(value) || !Number.isInteger(value) || value < 1) {
+    throw new Error(`${label} must be a positive integer`);
   }
 }
 

@@ -11,7 +11,7 @@ describe("data validation", () => {
     expect(gameConfig.deck_size).toBe(24);
     expect(gameConfig.starting_hand).toBe(5);
     expect(gameConfig.animal_zone_slots).toBe(3);
-    expect(gameConfig.target_score).toBe(15);
+    expect(gameConfig.target_score).toBe(10);
     expect(gameConfig.max_turns_per_player).toBe(12);
     expect(gameConfig.turn_phases).toEqual(["READY", "DRAW", "SCORE", "ACTION", "END"]);
     expect(gameConfig.first_player_draws_on_turn_1).toBe(false);
@@ -45,6 +45,30 @@ describe("data validation", () => {
     );
 
     expect(() => validateCardsSeed(invalid)).toThrow(/Unknown card category/);
+  });
+
+  it.each([
+    ["zero", 0],
+    ["negative", -1],
+    ["fractional", 7.5],
+    ["NaN", NaN],
+    ["Infinity", Infinity]
+  ])("rejects invalid target_score: %s", (_label, value) => {
+    expect(() =>
+      validateGameConfig({
+        ...(rawGameConfig as Record<string, unknown>),
+        target_score: value
+      })
+    ).toThrow(/target_score must be a positive integer/);
+  });
+
+  it("accepts valid positive integer target_score", () => {
+    expect(() =>
+      validateGameConfig({
+        ...(rawGameConfig as Record<string, unknown>),
+        target_score: 8
+      })
+    ).not.toThrow();
   });
 
   it("rejects game config values outside the approved prototype scope", () => {
