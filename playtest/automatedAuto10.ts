@@ -163,7 +163,7 @@ export function runOneMatch(seed: string, matchIndex: number): MatchPlaytestResu
   accept(runtime, { type: "START_MATCH", playerId: "P1", payload: { seed } });
   accept(runtime, { type: "ACKNOWLEDGE_STARTER", playerId: runtime.state.currentPlayerId, payload: {} });
   completeOpeningDraws(runtime);
-  completeMulligan(runtime, "P1");
+  completeMulligan(runtime, runtime.state.currentPlayerId);
   advanceToAction(runtime);
 
   while (runtime.state.status !== "FINISHED" && runtime.acceptedActions <= 500) {

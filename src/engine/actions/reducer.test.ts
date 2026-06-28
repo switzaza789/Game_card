@@ -106,7 +106,7 @@ describe("opening draw", () => {
       s = r.state;
     }
     expect(s.pregameStep).toBe("COMPLETE");
-    expect(s.phase).toBe("ACTION");
+    expect(s.phase).toBe("READY");
     expect(s.currentPlayerId).toBe("P2");
     expect(s.startingPlayerId).toBe("P2");
     expect(s.turnNumber).toBe(1);
@@ -164,6 +164,103 @@ describe("opening draw", () => {
     expect(drawResult.state.players.P2.board).toEqual([null, null, null]);
     expect(drawResult.state.players.P1.graveyard).toEqual([]);
     expect(drawResult.state.players.P2.graveyard).toEqual([]);
+  });
+
+  it("reaches READY phase with both hands filled after full opening draw (P1 starter)", () => {
+    const state = createMatch({ startingPlayerId: "P1", seed: "od-ready-p1" });
+    const ack = dispatchAction(state, { type: "ACKNOWLEDGE_STARTER", playerId: "P1", payload: {} }).state;
+    let s = ack;
+    for (let i = 0; i < engineConfig.starting_hand; i += 1) {
+      s = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: s.openingDrawPlayerId, payload: {} }).state;
+    }
+    for (let i = 0; i < engineConfig.starting_hand; i += 1) {
+      s = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: s.openingDrawPlayerId, payload: {} }).state;
+    }
+    expect(s.pregameStep).toBe("COMPLETE");
+    expect(s.phase).toBe("READY");
+    expect(s.currentPlayerId).toBe("P1");
+    expect(s.players.P1.hand).toHaveLength(engineConfig.starting_hand);
+    expect(s.players.P2.hand).toHaveLength(engineConfig.starting_hand);
+  });
+
+  it("reaches READY phase with both hands filled after full opening draw (P2 starter)", () => {
+    const state = createMatch({ startingPlayerId: "P2", seed: "od-ready-p2" });
+    const ack = dispatchAction(state, { type: "ACKNOWLEDGE_STARTER", playerId: "P2", payload: {} }).state;
+    let s = ack;
+    for (let i = 0; i < engineConfig.starting_hand; i += 1) {
+      s = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: s.openingDrawPlayerId, payload: {} }).state;
+    }
+    for (let i = 0; i < engineConfig.starting_hand; i += 1) {
+      s = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: s.openingDrawPlayerId, payload: {} }).state;
+    }
+    expect(s.pregameStep).toBe("COMPLETE");
+    expect(s.phase).toBe("READY");
+    expect(s.currentPlayerId).toBe("P2");
+    expect(s.players.P1.hand).toHaveLength(engineConfig.starting_hand);
+    expect(s.players.P2.hand).toHaveLength(engineConfig.starting_hand);
+  });
+
+  it("supports zero-card Mulligan after opening draws", () => {
+    let s = createMatch({ startingPlayerId: "P1", seed: "od-mull-zero" });
+    s = dispatchAction(s, { type: "ACKNOWLEDGE_STARTER", playerId: "P1", payload: {} }).state;
+    for (let i = 0; i < engineConfig.starting_hand * 2; i += 1) {
+      s = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: s.openingDrawPlayerId, payload: {} }).state;
+    }
+    expect(s.pregameStep).toBe("COMPLETE");
+    expect(s.phase).toBe("READY");
+    const result = dispatchAction(s, { type: "MULLIGAN", playerId: "P1", payload: { cardInstanceIds: [] } });
+    expect(result.validation.valid).toBe(true);
+    expect(result.state.players.P1.hand).toHaveLength(engineConfig.starting_hand);
+  });
+
+  it("supports non-empty Mulligan after opening draws", () => {
+    let s = createMatch({ startingPlayerId: "P1", seed: "od-mull-nonempty" });
+    s = dispatchAction(s, { type: "ACKNOWLEDGE_STARTER", playerId: "P1", payload: {} }).state;
+    for (let i = 0; i < engineConfig.starting_hand * 2; i += 1) {
+      s = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: s.openingDrawPlayerId, payload: {} }).state;
+    }
+    expect(s.pregameStep).toBe("COMPLETE");
+    expect(s.phase).toBe("READY");
+    const toMull = s.players.P1.hand.slice(0, 1);
+    const result = dispatchAction(s, { type: "MULLIGAN", playerId: "P1", payload: { cardInstanceIds: toMull } });
+    expect(result.validation.valid).toBe(true);
+    expect(result.state.players.P1.hand).toHaveLength(engineConfig.starting_hand);
+    expect(result.state.players.P1.mulligansUsed).toBe(1);
+  });
+
+  it("Mulligan limit remains enforced after opening draw flow", () => {
+    let s = createMatch({ startingPlayerId: "P1", seed: "od-mull-limit" });
+    s = dispatchAction(s, { type: "ACKNOWLEDGE_STARTER", playerId: "P1", payload: {} }).state;
+    for (let i = 0; i < engineConfig.starting_hand * 2; i += 1) {
+      s = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: s.openingDrawPlayerId, payload: {} }).state;
+    }
+    const toMull = s.players.P1.hand.slice(0, 2);
+    const first = dispatchAction(s, { type: "MULLIGAN", playerId: "P1", payload: { cardInstanceIds: toMull } });
+    expect(first.validation.valid).toBe(true);
+    const second = dispatchAction(first.state, { type: "MULLIGAN", playerId: "P1", payload: { cardInstanceIds: [first.state.players.P1.hand[0]] } });
+    expect(second.validation.valid).toBe(false);
+  });
+
+  it("first turn begins with correct player and skips first-turn draw per config", () => {
+    let s = createMatch({ startingPlayerId: "P1", seed: "od-first-turn" });
+    s = dispatchAction(s, { type: "ACKNOWLEDGE_STARTER", playerId: "P1", payload: {} }).state;
+    for (let i = 0; i < engineConfig.starting_hand; i += 1) {
+      s = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: s.openingDrawPlayerId, payload: {} }).state;
+    }
+    for (let i = 0; i < engineConfig.starting_hand; i += 1) {
+      s = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: s.openingDrawPlayerId, payload: {} }).state;
+    }
+    expect(s.pregameStep).toBe("COMPLETE");
+    expect(s.phase).toBe("READY");
+    expect(s.currentPlayerId).toBe("P1");
+    s = dispatchAction(s, { type: "ADVANCE_PHASE", playerId: "P1", payload: {} }).state;
+    expect(s.phase).toBe("DRAW");
+    expect(s.players.P1.hand).toHaveLength(engineConfig.starting_hand);
+    s = dispatchAction(s, { type: "ADVANCE_PHASE", playerId: "P1", payload: {} }).state;
+    expect(s.phase).toBe("SCORE");
+    s = dispatchAction(s, { type: "ADVANCE_PHASE", playerId: "P1", payload: {} }).state;
+    expect(s.phase).toBe("ACTION");
+    expect(s.currentPlayerId).toBe("P1");
   });
 });
 

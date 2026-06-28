@@ -103,7 +103,7 @@ function drawOpeningCard(state: MatchState, playerId: PlayerId): MatchState {
     return {
       ...nextState,
       pregameStep: "COMPLETE",
-      phase: "ACTION",
+      phase: "READY",
       openingDrawRemaining: newRemaining
     };
   }
