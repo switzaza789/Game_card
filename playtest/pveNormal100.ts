@@ -70,6 +70,7 @@ function runPveMatch(seed: string) {
   const aiCardUsage: Record<string, number> = {};
   state = accept(state, { type: "START_MATCH", playerId: "P1", payload: { seed } });
   state = accept(state, { type: "ACKNOWLEDGE_STARTER", playerId: state.currentPlayerId, payload: {} });
+  state = completeOpeningDrawsPve(state, accepted);
 
   while (state.status !== "FINISHED" && accepted < 500) {
     while (state.status !== "FINISHED" && state.phase !== "ACTION") {
@@ -120,6 +121,15 @@ function runPveMatch(seed: string) {
     aiCardUsage,
     ...evolutionStats(state)
   };
+}
+
+function completeOpeningDrawsPve(state: MatchState, accepted: number): MatchState {
+  let current = state;
+  while (current.pregameStep === "OPENING_DRAW") {
+    const pid = current.openingDrawPlayerId;
+    current = dispatchAction(current, { action: { type: "DRAW_OPENING_CARD", playerId: pid, payload: {} }, timestamp: current.actionLog.length + 1 + accepted }).state;
+  }
+  return current;
 }
 
 function accept(state: MatchState, action: Action): MatchState {

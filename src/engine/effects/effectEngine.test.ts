@@ -3,7 +3,7 @@ import { cardsSeed } from "../../data/cardsSeed";
 import type { AnimalInstance, CardInstance, MatchState, PlayerId, Action, StructuredScoreResolution } from "../../types/game";
 import { dispatchAction as originalDispatchAction, forcePhase } from "../actions/reducer";
 import { getCardDefinition } from "../cards/deck";
-import { createMatch } from "../state/match";
+import { createMatch, drawCards } from "../state/match";
 import { addStatus } from "../status/status";
 
 function dispatchAction(state: MatchState, action: Action): ReturnType<typeof originalDispatchAction> {
@@ -156,6 +156,7 @@ describe("card effects", () => {
     expect(result.state.players.P1.deck[0]).toBe(initialSecond);
 
     state = setupActionState();
+    state = drawCards(state, "P1", 1);
     state = forceAnimalToBoard(state, "P1", "A002", 1);
     state = forceCardToHand(state, "P1", "S002");
     const beforeHand = state.players.P1.hand.length;

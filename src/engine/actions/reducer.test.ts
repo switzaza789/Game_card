@@ -2,12 +2,170 @@ import { describe, expect, it } from "vitest";
 import type { CardInstance, MatchState, Action } from "../../types/game";
 import { getCardDefinition } from "../cards/deck";
 import { dispatchAction as originalDispatchAction, evaluateWin, forcePhase } from "./reducer";
-import { createMatch } from "../state/match";
+import { createMatch, drawCards } from "../state/match";
+import { engineConfig } from "../config/config";
 import { validateAction } from "../validation/validation";
 
 function dispatchAction(state: MatchState, action: Action): ReturnType<typeof originalDispatchAction> {
   return originalDispatchAction(state, { action, timestamp: Date.now() });
 }
+
+describe("opening draw", () => {
+  it("rejects DRAW_OPENING_CARD before starter acknowledgment", () => {
+    const state = createMatch({ startingPlayerId: "P1", seed: "od-reject-1" });
+    const result = dispatchAction(state, {
+      type: "DRAW_OPENING_CARD", playerId: "P1", payload: {}
+    });
+    expect(result.validation.valid).toBe(false);
+  });
+
+  it("rejects DRAW_OPENING_CARD for the wrong player", () => {
+    const state = createMatch({ startingPlayerId: "P1", seed: "od-reject-2" });
+    const ackState = dispatchAction(state, {
+      type: "ACKNOWLEDGE_STARTER", playerId: "P1", payload: {}
+    }).state;
+    const result = dispatchAction(ackState, {
+      type: "DRAW_OPENING_CARD", playerId: "P2", payload: {}
+    });
+    expect(result.validation.valid).toBe(false);
+  });
+
+  it("rejects DRAW_OPENING_CARD when player has zero remaining", () => {
+    const state = createMatch({ startingPlayerId: "P1", seed: "od-reject-3" });
+    const ackState = dispatchAction(state, {
+      type: "ACKNOWLEDGE_STARTER", playerId: "P1", payload: {}
+    }).state;
+    const zeroState = { ...ackState, openingDrawRemaining: { P1: 0, P2: 5 } };
+    const result = dispatchAction(zeroState, {
+      type: "DRAW_OPENING_CARD", playerId: "P1", payload: {}
+    });
+    expect(result.validation.valid).toBe(false);
+  });
+
+  it("rejects DRAW_OPENING_CARD when pregameStep is COMPLETE", () => {
+    const state = createMatch({ startingPlayerId: "P1", seed: "od-reject-4" });
+    const completeState = { ...state, pregameStep: "COMPLETE" as const };
+    const result = dispatchAction(completeState, {
+      type: "DRAW_OPENING_CARD", playerId: "P1", payload: {}
+    });
+    expect(result.validation.valid).toBe(false);
+  });
+
+  it("rejects normal actions during OPENING_DRAW", () => {
+    const state = createMatch({ startingPlayerId: "P1", seed: "od-reject-5" });
+    const ackState = dispatchAction(state, {
+      type: "ACKNOWLEDGE_STARTER", playerId: "P1", payload: {}
+    }).state;
+    expect(dispatchAction(ackState, { type: "ADVANCE_PHASE", playerId: "P1", payload: {} }).validation.valid).toBe(false);
+    expect(dispatchAction(ackState, { type: "END_TURN", playerId: "P1", payload: {} }).validation.valid).toBe(false);
+    const cardId = ackState.players.P1.deck[0];
+    expect(dispatchAction(ackState, { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: cardId } }).validation.valid).toBe(false);
+    expect(dispatchAction(ackState, { type: "RECYCLE", playerId: "P1", payload: { cardInstanceId: cardId } }).validation.valid).toBe(false);
+  });
+
+  it("rejects duplicate draw from the same player", () => {
+    const state = createMatch({ startingPlayerId: "P1", seed: "od-dup" });
+    const ackState = dispatchAction(state, {
+      type: "ACKNOWLEDGE_STARTER", playerId: "P1", payload: {}
+    }).state;
+    const first = dispatchAction(ackState, {
+      type: "DRAW_OPENING_CARD", playerId: "P1", payload: {}
+    });
+    expect(first.validation.valid).toBe(true);
+    expect(first.state.players.P1.hand).toHaveLength(1);
+    expect(first.state.players.P1.deck).toHaveLength(23);
+    const dup = dispatchAction(first.state, {
+      type: "DRAW_OPENING_CARD", playerId: "P1", payload: {}
+    }).state;
+    expect(dup.players.P1.hand).toHaveLength(2);
+    expect(dup.players.P1.deck).toHaveLength(22);
+  });
+
+  it("preserves turn counter and active player during opening draw", () => {
+    const state = createMatch({ startingPlayerId: "P2", seed: "od-turn" });
+    const ackState = dispatchAction(state, {
+      type: "ACKNOWLEDGE_STARTER", playerId: "P2", payload: {}
+    }).state;
+    expect(ackState.turnNumber).toBe(1);
+    expect(ackState.currentPlayerId).toBe("P2");
+    let s = ackState;
+    for (let i = 0; i < 5; i += 1) {
+      const r = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: "P2", payload: {} });
+      expect(r.validation.valid).toBe(true);
+      expect(r.state.turnNumber).toBe(1);
+      expect(r.state.currentPlayerId).toBe("P2");
+      s = r.state;
+    }
+    expect(s.players.P2.hand).toHaveLength(5);
+    expect(s.openingDrawPlayerId).toBe("P1");
+    for (let i = 0; i < 5; i += 1) {
+      const r = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: "P1", payload: {} });
+      expect(r.validation.valid).toBe(true);
+      expect(r.state.turnNumber).toBe(1);
+      expect(r.state.currentPlayerId).toBe("P2");
+      s = r.state;
+    }
+    expect(s.pregameStep).toBe("COMPLETE");
+    expect(s.phase).toBe("ACTION");
+    expect(s.currentPlayerId).toBe("P2");
+    expect(s.startingPlayerId).toBe("P2");
+    expect(s.turnNumber).toBe(1);
+    expect(s.players.P1.hand).toHaveLength(5);
+    expect(s.players.P2.hand).toHaveLength(5);
+  });
+
+  it("does not create an undo snapshot during opening draw", () => {
+    const state = createMatch({ startingPlayerId: "P1", seed: "od-undo" });
+    const ackState = dispatchAction(state, {
+      type: "ACKNOWLEDGE_STARTER", playerId: "P1", payload: {}
+    }).state;
+    const drawResult = dispatchAction(ackState, {
+      type: "DRAW_OPENING_CARD", playerId: "P1", payload: {}
+    });
+    expect(drawResult.state.undoSnapshot).toBeUndefined();
+  });
+
+  it("undo is rejected during OPENING_DRAW and across the boundary", () => {
+    const state = createMatch({ startingPlayerId: "P1", seed: "od-undo-2" });
+    const ackState = dispatchAction(state, {
+      type: "ACKNOWLEDGE_STARTER", playerId: "P1", payload: {}
+    }).state;
+    const undoResult = dispatchAction(ackState, {
+      type: "UNDO_LAST_REVERSIBLE_ACTION", playerId: "P1", payload: {}
+    });
+    expect(undoResult.validation.valid).toBe(false);
+    let s = ackState;
+    for (let i = 0; i < 5; i += 1) {
+      s = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: "P1", payload: {} }).state;
+    }
+    for (let i = 0; i < 5; i += 1) {
+      s = dispatchAction(s, { type: "DRAW_OPENING_CARD", playerId: "P2", payload: {} }).state;
+    }
+    expect(s.pregameStep).toBe("COMPLETE");
+    const postUndo = dispatchAction(s, {
+      type: "UNDO_LAST_REVERSIBLE_ACTION", playerId: "P1", payload: {}
+    });
+    expect(postUndo.validation.valid).toBe(false);
+    expect(postUndo.state.players.P1.hand).toHaveLength(5);
+    expect(postUndo.state.players.P2.hand).toHaveLength(5);
+  });
+
+  it("does not modify score, board, graveyard, or recycle state", () => {
+    const state = createMatch({ startingPlayerId: "P1", seed: "od-sidefx" });
+    const ackState = dispatchAction(state, {
+      type: "ACKNOWLEDGE_STARTER", playerId: "P1", payload: {}
+    }).state;
+    const drawResult = dispatchAction(ackState, {
+      type: "DRAW_OPENING_CARD", playerId: "P1", payload: {}
+    });
+    expect(drawResult.state.players.P1.score).toBe(0);
+    expect(drawResult.state.players.P2.score).toBe(0);
+    expect(drawResult.state.players.P1.board).toEqual([null, null, null]);
+    expect(drawResult.state.players.P2.board).toEqual([null, null, null]);
+    expect(drawResult.state.players.P1.graveyard).toEqual([]);
+    expect(drawResult.state.players.P2.graveyard).toEqual([]);
+  });
+});
 
 describe("core engine reducer", () => {
   it("moves through READY, DRAW, SCORE, ACTION, and END phases", () => {
@@ -15,7 +173,7 @@ describe("core engine reducer", () => {
 
     state = dispatchAction(state, advance()).state;
     expect(state.phase).toBe("DRAW");
-    expect(state.players.P1.hand).toHaveLength(5);
+    expect(state.players.P1.hand).toHaveLength(0);
 
     state = dispatchAction(state, advance()).state;
     expect(state.phase).toBe("SCORE");
@@ -54,8 +212,8 @@ describe("core engine reducer", () => {
     });
 
     expect(result.validation.valid).toBe(true);
-    expect(result.state.pregameStep).toBe("COMPLETE");
-    expect(result.state.phase).toBe("ACTION");
+    expect(result.state.pregameStep).toBe("OPENING_DRAW");
+    expect(result.state.phase).toBe("READY");
     expect(result.state.currentPlayerId).toBe("P2");
     expect(result.state.startingPlayerId).toBe("P2");
     expect(result.state.turnNumber).toBe(1);
@@ -77,8 +235,8 @@ describe("core engine reducer", () => {
     });
 
     expect(result.validation.valid).toBe(false);
-    expect(result.state.pregameStep).toBe("COMPLETE");
-    expect(result.state.phase).toBe("ACTION");
+    expect(result.state.pregameStep).toBe("OPENING_DRAW");
+    expect(result.state.phase).toBe("READY");
   });
 
   it("rejects actions from the inactive player", () => {
@@ -125,6 +283,7 @@ describe("core engine reducer", () => {
 
   it("allows mulligan up to two starting cards and rejects the third", () => {
     let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "mulligan-seed" }), "READY");
+    state = drawCards(state, "P1", engineConfig.starting_hand);
     const firstTwo = state.players.P1.hand.slice(0, 2);
 
     const accepted = dispatchAction(state, {
@@ -302,7 +461,8 @@ describe("core engine reducer", () => {
   });
 
   it("rejects recycle on the first turn and allows it later as a utility action", () => {
-    const firstTurnState = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "recycle" }), "ACTION");
+    let firstTurnState = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "recycle" }), "ACTION");
+    firstTurnState = drawCards(firstTurnState, "P1", 1);
     const cardId = firstTurnState.players.P1.hand[0];
 
     expect(
@@ -324,7 +484,7 @@ describe("core engine reducer", () => {
     });
 
     expect(accepted.validation.valid).toBe(true);
-    expect(accepted.state.players.P1.hand).toHaveLength(5);
+    expect(accepted.state.players.P1.hand).toHaveLength(1);
     expect(accepted.state.players.P1.graveyard).toContain(cardId);
     expect(accepted.state.players.P1.utilityActionUsed).toBe(true);
   });
@@ -477,7 +637,7 @@ describe("core engine reducer", () => {
 
     expect(state.currentPlayerId).toBe("P2");
     expect(state.phase).toBe("DRAW");
-    expect(state.players.P2.hand).toHaveLength(6);
+    expect(state.players.P2.hand).toHaveLength(1);
   });
 
   it("finishes when a player reaches the target score", () => {

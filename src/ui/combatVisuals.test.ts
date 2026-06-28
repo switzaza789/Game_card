@@ -53,6 +53,8 @@ function makeMatch(overrides?: Partial<MatchState>): MatchState {
     currentPlayerId: "P1",
     startingPlayerId: "P1",
     pregameStep: "COMPLETE",
+    openingDrawPlayerId: "P1",
+    openingDrawRemaining: { P1: 0, P2: 0 },
     phase: "ACTION",
     targetScore: 10,
     players: {

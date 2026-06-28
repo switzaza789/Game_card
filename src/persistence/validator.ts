@@ -218,20 +218,36 @@ export function validateStoredMatch(data: unknown): StorageResult<PersistedActiv
     }
   }
 
-  // Set legacy defaults for targetScore / startingPlayerId / pregameStep
+  // Set legacy defaults for targetScore / startingPlayerId / pregameStep / opening draw fields
   if (typeof state.targetScore !== "number" || state.targetScore < 1) {
     state.targetScore = 10;
   }
   if (typeof state.startingPlayerId !== "string" || !["P1", "P2"].includes(state.startingPlayerId)) {
     state.startingPlayerId = ["P1", "P2"].includes(state.currentPlayerId) ? state.currentPlayerId : "P1";
   }
-  if (typeof state.pregameStep !== "string" || !["STARTER_REVEAL", "COMPLETE"].includes(state.pregameStep)) {
+  if (typeof state.pregameStep !== "string" || !["STARTER_REVEAL", "OPENING_DRAW", "COMPLETE"].includes(state.pregameStep)) {
     state.pregameStep = "COMPLETE";
   }
+  if (typeof state.openingDrawPlayerId !== "string" || !["P1", "P2"].includes(state.openingDrawPlayerId)) {
+    state.openingDrawPlayerId = startingPlayerIdFallback(state);
+  }
+  if (!state.openingDrawRemaining || typeof state.openingDrawRemaining !== "object") {
+    state.openingDrawRemaining = { P1: 0, P2: 0 };
+  }
+  if (typeof state.openingDrawRemaining.P1 !== "number") state.openingDrawRemaining.P1 = 0;
+  if (typeof state.openingDrawRemaining.P2 !== "number") state.openingDrawRemaining.P2 = 0;
 
   if (errors.length > 0) {
     return { ok: false, error: { type: "ValidationFailed", errors } };
   }
 
   return { ok: true, value: obj as PersistedActiveMatch };
+}
+
+function startingPlayerIdFallback(state: Record<string, any>): PlayerId {
+  return ["P1", "P2"].includes(state.startingPlayerId)
+    ? state.startingPlayerId
+    : ["P1", "P2"].includes(state.currentPlayerId)
+      ? state.currentPlayerId
+      : "P1";
 }

@@ -23,7 +23,7 @@
   "nonTerminatingMatches": 0,
   "averageTurns": 6,
   "medianTurns": 6,
-  "averageDurationMs": 57300,
+  "averageDurationMs": 67300,
   "averageRecycleCount": 1.8,
   "totalLevel3Evolutions": 7,
   "averageEvolutionsPerMatch": 0.7,
@@ -115,12 +115,12 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 6,
-      "acceptedActions": 52,
+      "acceptedActions": 62,
       "rejectedActionCount": 1,
       "repeatedRejectedActionReason": {
         "Action player is not the current player": 1
       },
-      "durationMs": 53000,
+      "durationMs": 63000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -206,12 +206,12 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 6,
-      "acceptedActions": 58,
+      "acceptedActions": 68,
       "rejectedActionCount": 1,
       "repeatedRejectedActionReason": {
         "MULLIGAN is only valid during READY phase": 1
       },
-      "durationMs": 59000,
+      "durationMs": 69000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -302,12 +302,12 @@
       "winner": "P2",
       "finishReason": "TARGET_SCORE",
       "turns": 7,
-      "acceptedActions": 69,
+      "acceptedActions": 79,
       "rejectedActionCount": 1,
       "repeatedRejectedActionReason": {
         "Action player is not the current player": 1
       },
-      "durationMs": 70000,
+      "durationMs": 80000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -399,12 +399,12 @@
       "winner": "P2",
       "finishReason": "TARGET_SCORE",
       "turns": 6,
-      "acceptedActions": 56,
+      "acceptedActions": 66,
       "rejectedActionCount": 1,
       "repeatedRejectedActionReason": {
         "Action player is not the current player": 1
       },
-      "durationMs": 57000,
+      "durationMs": 67000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -490,12 +490,12 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 6,
-      "acceptedActions": 57,
+      "acceptedActions": 67,
       "rejectedActionCount": 1,
       "repeatedRejectedActionReason": {
         "MULLIGAN is only valid during READY phase": 1
       },
-      "durationMs": 58000,
+      "durationMs": 68000,
       "animalsPlayed": {
         "P1": {
           "A003": 1,
@@ -585,12 +585,12 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 5,
-      "acceptedActions": 47,
+      "acceptedActions": 57,
       "rejectedActionCount": 1,
       "repeatedRejectedActionReason": {
         "MULLIGAN is only valid during READY phase": 1
       },
-      "durationMs": 48000,
+      "durationMs": 58000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -670,12 +670,12 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 7,
-      "acceptedActions": 69,
+      "acceptedActions": 79,
       "rejectedActionCount": 1,
       "repeatedRejectedActionReason": {
         "MULLIGAN is only valid during READY phase": 1
       },
-      "durationMs": 70000,
+      "durationMs": 80000,
       "animalsPlayed": {
         "P1": {
           "A001": 2,
@@ -763,12 +763,12 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 6,
-      "acceptedActions": 58,
+      "acceptedActions": 68,
       "rejectedActionCount": 1,
       "repeatedRejectedActionReason": {
         "MULLIGAN is only valid during READY phase": 1
       },
-      "durationMs": 59000,
+      "durationMs": 69000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -854,10 +854,10 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 6,
-      "acceptedActions": 56,
+      "acceptedActions": 66,
       "rejectedActionCount": 0,
       "repeatedRejectedActionReason": {},
-      "durationMs": 56000,
+      "durationMs": 66000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -939,12 +939,12 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 5,
-      "acceptedActions": 42,
+      "acceptedActions": 52,
       "rejectedActionCount": 1,
       "repeatedRejectedActionReason": {
         "Action player is not the current player": 1
       },
-      "durationMs": 43000,
+      "durationMs": 53000,
       "animalsPlayed": {
         "P1": {
           "A006": 1,

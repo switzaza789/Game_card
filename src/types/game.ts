@@ -2,7 +2,7 @@ export type CardCategory = "Animal" | "Support" | "Weakness" | "Special";
 
 export type Phase = "READY" | "DRAW" | "SCORE" | "ACTION" | "END";
 
-export type PregameStep = "STARTER_REVEAL" | "COMPLETE";
+export type PregameStep = "STARTER_REVEAL" | "OPENING_DRAW" | "COMPLETE";
 
 export type PlayerId = "P1" | "P2";
 
@@ -168,6 +168,8 @@ export type MatchState = {
   currentPlayerId: PlayerId;
   startingPlayerId: PlayerId;
   pregameStep: PregameStep;
+  openingDrawPlayerId: PlayerId;
+  openingDrawRemaining: Record<PlayerId, number>;
   phase: Phase;
   turnNumber: number;
   targetScore: number;
@@ -239,6 +241,11 @@ export type Action =
     }
   | {
       type: "ACKNOWLEDGE_STARTER";
+      playerId: PlayerId;
+      payload: Record<string, never>;
+    }
+  | {
+      type: "DRAW_OPENING_CARD";
       playerId: PlayerId;
       payload: Record<string, never>;
     };

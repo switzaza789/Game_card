@@ -37,7 +37,7 @@ This was automated synthetic playtesting, not human playtesting. No human opinio
 - Average turns: 6
 - Median turns: 6
 - Average turns by starter: 6
-- Average deterministic duration: 57300 ms
+- Average deterministic duration: 67300 ms
 
 ## 5. Card usage frequency
 

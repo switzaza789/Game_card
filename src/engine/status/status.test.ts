@@ -49,7 +49,7 @@ describe("status helpers", () => {
 
   it("ignores non-Animal ids defensively", () => {
     const state = createMatch({ seed: "status-non-animal" });
-    const handCard = state.players.P1.hand[0];
+    const handCard = state.players.P1.deck[0];
 
     expect(addStatus(state, handCard, { code: "SKIP_NEXT_SCORE", expiresAt: "NEXT_SCORE" })).toBe(state);
     expect(removeStatus(state, handCard, "SKIP_NEXT_SCORE")).toBe(state);
