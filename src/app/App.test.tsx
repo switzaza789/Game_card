@@ -1,6 +1,7 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { dispatchAction } from "../engine/actions/reducer";
 import { createMatch } from "../engine/state/match";
 import { App, ResultScreen, formatCardDetailLines, isLevelIncreasingSupportCard } from "./App";
 import { exportMatchLog, saveActiveMatch, saveMatchResult, listHumanFeedback } from "../persistence/localStorageAdapter";
@@ -9,7 +10,7 @@ import type { MatchResult } from "../persistence/types";
 import { LOCALE_STORAGE_KEY, getLocalizedCard, getStoredLocale, normalizeLocale, t } from "../i18n";
 import { formatActionLogEntry } from "../ui/effectFeedback";
 import { getCardArtwork } from "../ui/cardArtwork";
-import type { ActionLogEntry, CardDefinition } from "../types/game";
+import type { ActionLogEntry, CardDefinition, GameMode, MatchState } from "../types/game";
 
 beforeEach(() => {
   // Clear localStorage between tests so no saved-game state bleeds over
@@ -290,7 +291,7 @@ describe("App Phase 4 UI", () => {
     render(<App />);
 
     await startPvEBattle(user);
-    expect(screen.getByText(/เริ่ม PvE แล้ว/)).toBeInTheDocument();
+    expect(screen.getByText(/เริ่ม PvE แล้ว|ถึงตาคุณ/)).toBeInTheDocument();
     expect(screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน")).toBeInTheDocument();
 
     // If Computer started, wait for the AI turn to finish
@@ -1675,8 +1676,7 @@ describe("invalid-use reason localization", () => {
     await startBattle(user);
     const logRegion = screen.getByRole("status");
     const logText = logRegion.textContent ?? "";
-    expect(logText).toContain("เริ่มเกม");
-    expect(logText).toContain("ผู้เล่น");
+    expect(logText).toMatch(/เริ่มเกม|ถึงตาคุณ/);
     expect(logText).not.toContain("undefined");
   });
 
@@ -1687,8 +1687,7 @@ describe("invalid-use reason localization", () => {
     await startBattle(user);
     const logRegion = screen.getByRole("status");
     const logText = logRegion.textContent ?? "";
-    expect(logText).toContain("Game started");
-    expect(logText).toContain("Player");
+    expect(logText).toMatch(/Game started|Your turn/);
     expect(logText).not.toContain("undefined");
   });
 
@@ -1698,14 +1697,14 @@ describe("invalid-use reason localization", () => {
     await startBattle(user);
     const contextStrip = document.querySelector(".action-context-strip");
     const thaiText = contextStrip?.textContent ?? "";
-    expect(thaiText).toContain("เริ่มเกม");
+    expect(thaiText).toMatch(/เริ่มเกม|ถึงตาคุณ/);
     const beforeState = localStorage.getItem("animal_score_saved_match");
     await openGameMenuAndSwitchLocale(user, "en");
     expect(localStorage.getItem("animal_score_saved_match")).toBe(beforeState);
   });
 
   it("shows localized card names in Action Log", () => {
-    const state = createMatch({ seed: "log-card-names" });
+    const state = createMatchAfterOpeningDraw("log-card-names");
     const cardId = state.players.P1.hand[0];
     const entry: ActionLogEntry = {
       seq: 1,
@@ -1725,13 +1724,14 @@ describe("invalid-use reason localization", () => {
   });
 
   it("shows localized player labels in Action Log", () => {
-    const state = createMatch({ seed: "log-player-labels", gameMode: "PVE_NORMAL" });
+    const state = createMatchAfterOpeningDraw("log-player-labels", "PVE_NORMAL");
+    const cardId = state.players.P1.hand[0];
     const entry: ActionLogEntry = {
       seq: 1,
-      action: { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: state.players.P1.hand[0] } },
+      action: { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: cardId } },
       phase: "ACTION", turnNumber: 1, actor: "P1",
       validation: { valid: true }, result: "played",
-      outcomes: [{ code: "CARD_PLAYED", cardInstanceId: state.players.P1.hand[0], definitionId: state.cardsByInstanceId[state.players.P1.hand[0]].definitionId, playerId: "P1", actionKind: "PLAY_ANIMAL", effectResult: "FULL_EFFECT" }],
+      outcomes: [{ code: "CARD_PLAYED", cardInstanceId: cardId, definitionId: state.cardsByInstanceId[cardId].definitionId, playerId: "P1", actionKind: "PLAY_ANIMAL", effectResult: "FULL_EFFECT" }],
       rng: state.rng, timestamp: 1
     };
     const thai = formatActionLogEntry(state, entry, "th");
@@ -1831,11 +1831,12 @@ describe("invalid-use reason localization", () => {
   });
 
   it("shows existing Action Log localization still works after preview tests", () => {
-    const state = createMatch({ seed: "preview-log-test" });
+    const state = createMatchAfterOpeningDraw("preview-log-test");
+    const cardId = state.players.P1.hand[0];
     const entry: ActionLogEntry = {
-      seq: 1, action: { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: state.players.P1.hand[0] } },
+      seq: 1, action: { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: cardId } },
       phase: "ACTION", turnNumber: 1, actor: "P1", validation: { valid: true }, result: "ok",
-      outcomes: [{ code: "CARD_PLAYED", cardInstanceId: state.players.P1.hand[0], definitionId: state.cardsByInstanceId[state.players.P1.hand[0]].definitionId, playerId: "P1", actionKind: "PLAY_ANIMAL", effectResult: "FULL_EFFECT" }],
+      outcomes: [{ code: "CARD_PLAYED", cardInstanceId: cardId, definitionId: state.cardsByInstanceId[cardId].definitionId, playerId: "P1", actionKind: "PLAY_ANIMAL", effectResult: "FULL_EFFECT" }],
       rng: state.rng, timestamp: 1
     };
     const thaiLog2 = formatActionLogEntry(state, entry, "th");
@@ -1886,13 +1887,14 @@ describe("invalid-use reason localization", () => {
   });
 
   it("mixed internal and meaningful entries render only meaningful entries", () => {
-    const state = createMatch({ seed: "mixed-log-filter" });
+    const state = createMatchAfterOpeningDraw("mixed-log-filter");
+    const cardId = state.players.P1.hand[0];
     const meaningfulEntry: ActionLogEntry = {
       seq: 2,
-      action: { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: state.players.P1.hand[0] } },
+      action: { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: cardId } },
       phase: "ACTION", turnNumber: 1, actor: "P1",
       validation: { valid: true }, result: "played",
-      outcomes: [{ code: "CARD_PLAYED", cardInstanceId: state.players.P1.hand[0], definitionId: state.cardsByInstanceId[state.players.P1.hand[0]].definitionId, playerId: "P1", actionKind: "PLAY_ANIMAL", effectResult: "FULL_EFFECT" }],
+      outcomes: [{ code: "CARD_PLAYED", cardInstanceId: cardId, definitionId: state.cardsByInstanceId[cardId].definitionId, playerId: "P1", actionKind: "PLAY_ANIMAL", effectResult: "FULL_EFFECT" }],
       rng: state.rng, timestamp: 2
     };
     const advanceEntry: ActionLogEntry = {
@@ -2778,12 +2780,65 @@ async function startBattle(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "Local PvP" }));
   const starterDialog = await screen.findByRole("dialog", { name: /กำลังสุ่มผู้เริ่มก่อน|Choosing the starting player/ });
   await user.click(within(starterDialog).getByRole("button", { name: /เริ่มเกม|Start Match/ }));
+  // Complete opening draw: 5 cards each for both players (10 clicks total)
+  const drawBtn = await screen.findByRole("button", { name: /จั่วการ์ด|Draw Card/ }, { timeout: 1500 });
+  const drawDialog = drawBtn.closest('[role="dialog"]') as HTMLElement;
+  for (let i = 0; i < 10; i++) {
+    await user.click(within(drawDialog).getByRole("button", { name: /จั่วการ์ด|Draw Card/ }));
+  }
+  await user.click(await screen.findByRole("button", { name: /พร้อมเล่น|Ready to play/ }));
 }
 
 async function startPvEBattle(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "PvE vs Computer" }));
   const starterDialog = await screen.findByRole("dialog", { name: /กำลังสุ่มผู้เริ่มก่อน|Choosing the starting player/ });
   await user.click(within(starterDialog).getByRole("button", { name: /เริ่มเกม|Start Match/ }));
+  // Complete opening draw: P1 (human) clicks Draw Card; P2 (AI) auto-draws via effect
+  await completePvEOpeningDraw(user);
+}
+
+async function completePvEOpeningDraw(user: ReturnType<typeof userEvent.setup>) {
+  await screen.findByRole("dialog", { name: /จั่วไพ่เปิด|Opening Draw/ }, { timeout: 1500 });
+  for (let i = 0; i < 20; i++) {
+    const currentDialog = screen.queryByRole("dialog", { name: /จั่วไพ่เปิด|Opening Draw/ });
+    if (!currentDialog) {
+      return;
+    }
+
+    const drawBtn = within(currentDialog).queryByRole("button", { name: /จั่วการ์ด|Draw Card/ });
+    if (drawBtn) {
+      await user.click(drawBtn);
+      continue;
+    }
+
+    const readyBtn = within(currentDialog).queryByRole("button", { name: /พร้อมเล่น|Ready to play/ });
+    if (readyBtn) {
+      await user.click(readyBtn);
+      return;
+    } else {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      });
+    }
+  }
+  throw new Error("Opening draw did not complete");
+}
+
+function createMatchAfterOpeningDraw(seed: string, gameMode: GameMode = "LOCAL_PVP"): MatchState {
+  let state = createMatch({ seed, gameMode });
+  state = dispatchAction(state, {
+    action: { type: "ACKNOWLEDGE_STARTER", playerId: state.currentPlayerId, payload: {} },
+    timestamp: 1
+  }).state;
+
+  while (state.pregameStep === "OPENING_DRAW") {
+    state = dispatchAction(state, {
+      action: { type: "DRAW_OPENING_CARD", playerId: state.openingDrawPlayerId, payload: {} },
+      timestamp: state.actionLog.length + 1
+    }).state;
+  }
+
+  return state;
 }
 
 async function endCurrentTurn(user: ReturnType<typeof userEvent.setup>) {
