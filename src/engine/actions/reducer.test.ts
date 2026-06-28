@@ -11,7 +11,7 @@ function dispatchAction(state: MatchState, action: Action): ReturnType<typeof or
 
 describe("core engine reducer", () => {
   it("moves through READY, DRAW, SCORE, ACTION, and END phases", () => {
-    let state = createMatch({ seed: "phase-flow" });
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "phase-flow" }), "READY");
 
     state = dispatchAction(state, advance()).state;
     expect(state.phase).toBe("DRAW");
@@ -32,8 +32,57 @@ describe("core engine reducer", () => {
     expect(state.actionLog).toHaveLength(5);
   });
 
+  it("blocks normal gameplay until the starter reveal is acknowledged without mutating state", () => {
+    const state = createMatch({ startingPlayerId: "P1", seed: "pregame-block" });
+    const before = structuredClone(state);
+    const result = dispatchAction(state, {
+      type: "ADVANCE_PHASE",
+      playerId: "P1",
+      payload: {}
+    });
+
+    expect(result.validation.valid).toBe(false);
+    expect(result.state).toEqual(before);
+  });
+
+  it("acknowledges the starter reveal once without changing turn resources or RNG", () => {
+    const state = createMatch({ startingPlayerId: "P2", seed: "pregame-ack" });
+    const result = dispatchAction(state, {
+      type: "ACKNOWLEDGE_STARTER",
+      playerId: "P2",
+      payload: {}
+    });
+
+    expect(result.validation.valid).toBe(true);
+    expect(result.state.pregameStep).toBe("COMPLETE");
+    expect(result.state.phase).toBe("ACTION");
+    expect(result.state.currentPlayerId).toBe("P2");
+    expect(result.state.startingPlayerId).toBe("P2");
+    expect(result.state.turnNumber).toBe(1);
+    expect(result.state.rng).toEqual(state.rng);
+    expect(result.state.players).toEqual(state.players);
+  });
+
+  it("rejects repeated starter acknowledgement after the reveal is complete", () => {
+    const state = dispatchAction(createMatch({ startingPlayerId: "P1", seed: "pregame-repeat" }), {
+      type: "ACKNOWLEDGE_STARTER",
+      playerId: "P1",
+      payload: {}
+    }).state;
+
+    const result = dispatchAction(state, {
+      type: "ACKNOWLEDGE_STARTER",
+      playerId: "P1",
+      payload: {}
+    });
+
+    expect(result.validation.valid).toBe(false);
+    expect(result.state.pregameStep).toBe("COMPLETE");
+    expect(result.state.phase).toBe("ACTION");
+  });
+
   it("rejects actions from the inactive player", () => {
-    const state = forcePhase(createMatch({ seed: "invalid-player" }), "ACTION");
+    const state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "invalid-player" }), "ACTION");
     const result = dispatchAction(state, {
       type: "END_TURN",
       playerId: "P2",
@@ -46,7 +95,7 @@ describe("core engine reducer", () => {
   });
 
   it("rejects start match and end turn in invalid contexts", () => {
-    const state = createMatch({ seed: "invalid-context" });
+    const state = createMatch({ startingPlayerId: "P1",  seed: "invalid-context" });
 
     expect(
       dispatchAction(state, {
@@ -67,7 +116,7 @@ describe("core engine reducer", () => {
 
   it("rejects actions after the match is finished", () => {
     const state = {
-      ...createMatch({ seed: "already-finished" }),
+      ...createMatch({ startingPlayerId: "P1",  seed: "already-finished" }),
       status: "FINISHED" as const
     };
 
@@ -75,7 +124,7 @@ describe("core engine reducer", () => {
   });
 
   it("allows mulligan up to two starting cards and rejects the third", () => {
-    let state = createMatch({ seed: "mulligan-seed" });
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "mulligan-seed" }), "READY");
     const firstTwo = state.players.P1.hand.slice(0, 2);
 
     const accepted = dispatchAction(state, {
@@ -99,7 +148,7 @@ describe("core engine reducer", () => {
   });
 
   it("rejects duplicate and non-hand mulligan cards", () => {
-    const state = createMatch({ seed: "bad-mulligan" });
+    const state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "bad-mulligan" }), "READY");
     const first = state.players.P1.hand[0];
     const deckCard = state.players.P1.deck[0];
 
@@ -121,7 +170,7 @@ describe("core engine reducer", () => {
   });
 
   it("plays an Animal into one of three slots and blocks a second Animal action", () => {
-    let state = forcePhase(createMatch({ seed: "play-animal" }), "ACTION");
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "play-animal" }), "ACTION");
     const firstAnimal = ensureHandCard(state, "P1", "Animal");
     state = firstAnimal.state;
     const animalId = firstAnimal.instanceId;
@@ -149,7 +198,7 @@ describe("core engine reducer", () => {
   });
 
   it("blocks playing an Animal when all three slots are full", () => {
-    let state = forcePhase(createMatch({ seed: "full-board" }), "ACTION");
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "full-board" }), "ACTION");
 
     for (let index = 0; index < 3; index += 1) {
       const animal = ensureHandCard(state, "P1", "Animal");
@@ -180,7 +229,7 @@ describe("core engine reducer", () => {
   });
 
   it("plays Support cards through effect validation", () => {
-    let state = forcePhase(createMatch({ seed: "utility" }), "ACTION");
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "utility" }), "ACTION");
     const animal = ensureHandCard(state, "P1", "Animal");
     state = dispatchAction(animal.state, {
       type: "PLAY_CARD",
@@ -212,7 +261,7 @@ describe("core engine reducer", () => {
   });
 
   it("blocks a second utility action in the same turn", () => {
-    let state = forcePhase(createMatch({ seed: "utility-limit" }), "ACTION");
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "utility-limit" }), "ACTION");
     const first = ensureHandCard(state, "P1", "Support");
     state = dispatchAction(first.state, {
       type: "PLAY_CARD",
@@ -231,7 +280,7 @@ describe("core engine reducer", () => {
   });
 
   it("rejects playing cards outside Action phase or outside hand", () => {
-    const state = createMatch({ seed: "bad-play" });
+    const state = createMatch({ startingPlayerId: "P1",  seed: "bad-play" });
     const handCard = state.players.P1.hand[0];
     const deckCard = state.players.P1.deck[0];
 
@@ -253,7 +302,7 @@ describe("core engine reducer", () => {
   });
 
   it("rejects recycle on the first turn and allows it later as a utility action", () => {
-    const firstTurnState = forcePhase(createMatch({ seed: "recycle" }), "ACTION");
+    const firstTurnState = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "recycle" }), "ACTION");
     const cardId = firstTurnState.players.P1.hand[0];
 
     expect(
@@ -281,7 +330,7 @@ describe("core engine reducer", () => {
   });
 
   it("rejects recycle outside Action phase, after utility use, and with an empty deck", () => {
-    const readyState = createMatch({ seed: "bad-recycle" });
+    const readyState = createMatch({ startingPlayerId: "P1",  seed: "bad-recycle" });
     const cardId = readyState.players.P1.hand[0];
 
     expect(
@@ -334,7 +383,7 @@ describe("core engine reducer", () => {
   });
 
   it("enforces hand limit when ending the turn", () => {
-    let state = forcePhase(createMatch({ seed: "hand-limit" }), "ACTION");
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "hand-limit" }), "ACTION");
     state = {
       ...state,
       turnNumber: 2
@@ -373,7 +422,7 @@ describe("core engine reducer", () => {
   });
 
   it("does not score an Animal on the same turn it enters", () => {
-    let state = forcePhase(createMatch({ seed: "new-animal-score" }), "ACTION");
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "new-animal-score" }), "ACTION");
     const animal = ensureHandCard(state, "P1", "Animal");
     state = animal.state;
     const animalId = animal.instanceId;
@@ -391,7 +440,7 @@ describe("core engine reducer", () => {
   });
 
   it("adds Animal levels during Score phase after the entered turn", () => {
-    let state = forcePhase(createMatch({ seed: "score" }), "ACTION");
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "score" }), "ACTION");
     const animal = ensureHandCard(state, "P1", "Animal");
     state = animal.state;
     const animalId = animal.instanceId;
@@ -413,7 +462,7 @@ describe("core engine reducer", () => {
   });
 
   it("lets the second player draw normally on their first turn", () => {
-    let state = forcePhase(createMatch({ seed: "p2-draw" }), "ACTION");
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "p2-draw" }), "ACTION");
 
     state = dispatchAction(state, {
       type: "END_TURN",
@@ -432,7 +481,7 @@ describe("core engine reducer", () => {
   });
 
   it("finishes when a player reaches the target score", () => {
-    const state = createMatch({ seed: "win" });
+    const state = createMatch({ startingPlayerId: "P1",  seed: "win" });
     const target = state.targetScore;
     const finished = evaluateWin({
       ...state,
@@ -451,7 +500,7 @@ describe("core engine reducer", () => {
   });
 
   it("handles target-score winner branches", () => {
-    const state = createMatch({ seed: "score-winner-branches" });
+    const state = createMatch({ startingPlayerId: "P1",  seed: "score-winner-branches" });
     const target = state.targetScore;
 
     expect(
@@ -477,7 +526,7 @@ describe("core engine reducer", () => {
   });
 
   it("does not finish at one below target score", () => {
-    const state = createMatch({ seed: "below-target" });
+    const state = createMatch({ startingPlayerId: "P1",  seed: "below-target" });
     const belowResult = evaluateWin({
       ...state,
       players: {
@@ -489,7 +538,7 @@ describe("core engine reducer", () => {
   });
 
   it("finishes with overshoot from a multi-point action", () => {
-    const state = createMatch({ seed: "overshoot" });
+    const state = createMatch({ startingPlayerId: "P1",  seed: "overshoot" });
     const overshoot = evaluateWin({
       ...state,
       players: {
@@ -504,7 +553,7 @@ describe("core engine reducer", () => {
 
   it("rejects actions after the match is finished via target score", () => {
     const state = {
-      ...createMatch({ seed: "post-win" }),
+      ...createMatch({ startingPlayerId: "P1",  seed: "post-win" }),
       status: "FINISHED" as const,
       finishReason: "TARGET_SCORE" as const,
       winner: "P1" as const
@@ -513,10 +562,12 @@ describe("core engine reducer", () => {
   });
 
   it("preserves targetScore through Undo", () => {
-    let state = createMatch({ seed: "undo-target" });
+    let state = createMatch({ startingPlayerId: "P1",  seed: "undo-target" });
     const originalTarget = state.targetScore;
+    const snapshotState = { ...state };
+    delete snapshotState.undoSnapshot;
     const snapshot: MatchState["undoSnapshot"] = {
-      state: { ...state, undoSnapshot: undefined },
+      state: snapshotState,
       actor: "P1",
       summary: "test"
     };
@@ -530,7 +581,7 @@ describe("core engine reducer", () => {
   });
 
   it("uses tiebreakers when both players reach the turn limit", () => {
-    const state = createMatch({ seed: "turn-limit" });
+    const state = createMatch({ startingPlayerId: "P1",  seed: "turn-limit" });
     const finished = evaluateWin({
       ...state,
       players: {
@@ -546,7 +597,7 @@ describe("core engine reducer", () => {
   });
 
   it("uses later tiebreakers and can end in a draw", () => {
-    const state = createMatch({ seed: "tiebreak-branches" });
+    const state = createMatch({ startingPlayerId: "P1",  seed: "tiebreak-branches" });
 
     const p2DeckWinner = evaluateWin({
       ...state,
@@ -572,7 +623,7 @@ describe("core engine reducer", () => {
   });
 
   it("returns valid direct validation results for score helpers", () => {
-    const state = createMatch({ seed: "validation-direct" });
+    const state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "validation-direct" }), "READY");
 
     expect(validateAction(state, advance())).toEqual({ valid: true });
   });

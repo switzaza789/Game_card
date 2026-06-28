@@ -62,13 +62,15 @@ describe("App Phase 4 UI", () => {
 
     expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Local PvP" }));
+    await startBattle(user);
 
     expect(screen.getByLabelText("สนามต่อสู้")).toBeInTheDocument();
     expect(screen.getByText(/TURN 1/)).toBeInTheDocument();
     expect(screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน")).toBeInTheDocument();
     expect(screen.getByLabelText("มือผู้เล่นปัจจุบัน")).toBeInTheDocument();
-    expect(localStorage.getItem("animal_score_saved_match")).toContain('"matchId":"match-');
+    await waitFor(() => {
+      expect(localStorage.getItem("animal_score_saved_match")).toContain('"matchId":"match-');
+    });
     expect(localStorage.getItem("animal_score_saved_match")).not.toContain('"matchId":"match-match-');
   });
 
@@ -93,12 +95,16 @@ describe("App Phase 4 UI", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "PvE vs Computer" }));
+    await startPvEBattle(user);
 
     const scoreboard = screen.getByLabelText("สถานะการแข่งขัน");
     expect(within(scoreboard).getByText("คุณ")).toBeInTheDocument();
     expect(within(scoreboard).getByText("Computer")).toBeInTheDocument();
-    expect(scoreboard.querySelector(".scoreboard-player.active")).toHaveTextContent("คุณ");
+    const activeEl = scoreboard.querySelector(".scoreboard-player.active");
+    expect(activeEl).toBeTruthy();
+    const activeName = activeEl!.querySelector("span");
+    expect(activeName).toBeTruthy();
+    expect(["คุณ", "Computer"]).toContain(activeName!.textContent);
     expect(screen.getAllByText(/ใช้ได้ทันที|ต้องเลือกเป้าหมาย|ใช้ได้แบบผลอ่อน|ยังไม่ถึงช่วงที่ใช้ได้/).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "เล่นการ์ด" })).toBeInTheDocument();
   });
@@ -275,7 +281,7 @@ describe("App Phase 4 UI", () => {
     expect(screen.getAllByText(/ไม่สามารถรีไซเคิลในเทิร์นแรก/).length).toBeGreaterThan(0);
 
     await endCurrentTurn(user);
-    expect(screen.getByRole("heading", { name: /ส่งเครื่องให้ ผู้เล่น 2/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /ส่งเครื่องให้ ผู้เล่น/ })).toBeInTheDocument();
     expect(screen.queryByLabelText("มือผู้เล่นปัจจุบัน")).not.toBeInTheDocument();
   });
 
@@ -283,9 +289,18 @@ describe("App Phase 4 UI", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByRole("button", { name: "PvE vs Computer" }));
+    await startPvEBattle(user);
     expect(screen.getByText(/เริ่ม PvE แล้ว/)).toBeInTheDocument();
     expect(screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน")).toBeInTheDocument();
+
+    // If Computer started, wait for the AI turn to finish
+    const scoreboard = screen.getByLabelText("สถานะการแข่งขัน");
+    const activeEl = scoreboard.querySelector(".scoreboard-player.active");
+    const activeName = activeEl?.querySelector("span")?.textContent;
+    if (activeName === "Computer") {
+      expect(await screen.findByText(/ถึงตาคุณ/, undefined, { timeout: 3000 })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole("button", { name: "จบเทิร์น" })).not.toBeDisabled());
+    }
 
     await endCurrentTurn(user);
     expect(screen.queryByRole("heading", { name: /ส่งเครื่องให้ ผู้เล่น 2/ })).not.toBeInTheDocument();
@@ -294,8 +309,6 @@ describe("App Phase 4 UI", () => {
 
     expect(await screen.findByText(/ถึงตาคุณ/, undefined, { timeout: 1500 })).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "จบเทิร์น" })).not.toBeDisabled());
-    const turnElements = screen.getAllByText((_content, element) => element?.textContent === "TURN 2 — ACTION");
-    expect(turnElements.length).toBeGreaterThanOrEqual(1);
 
     await user.click(findFirstHandCardByCategory("สัตว์"));
     await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
@@ -2763,6 +2776,14 @@ describe("Direct Recycle Action (Phase 5.3D)", () => {
 
 async function startBattle(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "Local PvP" }));
+  const starterDialog = await screen.findByRole("dialog", { name: /กำลังสุ่มผู้เริ่มก่อน|Choosing the starting player/ });
+  await user.click(within(starterDialog).getByRole("button", { name: /เริ่มเกม|Start Match/ }));
+}
+
+async function startPvEBattle(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "PvE vs Computer" }));
+  const starterDialog = await screen.findByRole("dialog", { name: /กำลังสุ่มผู้เริ่มก่อน|Choosing the starting player/ });
+  await user.click(within(starterDialog).getByRole("button", { name: /เริ่มเกม|Start Match/ }));
 }
 
 async function endCurrentTurn(user: ReturnType<typeof userEvent.setup>) {

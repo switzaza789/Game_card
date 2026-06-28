@@ -31,7 +31,7 @@ export function dispatchAction(state: MatchState, envelope: ActionEnvelope): Dis
 
   if (!validation.valid) {
     return {
-      state: appendLog(state, action, validation, "Action rejected", timestamp, []),
+      state: state.pregameStep === "STARTER_REVEAL" ? state : appendLog(state, action, validation, "Action rejected", timestamp, []),
       validation
     };
   }
@@ -61,7 +61,20 @@ function resolveValidAction(state: MatchState, action: Action): MatchState {
       return endTurn(state);
     case "UNDO_LAST_REVERSIBLE_ACTION":
       return undoLastReversibleAction(state, action.playerId);
+    case "ACKNOWLEDGE_STARTER":
+      return acknowledgeStarter(state);
   }
+}
+
+function acknowledgeStarter(state: MatchState): MatchState {
+  if (state.pregameStep !== "STARTER_REVEAL") {
+    return state;
+  }
+  return {
+    ...state,
+    pregameStep: "COMPLETE",
+    phase: "ACTION"
+  };
 }
 
 function withUndoSnapshot(before: MatchState, after: MatchState, action: Action, outcomes: ReturnType<typeof buildEffectOutcomes>): MatchState {
@@ -142,7 +155,7 @@ export function advancePhase(state: MatchState): MatchState {
 }
 
 function drawForTurn(state: MatchState): MatchState {
-  if (state.currentPlayerId === "P1" && state.turnNumber === 1 && !engineConfig.first_player_draws_on_turn_1) {
+  if (state.currentPlayerId === state.startingPlayerId && state.turnNumber === 1 && !engineConfig.first_player_draws_on_turn_1) {
     return state;
   }
 
@@ -414,5 +427,5 @@ function evolutionResultText(before: MatchState, after: MatchState): string[] {
 }
 
 export function forcePhase(state: MatchState, phase: Phase): MatchState {
-  return { ...state, phase };
+  return { ...state, pregameStep: "COMPLETE", phase };
 }

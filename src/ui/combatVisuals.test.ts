@@ -51,7 +51,10 @@ function makeMatch(overrides?: Partial<MatchState>): MatchState {
     gameMode: "LOCAL_PVP" as const,
     turnNumber: 1,
     currentPlayerId: "P1",
+    startingPlayerId: "P1",
+    pregameStep: "COMPLETE",
     phase: "ACTION",
+    targetScore: 10,
     players: {
       P1: { id: "P1", score: 0, deck: [], hand: ["c1"], board: [null, null, null], graveyard: [], animalActionUsed: false, utilityActionUsed: false, utilityLocked: false, recycleUsed: false, mulligansUsed: 0, turnsTaken: 0 },
       P2: { id: "P2", score: 0, deck: [], hand: [], board: [null, null, null], graveyard: [], animalActionUsed: false, utilityActionUsed: false, utilityLocked: false, recycleUsed: false, mulligansUsed: 0, turnsTaken: 0 },

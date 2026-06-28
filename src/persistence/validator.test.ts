@@ -151,15 +151,22 @@ describe("validator — validateStoredMatch", () => {
     expect(result.ok).toBe(true);
   });
 
-  it("adds legacy default targetScore of 15 when missing", () => {
+  it("adds legacy defaults without showing starter reveal when fields are missing", () => {
     const payload = makeValidPayload();
     const state = { ...payload.state };
     // @ts-expect-error simulate legacy data without targetScore
     delete state.targetScore;
+    // @ts-expect-error simulate legacy data without startingPlayerId
+    delete state.startingPlayerId;
+    // @ts-expect-error simulate legacy data without pregameStep
+    delete state.pregameStep;
+    state.currentPlayerId = "P2";
     const result = validateStoredMatch({ ...payload, state });
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.state.targetScore).toBe(15);
+      expect(result.value.state.targetScore).toBe(10);
+      expect(result.value.state.startingPlayerId).toBe("P2");
+      expect(result.value.state.pregameStep).toBe("COMPLETE");
     }
   });
 

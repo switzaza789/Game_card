@@ -430,5 +430,11 @@ export const en = {
   "recycle.reason.noCard": "Select a card in hand first",
   "recycle.reason.used": "Recycle already used this turn",
   "recycle.reason.unavailable": "Cannot recycle at this time",
-  "recycle.cancel": "Cancel Recycle"
+  "recycle.cancel": "Cancel Recycle",
+  "pregame.choosingStarter": "Choosing the starting player\u2026",
+  "pregame.youGoFirst": "You go first",
+  "pregame.computerGoesFirst": "Computer goes first",
+  "pregame.player1GoesFirst": "Player 1 goes first",
+  "pregame.player2GoesFirst": "Player 2 goes first",
+  "pregame.startMatch": "Start Match"
 } satisfies Record<TranslationKey, string>;

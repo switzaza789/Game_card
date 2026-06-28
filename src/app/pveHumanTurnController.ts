@@ -42,5 +42,6 @@ function canPrepareHumanTurn(state: MatchState): boolean {
     && state.gameMode === "PVE_NORMAL"
     && state.currentPlayerId === "P1"
     && state.phase !== "ACTION"
-    && (state.phase === "READY" || state.phase === "DRAW" || state.phase === "SCORE");
+    && (state.phase === "READY" || state.phase === "DRAW" || state.phase === "SCORE")
+    && state.pregameStep === "COMPLETE";
 }

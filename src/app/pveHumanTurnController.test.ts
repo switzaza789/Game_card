@@ -7,7 +7,7 @@ import { preparePveHumanTurnToAction } from "./pveHumanTurnController";
 
 describe("PvE human turn preparation", () => {
   it("advances AI-to-P1 handoff through READY, DRAW, SCORE, ACTION exactly once", () => {
-    let state = forcePhase(createMatch({ seed: "pve-human-ready", gameMode: "PVE_NORMAL" }), "ACTION");
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "pve-human-ready", gameMode: "PVE_NORMAL" }), "ACTION");
     const actions: Action[] = [];
 
     for (let cycle = 0; cycle < 3; cycle += 1) {
@@ -41,13 +41,13 @@ describe("PvE human turn preparation", () => {
   });
 
   it("resumes from P1 DRAW or SCORE without restarting READY effects", () => {
-    let drawState: MatchState = { ...forcePhase(createMatch({ seed: "resume-p1-draw", gameMode: "PVE_NORMAL" }), "DRAW"), currentPlayerId: "P1", turnNumber: 2 };
+    let drawState: MatchState = { ...forcePhase(createMatch({ startingPlayerId: "P1",  seed: "resume-p1-draw", gameMode: "PVE_NORMAL" }), "DRAW"), currentPlayerId: "P1", turnNumber: 2 };
     const drawHandBefore = drawState.players.P1.hand.length;
     drawState = prepareHuman(drawState, []);
     expect(drawState.phase).toBe("ACTION");
     expect(drawState.players.P1.hand.length).toBe(drawHandBefore);
 
-    let scoreState: MatchState = { ...forcePhase(createMatch({ seed: "resume-p1-score", gameMode: "PVE_NORMAL" }), "SCORE"), currentPlayerId: "P1", turnNumber: 2 };
+    let scoreState: MatchState = { ...forcePhase(createMatch({ startingPlayerId: "P1",  seed: "resume-p1-score", gameMode: "PVE_NORMAL" }), "SCORE"), currentPlayerId: "P1", turnNumber: 2 };
     const scoreHandBefore = scoreState.players.P1.hand.length;
     scoreState = prepareHuman(scoreState, []);
     expect(scoreState.phase).toBe("ACTION");
@@ -55,7 +55,7 @@ describe("PvE human turn preparation", () => {
   });
 
   it("preserves PvE turn progression while awarding and resolving Evolution once", () => {
-    let state = forcePhase(createMatch({ seed: "pve-evolution-handoff", gameMode: "PVE_NORMAL" }), "ACTION");
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "pve-evolution-handoff", gameMode: "PVE_NORMAL" }), "ACTION");
     state = withBoardAnimal(state, "P1-A001-1", 2, 1);
     state = { ...state, phase: "READY", currentPlayerId: "P1", turnNumber: 2 };
     const actions: Action[] = [];
@@ -76,10 +76,10 @@ describe("PvE human turn preparation", () => {
   });
 
   it("does nothing for Local PvP and P1 ACTION", () => {
-    const local = forcePhase(createMatch({ seed: "local-no-prep", gameMode: "LOCAL_PVP" }), "READY");
+    const local = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "local-no-prep", gameMode: "LOCAL_PVP" }), "READY");
     expect(prepareHuman(local, [])).toBe(local);
 
-    const action = forcePhase(createMatch({ seed: "action-no-prep", gameMode: "PVE_NORMAL" }), "ACTION");
+    const action = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "action-no-prep", gameMode: "PVE_NORMAL" }), "ACTION");
     expect(prepareHuman(action, [])).toBe(action);
   });
 });
