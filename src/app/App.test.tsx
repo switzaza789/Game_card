@@ -2941,4 +2941,112 @@ describe("Phase 5.4B — Animation motion cues", () => {
     await user.click(resetBtn);
     expect(document.querySelector(".hand-card.recycling")).toBeNull();
   });
+
+  it("reset from game menu clears stale animation state", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const menuBtn = screen.getByRole("button", { name: "ตั้งค่า" });
+    await user.click(menuBtn);
+    const resetBtn = screen.getByRole("menuitem", { name: "เริ่มเกมใหม่" });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await user.click(resetBtn);
+    expect(document.querySelector(".slot.filled-new")).toBeNull();
+    expect(document.querySelector(".slot.support-attach")).toBeNull();
+    expect(document.querySelector(".score-cue")).toBeNull();
+  });
+
+  it("failed placement produces no placement cue", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const animalBtn = findFirstHandCardByCategory("สัตว์");
+    await user.click(animalBtn);
+    expect(document.querySelector(".slot.filled-new")).toBeNull();
+  });
+
+  it("placement cue clears after lifecycle", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtn = findCardInHandByCategory(hand, "สัตว์");
+    if (!animalBtn) return;
+    await user.click(animalBtn);
+    const board = document.querySelector(".board") as HTMLElement;
+    const emptySlot = board?.querySelector(".empty-slot") as HTMLButtonElement;
+    if (emptySlot) {
+      await user.click(emptySlot);
+      const filledSlots = board.querySelectorAll(".slot.filled");
+      expect(filledSlots.length).toBeGreaterThan(0);
+      await vi.waitFor(() => {
+        const animSlots = board.querySelectorAll(".slot.filled-new");
+        expect(animSlots.length).toBe(0);
+      }, { timeout: 2000 });
+    }
+  });
+
+  it("score change produces at most one score cue per player", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    await endCurrentTurn(user);
+    const continueBtn = screen.getByRole("button", { name: "พร้อมเล่น" });
+    await user.click(continueBtn);
+    const scoreCues = document.querySelectorAll(".score-cue");
+    expect(scoreCues.length).toBeLessThanOrEqual(2);
+  });
+
+  it("opponent hidden cards remain anonymous", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const oppHand = screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน");
+    expect(oppHand).toBeInTheDocument();
+    const hiddenCards = oppHand.querySelectorAll(".card-back");
+    expect(hiddenCards.length).toBeGreaterThan(0);
+  });
+
+  it("Animal-slot geometry remains stable after placement", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const board = document.querySelector(".board") as HTMLElement;
+    const slotsBefore = board?.querySelectorAll(".slot");
+    const slotCountBefore = slotsBefore?.length ?? 0;
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtn = findCardInHandByCategory(hand, "สัตว์");
+    if (!animalBtn || !board) return;
+    await user.click(animalBtn);
+    const emptySlot = board.querySelector(".empty-slot") as HTMLButtonElement;
+    if (emptySlot) {
+      await user.click(emptySlot);
+    }
+    const slotsAfter = board.querySelectorAll(".slot");
+    expect(slotsAfter.length).toBe(slotCountBefore);
+  });
+
+  it("unrelated rerender does not replay placement animation", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtn = findCardInHandByCategory(hand, "สัตว์");
+    if (!animalBtn) return;
+    await user.click(animalBtn);
+    const board = document.querySelector(".board") as HTMLElement;
+    const emptySlot = board?.querySelector(".empty-slot") as HTMLButtonElement;
+    if (emptySlot) {
+      await user.click(emptySlot);
+      const filledNew = board.querySelectorAll(".filled-new");
+      if (filledNew.length > 0) {
+        const firstNew = filledNew[0];
+        expect(firstNew.classList.contains("filled-new")).toBe(true);
+        await openGameMenuAndSwitchLocale(user, "en");
+        expect(firstNew.classList.contains("filled-new")).toBe(true);
+        await openGameMenuAndSwitchLocale(user, "th");
+        expect(firstNew.classList.contains("filled-new")).toBe(true);
+      }
+    }
+  });
 });

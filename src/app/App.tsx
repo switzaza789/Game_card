@@ -392,8 +392,18 @@ export function App() {
 
     setMatch(currentMatch);
     setSelectedCardId(null);
+    clearAnimState();
     const scoreEntry = findLatestScoreEntry(currentMatch.actionLog, startingLogLength);
-    setActionFeedback(scoreEntry ? { type: "combat", entry: scoreEntry } : null);
+    if (scoreEntry) {
+      setActionFeedback({ type: "combat", entry: scoreEntry });
+      const scoreOutcome = scoreEntry.outcomes?.find((o) => o.code === "SCORE_CHANGED");
+      if (scoreOutcome?.code === "SCORE_CHANGED") {
+        setScoreAnimPlayerId(scoreOutcome.playerId);
+        clearAnimTimer();
+      }
+    } else {
+      setActionFeedback(null);
+    }
     setMessage(t(locale, "feedback.turnResumed", { player: playerName(currentMatch.currentPlayerId, locale) }));
     setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
   }
@@ -403,17 +413,27 @@ export function App() {
       return;
     }
 
+    clearAnimState();
+
     const result = coordinator.dispatch({
       type: "END_TURN",
       playerId: match.currentPlayerId,
       payload: {}
     }, Date.now());
 
+    const oldP1 = match.players.P1.score;
+    const oldP2 = match.players.P2.score;
     setMatch(result.state);
     setSelectedCardId(null);
     if (!result.validation.valid) {
       setMessage(result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", "));
     } else {
+      const newP1 = result.state.players.P1.score;
+      const newP2 = result.state.players.P2.score;
+      const scoreEntry = result.state.actionLog.slice(-1)[0];
+      if (newP1 !== oldP1) { setScoreAnimPlayerId("P1"); clearAnimTimer(); }
+      if (newP2 !== oldP2) { setScoreAnimPlayerId("P2"); clearAnimTimer(); }
+      if (scoreEntry) setActionFeedback({ type: "combat", entry: scoreEntry });
       setMessage(t(locale, "feedback.turnEnded"));
       if (result.state.status === "FINISHED") {
         setScreen("result");
