@@ -78,7 +78,7 @@ describe("App Phase 4 UI", () => {
     await startBattle(user);
 
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
-    expect(hand).toHaveClass("player-hand");
+    expect(hand).toHaveClass("player-hand-section");
     expect(hand).toHaveAttribute("tabindex", "0");
     expect(within(hand).getAllByRole("button").length).toBeGreaterThan(0);
     expect(screen.getAllByText("เด็ค").length).toBeGreaterThan(0);
@@ -94,7 +94,7 @@ describe("App Phase 4 UI", () => {
 
     await user.click(screen.getByRole("button", { name: "PvE vs Computer" }));
 
-    const scoreboard = screen.getByLabelText("คะแนนผู้เล่น");
+    const scoreboard = screen.getByLabelText("สถานะการแข่งขัน");
     expect(within(scoreboard).getByText("คุณ")).toBeInTheDocument();
     expect(within(scoreboard).getByText("Computer")).toBeInTheDocument();
     expect(scoreboard.querySelector(".scoreboard-player.active")).toHaveTextContent("คุณ");
@@ -108,7 +108,7 @@ describe("App Phase 4 UI", () => {
 
     await user.click(screen.getByRole("button", { name: "Local PvP" }));
     const before = localStorage.getItem("animal_score_saved_match");
-    await user.click(screen.getAllByRole("button", { name: /English|ไทย/ })[1]);
+    await openGameMenuAndSwitchLocale(user, "en");
     expect(localStorage.getItem("animal_score_saved_match")).toBe(before);
   });
 
@@ -122,9 +122,9 @@ describe("App Phase 4 UI", () => {
 
     expect(screen.getByLabelText("สรุปผลของการ์ด")).toHaveTextContent("ลงสนามช่อง 2");
     await user.click(screen.getByRole("button", { name: "ปิด" }));
-    expect(screen.getByRole("button", { name: "ย้อนกลับ" })).not.toBeDisabled();
-
-    await user.click(screen.getByRole("button", { name: "ย้อนกลับ" }));
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    expect(screen.getByRole("menuitem", { name: /ย้อนกลับ|Undo/ })).not.toBeDisabled();
+    await user.click(screen.getByRole("menuitem", { name: /ย้อนกลับ|Undo/ }));
     expect(screen.getByLabelText("สรุปผลของการ์ด")).toHaveTextContent("ย้อนกลับสำเร็จ");
     expect(screen.getByRole("button", { name: /ช่องสัตว์ 2|ช่อง Animal 2/ })).toBeInTheDocument();
   });
@@ -270,7 +270,8 @@ describe("App Phase 4 UI", () => {
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const anyCard = hand.querySelector("button") as HTMLButtonElement;
     await user.click(anyCard);
-    await user.click(screen.getByRole("button", { name: "Recycle" }));
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: /Recycle|Recycle/ }));
     expect(screen.getAllByText(/ไม่สามารถรีไซเคิลในเทิร์นแรก/).length).toBeGreaterThan(0);
 
     await endCurrentTurn(user);
@@ -317,7 +318,8 @@ describe("App Phase 4 UI", () => {
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const anyCard = hand.querySelector("button") as HTMLButtonElement;
     await user.click(anyCard);
-    await user.click(screen.getByRole("button", { name: "Recycle" }));
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: /Recycle|Recycle/ }));
     expect(screen.getAllByText(/Recycle สำเร็จ|รีไซเคิลสำเร็จ/).length).toBeGreaterThan(0);
   }, 10000);
 
@@ -402,12 +404,12 @@ describe("App Phase 4 UI", () => {
     render(<App />);
     await startBattle(user);
 
-    const utilityArea = document.querySelector(".action-controls");
+    const utilityArea = document.querySelector(".action-dock");
     expect(utilityArea).toBeInTheDocument();
-    expect(utilityArea?.querySelector(".reset-trigger")).toHaveTextContent("เริ่มเกมใหม่");
-    expect(document.querySelector(".buttons")?.textContent).not.toContain("เริ่มเกมใหม่");
 
-    await user.click(screen.getByRole("button", { name: "เริ่มเกมใหม่" }));
+    // Open game menu to access reset trigger
+    await user.click(screen.getByRole("button", { name: /ตั้งค่า|Menu/ }));
+    await user.click(screen.getByRole("menuitem", { name: "เริ่มเกมใหม่" }));
     const dialog = screen.getByRole("dialog", { name: "เริ่มเกมใหม่หรือไม่?" });
     expect(dialog).toHaveTextContent("ความคืบหน้าของเกมปัจจุบันจะถูกล้างและไม่สามารถย้อนกลับได้");
 
@@ -626,7 +628,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const thaiTypes = Array.from(hand.querySelectorAll("button small")).map((el) => el?.textContent ?? "");
     expect(thaiTypes.some((t) => ["สัตว์", "สนับสนุน", "จุดอ่อน", "พิเศษ"].includes(t))).toBe(true);
 
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
 
     const handEn = screen.getByLabelText("Current player hand");
     const enTypes = Array.from(handEn.querySelectorAll("button small")).map((el) => el?.textContent ?? "");
@@ -641,7 +643,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
 
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const beforeNames = Array.from(hand.querySelectorAll(".hand-card-name")).map((el) => el?.textContent ?? "");
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
 
     const handEn = screen.getByLabelText("Current player hand");
     const afterNames = Array.from(handEn.querySelectorAll(".hand-card-name")).map((el) => el?.textContent ?? "");
@@ -657,7 +659,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
 
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const beforeLabels = Array.from(hand.querySelectorAll(".playability-label")).map((el) => el?.textContent ?? "");
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
 
     const handEn = screen.getByLabelText("Current player hand");
     const afterLabels = Array.from(handEn.querySelectorAll(".playability-label")).map((el) => el?.textContent ?? "");
@@ -675,7 +677,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const beforeIds = Array.from(hand.querySelectorAll("button")).map((b) => (b.getAttribute("aria-label") ?? "").split(" ")[0]);
     expect(beforeIds.length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     const handEn = screen.getByLabelText("Current player hand");
     const afterIds = Array.from(handEn.querySelectorAll("button")).map((b) => (b.getAttribute("aria-label") ?? "").split(" ")[0]);
     // Card IDs stay the same (stable ids)
@@ -691,7 +693,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const handBefore = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const beforeHandCount = handBefore.querySelectorAll("button").length;
 
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
 
     expect(localStorage.getItem("animal_score_saved_match")).toBe(beforeSnapshot);
     const handAfter = screen.getByLabelText("Current player hand");
@@ -797,7 +799,8 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     render(<App />);
     await startBattle(user);
 
-    await user.click(screen.getByRole("button", { name: "เริ่มเกมใหม่" }));
+    await user.click(screen.getByRole("button", { name: /ตั้งค่า|Menu/ }));
+    await user.click(screen.getByRole("menuitem", { name: "เริ่มเกมใหม่" }));
     expect(screen.getByRole("dialog", { name: "เริ่มเกมใหม่หรือไม่?" })).toBeInTheDocument();
     await user.click(within(screen.getByRole("dialog", { name: "เริ่มเกมใหม่หรือไม่?" })).getByRole("button", { name: "เริ่มเกมใหม่" }));
     expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
@@ -838,7 +841,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const board = screen.getByLabelText("สนามต่อสู้");
     const strongsBefore = Array.from(board.querySelectorAll(".board-card-name")).map((s) => s?.textContent ?? "");
     if (strongsBefore.length === 0) return;
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     const boardEn = screen.getByLabelText("Battlefield");
     const strongsAfter = Array.from(boardEn.querySelectorAll(".board-card-name")).map((s) => s?.textContent ?? "");
     expect(strongsAfter.length).toBe(strongsBefore.length);
@@ -864,7 +867,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const itemsBefore = Array.from(list.querySelectorAll("li")).map((li) => li?.textContent ?? "");
     if (itemsBefore.length === 0) return;
     await user.keyboard("{Escape}");
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     await user.click(screen.getAllByRole("button", { name: /Graveyard/ })[0]);
     const listEn = await screen.findByRole("list");
     const itemsAfter = Array.from(listEn.querySelectorAll("li")).map((li) => li?.textContent ?? "");
@@ -884,7 +887,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     if (itemsBefore.length === 0) return;
     expect(itemsBefore.some((t) => ["Animal", "Support", "Weakness", "Special"].includes(t))).toBe(true);
     await user.keyboard("{Escape}");
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     await user.click(screen.getAllByRole("button", { name: /Graveyard/ })[0]);
     const listEn = await screen.findByRole("list");
     const itemsAfter = Array.from(listEn.querySelectorAll("li small")).map((s) => s?.textContent ?? "");
@@ -897,7 +900,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     render(<App />);
     await startBattle(user);
     const beforeSnapshot = localStorage.getItem("animal_score_saved_match");
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     expect(localStorage.getItem("animal_score_saved_match")).toBe(beforeSnapshot);
   });
 
@@ -906,7 +909,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     render(<App />);
     await startBattle(user);
     expect(screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     expect(screen.getByLabelText("Hidden opponent hand")).toBeInTheDocument();
     const cardBacks = document.querySelectorAll(".card-back");
     expect(cardBacks.length).toBeGreaterThan(0);
@@ -924,7 +927,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     if (!btn) return;
     const thName = btn.querySelector(".hand-card-name")?.textContent ?? "";
     expect(thName.length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     const handEn = screen.getByLabelText("Current player hand");
     const btnEn = handEn.querySelector("button");
     if (!btnEn) return;
@@ -950,9 +953,8 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const btn = hand.querySelector("button");
     if (!btn) return;
     await user.click(btn);
-    // Need to wait for selectedDefinition to be set, then click "รายละเอียด"
-    const detailBtn = screen.getByRole("button", { name: "รายละเอียด" });
-    await user.click(detailBtn);
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: "รายละเอียด" }));
     const dialog = screen.getByRole("dialog", { name: "รายละเอียด" });
     expect(dialog).toBeInTheDocument();
     expect(dialog.querySelector("h2")).toBeTruthy();
@@ -970,8 +972,8 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const btn = hand.querySelector("button");
     if (!btn) return;
     await user.click(btn);
-    const detailBtn = screen.getByRole("button", { name: "Details" });
-    await user.click(detailBtn);
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: "Details" }));
     const dialog = screen.getByRole("dialog", { name: "Details" });
     expect(dialog).toBeInTheDocument();
     const heading = dialog.querySelector("h2")?.textContent ?? "";
@@ -986,17 +988,19 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const btn = hand.querySelector("button");
     if (!btn) return;
     await user.click(btn);
-    await user.click(screen.getByRole("button", { name: "รายละเอียด" }));
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: "รายละเอียด" }));
     const dialog = screen.getByRole("dialog", { name: "รายละเอียด" });
     const thName = dialog.querySelector("h2")?.textContent ?? "";
     await user.keyboard("{Escape}");
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     // re-select same card and open details
     const handEn = screen.getByLabelText("Current player hand");
     const btnEn = handEn.querySelector("button");
     if (!btnEn) return;
     await user.click(btnEn);
-    await user.click(screen.getByRole("button", { name: "Details" }));
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: "Details" }));
     const dialogEn = screen.getByRole("dialog", { name: "Details" });
     const enName = dialogEn.querySelector("h2")?.textContent ?? "";
     expect(thName.length).toBeGreaterThan(0);
@@ -1015,7 +1019,8 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     });
     if (supports.length === 0) return;
     await user.click(supports[0]);
-    await user.click(screen.getByRole("button", { name: "รายละเอียด" }));
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: "รายละเอียด" }));
     const dialog = screen.getByRole("dialog", { name: "รายละเอียด" });
     expect(dialog).toHaveTextContent("สัตว์ที่เข้ากันได้:");
   });
@@ -1031,7 +1036,8 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     });
     if (weaknesses.length === 0) return;
     await user.click(weaknesses[0]);
-    await user.click(screen.getByRole("button", { name: "รายละเอียด" }));
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: "รายละเอียด" }));
     const dialog = screen.getByRole("dialog", { name: "รายละเอียด" });
     expect(dialog).toHaveTextContent("สัตว์ที่แพ้ทาง:");
     expect(dialog).toHaveTextContent("ผลเต็ม:");
@@ -1048,7 +1054,8 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     });
     if (specials.length === 0) return;
     await user.click(specials[0]);
-    await user.click(screen.getByRole("button", { name: "รายละเอียด" }));
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: "รายละเอียด" }));
     const dialog = screen.getByRole("dialog", { name: "รายละเอียด" });
     expect(dialog).toHaveTextContent("ผลทันที:");
     expect(dialog).toHaveTextContent("ระยะเวลา:");
@@ -1059,7 +1066,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     render(<App />);
     await startBattle(user);
     const beforeSnapshot = localStorage.getItem("animal_score_saved_match");
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     expect(localStorage.getItem("animal_score_saved_match")).toBe(beforeSnapshot);
   });
 
@@ -1082,7 +1089,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const btn = hand.querySelector("button");
     if (!btn) return;
     const thName = btn.querySelector(".hand-card-name")?.textContent ?? "";
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     const handEn = screen.getByLabelText("Current player hand");
     const btnEn = handEn.querySelector("button");
     if (!btnEn) return;
@@ -1099,7 +1106,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const board = screen.getByLabelText("สนามต่อสู้");
     const strongsBefore = Array.from(board.querySelectorAll(".board-card-name")).map((s) => s?.textContent ?? "");
     if (strongsBefore.length === 0) return;
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     const boardEn = screen.getByLabelText("Battlefield");
     const strongsAfter = Array.from(boardEn.querySelectorAll(".board-card-name")).map((s) => s?.textContent ?? "");
     expect(strongsAfter.length).toBe(strongsBefore.length);
@@ -1117,7 +1124,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const itemsBefore = Array.from(list.querySelectorAll("li")).map((li) => li?.textContent ?? "");
     if (itemsBefore.length === 0) return;
     await user.keyboard("{Escape}");
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     const graveyardButtonsEn = screen.getAllByRole("button", { name: /Graveyard/ });
     if (graveyardButtonsEn.length === 0) return;
     await user.click(graveyardButtonsEn[0]);
@@ -1153,7 +1160,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     await startBattle(user);
     await user.click(findFirstHandCardByCategory("สัตว์"));
     await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     const boardEn = screen.getByLabelText("Battlefield");
     const boardContent = boardEn.textContent ?? "";
     expect(boardContent.length).toBeGreaterThan(0);
@@ -1164,7 +1171,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     render(<App />);
     await startBattle(user);
     const beforeSnapshot = localStorage.getItem("animal_score_saved_match");
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     expect(localStorage.getItem("animal_score_saved_match")).toBe(beforeSnapshot);
   });
 
@@ -1177,7 +1184,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const board = screen.getByLabelText("สนามต่อสู้");
     const thStatusNodes = board.querySelectorAll(".statuses");
     const thCount = thStatusNodes.length;
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     const boardEn = screen.getByLabelText("Battlefield");
     const enStatusNodes = boardEn.querySelectorAll(".statuses");
     expect(enStatusNodes.length).toBe(thCount);
@@ -1191,7 +1198,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const btn = hand.querySelector("button");
     if (!btn) return;
     const thName = btn.querySelector(".hand-card-name")?.textContent ?? "";
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     const handEn = screen.getByLabelText("Current player hand");
     const btnEn = handEn.querySelector("button");
     if (!btnEn) return;
@@ -1207,7 +1214,7 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
     const boardStrong = document.querySelector(".board-card-name")?.textContent ?? "";
     expect(boardStrong.length).toBeGreaterThan(0);
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     const boardStrongEn = document.querySelector(".board-card-name")?.textContent ?? "";
     expect(boardStrongEn.length).toBeGreaterThan(0);
     expect(boardStrong).not.toBe(boardStrongEn);
@@ -1221,7 +1228,8 @@ describe("App Phase 2C-1C-A player hand card localization", () => {
     const btn = hand.querySelector("button");
     if (!btn) return;
     await user.click(btn);
-    await user.click(screen.getByRole("button", { name: "รายละเอียด" }));
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: "รายละเอียด" }));
     const dialog = screen.getByRole("dialog", { name: "รายละเอียด" });
     expect(dialog).toBeInTheDocument();
   });
@@ -1272,7 +1280,8 @@ describe("App Phase 5 persistence UI", () => {
 
     expect(localStorage.getItem("animal_score_saved_match")).not.toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "เริ่มเกมใหม่" }));
+    await user.click(screen.getByRole("button", { name: /ตั้งค่า|Menu/ }));
+    await user.click(screen.getByRole("menuitem", { name: "เริ่มเกมใหม่" }));
     await user.click(within(screen.getByRole("dialog", { name: "เริ่มเกมใหม่หรือไม่?" })).getByRole("button", { name: "เริ่มเกมใหม่" }));
 
     expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
@@ -1523,24 +1532,28 @@ describe("compact Battle HUD header (Phase 1.1)", () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Local PvP" }));
-    const opponentSummary = document.querySelector(".opponent-summary");
-    expect(opponentSummary?.textContent).toMatch(/เด็ค|Deck/);
-    expect(opponentSummary?.textContent).toMatch(/มือ|Hand/);
+    const header = screen.getByLabelText("สถานะการแข่งขัน");
+    expect(header.textContent).toMatch(/เด็ค|Deck/);
+    expect(header.textContent).toMatch(/มือ|Hand/);
   });
 
   it("language selector remains accessible in the header", async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Local PvP" }));
-    expect(screen.getByRole("group", { name: "เลือกภาษา" })).toBeInTheDocument();
+    expect(document.querySelector(".game-menu-trigger")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /ตั้งค่า|Menu/ }));
+    const popover = document.querySelector(".game-menu-popover");
+    expect(popover).toBeInTheDocument();
+    expect(popover?.textContent).toMatch(/ไทย|English/);
   });
 
   it("compact header structure renders with battle-header class", async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Local PvP" }));
-    expect(document.querySelector(".battle-header")).toBeInTheDocument();
-    expect(document.querySelector(".header-row-2")).toBeInTheDocument();
+    expect(document.querySelector(".battle-hud")).toBeInTheDocument();
+    expect(document.querySelector(".hud-secondary")).toBeInTheDocument();
   });
 
   it("locale switching preserves match state", async () => {
@@ -1548,9 +1561,9 @@ describe("compact Battle HUD header (Phase 1.1)", () => {
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Local PvP" }));
     const before = localStorage.getItem("animal_score_saved_match");
-    await user.click(screen.getByRole("button", { name: "English" }));
+    await openGameMenuAndSwitchLocale(user, "en");
     expect(localStorage.getItem("animal_score_saved_match")).toBe(before);
-    await user.click(screen.getByRole("button", { name: "ไทย" }));
+    await openGameMenuAndSwitchLocale(user, "th");
     expect(localStorage.getItem("animal_score_saved_match")).toBe(before);
   });
 
@@ -1587,7 +1600,8 @@ describe("invalid-use reason localization", () => {
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const anyCard = hand.querySelector("button") as HTMLButtonElement;
     await user.click(anyCard);
-    await user.click(screen.getByRole("button", { name: "Recycle" }));
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: /Recycle|Recycle/ }));
     expect(screen.getAllByText("ไม่สามารถรีไซเคิลในเทิร์นแรก").length).toBeGreaterThan(0);
   });
 
@@ -1599,7 +1613,8 @@ describe("invalid-use reason localization", () => {
     const hand = screen.getByLabelText("Current player hand");
     const anyCard = hand.querySelector("button") as HTMLButtonElement;
     await user.click(anyCard);
-    await user.click(screen.getByRole("button", { name: "Recycle" }));
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: /Recycle|Recycle/ }));
     expect(screen.getAllByText("Cannot recycle on the first turn").length).toBeGreaterThan(0);
   });
 
@@ -1636,7 +1651,8 @@ describe("invalid-use reason localization", () => {
     const user = userEvent.setup();
     render(<App />);
     await startBattle(user);
-    await user.click(screen.getByRole("button", { name: "Recycle" }));
+    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
+    await user.click(screen.getByRole("menuitem", { name: /Recycle|Recycle/ }));
     const statusElements = screen.getAllByRole("status");
     const allText = statusElements.map((el) => el.textContent ?? "").join(" ");
     expect(allText).not.toContain("first turn");
@@ -1673,7 +1689,7 @@ describe("invalid-use reason localization", () => {
     const logRegion = screen.getByRole("status");
     const thaiText = logRegion.textContent ?? "";
     expect(thaiText).toContain("เทิร์น");
-    await user.click(screen.getAllByRole("button", { name: /English/ })[0]);
+    await openGameMenuAndSwitchLocale(user, "en");
     const engText = logRegion.textContent ?? "";
     expect(engText).toContain("Turn");
   });
@@ -1772,7 +1788,7 @@ describe("invalid-use reason localization", () => {
     await user.click(animalCard);
     const preview = screen.getByLabelText("ผลที่จะเกิดขึ้น");
     expect(preview.textContent).toContain("Level 1");
-    await user.click(screen.getAllByRole("button", { name: /English/ })[0]);
+    await openGameMenuAndSwitchLocale(user, "en");
     expect(preview.textContent).toContain("Place Animal at Level 1");
   });
 
@@ -1935,10 +1951,10 @@ describe("invalid-use reason localization", () => {
     render(<App />);
     await user.click(screen.getByRole("button", { name: "Local PvP" }));
     const beforeMatch = localStorage.getItem("animal_score_saved_match");
-    await user.click(screen.getAllByRole("button", { name: /English|ไทย/ })[1]);
+    await openGameMenuAndSwitchLocale(user, "en");
     const afterMatch = localStorage.getItem("animal_score_saved_match");
     expect(afterMatch).toBe(beforeMatch);
-    await user.click(screen.getAllByRole("button", { name: /English|ไทย/ })[0]);
+    await openGameMenuAndSwitchLocale(user, "th");
     expect(localStorage.getItem("animal_score_saved_match")).toBe(beforeMatch);
   });
 
@@ -2235,6 +2251,163 @@ describe("Level and Evolution visual states (Phase 5)", () => {
   });
 });
 
+describe("Mirrored Battlefield Layout", () => {
+  it("player Animal slots precede player resource row in DOM", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const board = screen.getByLabelText("สนามต่อสู้");
+    const childTags = Array.from(board.children).map((c) => c.className || c.tagName);
+    const animalZoneIndex = childTags.findIndex((c) => c.includes("animal-zone") || c.includes("animal_zone"));
+    const playerResourceIndex = childTags.findIndex((c) => c.includes("player-resource-row"));
+    expect(animalZoneIndex).toBeGreaterThan(-1);
+    expect(playerResourceIndex).toBeGreaterThan(-1);
+    expect(animalZoneIndex).toBeLessThan(playerResourceIndex);
+  });
+
+  it("opponent resource row precedes opponent Animal slots in DOM", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const board = screen.getByLabelText("สนามต่อสู้");
+    const childTags = Array.from(board.children).map((c) => c.className || c.tagName);
+    const opponentRowIndex = childTags.findIndex((c) => c === "row" || c.includes("row"));
+    const oppAnimalZoneIndex = childTags.findIndex((c) => c.includes("animal-zone") || c.includes("animal_zone"));
+    expect(opponentRowIndex).toBeGreaterThan(-1);
+    expect(oppAnimalZoneIndex).toBeGreaterThan(-1);
+    expect(opponentRowIndex).toBeLessThan(oppAnimalZoneIndex);
+  });
+
+  it("player Deck count remains correct", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const deckZones = document.querySelectorAll(".deck-zone");
+    expect(deckZones.length).toBe(2);
+  });
+
+  it("both Graveyard controls remain accessible", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    expect(screen.getAllByRole("button", { name: /สุสาน/ }).length).toBe(2);
+  });
+
+  it("opponent slot order: hidden hand → resource → animal zone", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const board = screen.getByLabelText("สนามต่อสู้");
+    const children = Array.from(board.children);
+    const hiddenHandIndex = children.findIndex((c) => c.querySelector(".card-back") !== null);
+    const resourceRowIndex = children.findIndex((c) => c.className.includes("row") && !c.className.includes("player-resource-row"));
+    const oppAnimalZoneIndex = children.findIndex((c) => c.className.includes("animal-zone"));
+    expect(hiddenHandIndex).toBeGreaterThan(-1);
+    expect(resourceRowIndex).toBeGreaterThan(-1);
+    expect(oppAnimalZoneIndex).toBeGreaterThan(-1);
+    expect(hiddenHandIndex).toBeLessThan(resourceRowIndex);
+    expect(resourceRowIndex).toBeLessThan(oppAnimalZoneIndex);
+  });
+
+  it("player slot order: animal zone → resource row → hand → action dock", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const mainEl = document.querySelector("main");
+    const childTags = Array.from(mainEl?.children ?? []).map((c) => c.className || c.tagName);
+    const battleHudIndex = childTags.findIndex((c) => c.includes("battle-hud"));
+    const boardIndex = childTags.findIndex((c) => c === "board" || c.includes("board"));
+    const handIndex = childTags.findIndex((c) => c.includes("player-hand-section"));
+    const actionDockIndex = childTags.findIndex((c) => c.includes("action-dock"));
+    expect(battleHudIndex).toBeGreaterThan(-1);
+    expect(boardIndex).toBeGreaterThan(-1);
+    expect(handIndex).toBeGreaterThan(-1);
+    expect(actionDockIndex).toBeGreaterThan(-1);
+    expect(battleHudIndex).toBeLessThan(boardIndex);
+    expect(boardIndex).toBeLessThan(handIndex);
+    expect(handIndex).toBeLessThan(actionDockIndex);
+  });
+
+  it("Effect Preview does not insert a new in-flow structural row", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const mainEl = document.querySelector("main");
+    const classes = Array.from(mainEl?.children ?? []).map((c) => c.className || c.tagName);
+    const structuralRegions = classes.filter((c) =>
+      c.includes("battle-hud") || c === "board" || c.includes("latest-event") ||
+      c.includes("player-hand-section") || c.includes("action-dock")
+    );
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtn = hand.querySelector(".cat-animal") as HTMLButtonElement;
+    if (animalBtn) {
+      await user.click(animalBtn);
+      expect(screen.getByLabelText("ผลที่จะเกิดขึ้น")).toBeInTheDocument();
+      const classesAfter = Array.from(mainEl?.children ?? []).map((c) => c.className || c.tagName);
+      const structuralAfter = classesAfter.filter((c) =>
+        c.includes("battle-hud") || c === "board" || c.includes("latest-event") ||
+        c.includes("player-hand-section") || c.includes("action-dock")
+      );
+      expect(structuralAfter).toEqual(structuralRegions);
+    }
+  });
+
+  it("selecting a card does not change primary region order", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const mainEl = document.querySelector("main");
+    const getRegionKeys = () => Array.from(mainEl?.children ?? []).map((c) => c.className || c.tagName)
+      .filter((c) => c.includes("battle-hud") || c === "board" || c.includes("latest-event") || c.includes("player-hand-section") || c.includes("action-dock"));
+    const before = getRegionKeys();
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const firstCard = hand.querySelector("button");
+    if (firstCard) {
+      await user.click(firstCard);
+    }
+    const after = getRegionKeys();
+    expect(after).toEqual(before);
+  });
+
+  it("Animal placement still works with mirrored layout", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtn = hand.querySelector(".cat-animal") as HTMLButtonElement;
+    if (animalBtn) {
+      await user.click(animalBtn);
+      const slots = screen.getAllByLabelText(/ช่องสัตว์ \d/);
+      const playerSlot = slots.length >= 4 ? slots[3] : slots[0];
+      await user.click(playerSlot);
+      const mainEl = document.querySelector("main");
+      const hasFeedback = mainEl?.querySelector('[aria-label="สรุปผลของการ์ด"]');
+      expect(hasFeedback).toBeTruthy();
+    }
+  });
+
+  it("compact HUD tests remain passing with mirrored layout", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const header = screen.getByLabelText("สถานะการแข่งขัน");
+    expect(header.querySelectorAll(".scoreboard-player strong").length).toBe(2);
+    expect(document.querySelector(".game-menu-trigger")).toBeInTheDocument();
+    expect(screen.getByText(/TURN 1/)).toBeInTheDocument();
+  });
+
+  it("language-menu tests remain passing with mirrored layout", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    await user.click(screen.getByRole("button", { name: /ตั้งค่า|Menu/ }));
+    const popover = document.querySelector(".game-menu-popover");
+    expect(popover).toBeInTheDocument();
+    expect(popover?.textContent).toMatch(/ไทย|English/);
+    await user.keyboard("{Escape}");
+  });
+});
+
 async function startBattle(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "Local PvP" }));
 }
@@ -2264,6 +2437,13 @@ function findCardInHandByCategory(hand: HTMLElement, categoryLabel: string): HTM
       (btn) => btn.querySelector("small")?.textContent === categoryLabel
     ) as HTMLElement) ?? null
   );
+}
+
+async function openGameMenuAndSwitchLocale(user: ReturnType<typeof userEvent.setup>, targetLocale: "th" | "en") {
+  const menuButton = screen.getByRole("button", { name: /ตั้งค่า|Menu/ });
+  await user.click(menuButton);
+  const localeButton = screen.getByRole("menuitem", { name: targetLocale === "th" ? /ไทย/ : /English/ });
+  await user.click(localeButton);
 }
 
 function makeMatchResult(overrides?: Partial<MatchResult>): MatchResult {
