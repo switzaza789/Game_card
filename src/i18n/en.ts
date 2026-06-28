@@ -251,6 +251,7 @@ export const en = {
   "menu.howToPlay": "How to play",
   "menu.cardLibrary": "Card library",
   "menu.aiLabel": "Normal AI",
+  "menu.settings": "Menu",
   "howToPlay.title": "How to Play",
   "howToPlay.rule1": "Two players take turns playing on the same device, each with a 24-card deck, a 5-card starting hand, and 3 Animal Zone slots.",
   "howToPlay.rule2": "In the Action Phase, you may play 1 Animal and perform 1 Utility action. Support, Weakness, Special, and Recycle share the Utility slot.",
@@ -366,6 +367,7 @@ export const en = {
   "toast.playFailedNotInHand": "Card is not in your hand",
   "toast.playFailedWrongPhase": "Can only play during your Action Phase",
   "label.actionsComplete": "No remaining actions — you may end your turn",
+  "label.more": "More",
   "guidance.selectTarget": "Select a target for this card",
   "visual.weaknessFull": "Weakness hit — Full effect",
   "visual.weaknessReduced": "Reduced effect",
@@ -421,5 +423,12 @@ export const en = {
   "level.maximum": "Max Level: {max}",
   "level.up": "Level Up",
   "level.down": "Level Down",
-  "level.fromTo": "Lv.{from} → Lv.{to}"
+  "level.fromTo": "Lv.{from} → Lv.{to}",
+  "recycle.guidance.chooseCard": "Choose 1 card from your hand to recycle",
+  "recycle.preview.selected": "Recycle \"{card}\" and draw 1 replacement",
+  "recycle.result.success": "Recycled \"{old}\" → drew \"{new}\"",
+  "recycle.reason.noCard": "Select a card in hand first",
+  "recycle.reason.used": "Recycle already used this turn",
+  "recycle.reason.unavailable": "Cannot recycle at this time",
+  "recycle.cancel": "Cancel Recycle"
 } satisfies Record<TranslationKey, string>;

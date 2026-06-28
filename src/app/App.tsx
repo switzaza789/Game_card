@@ -93,11 +93,20 @@ export function App() {
   const [pendingAnimalSlot, setPendingAnimalSlot] = useState<Target | null>(null);
   const [endTurnConfirmOpen, setEndTurnConfirmOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [recycleMode, setRecycleMode] = useState(false);
+  const [filledNewAnimSet, setFilledNewAnimSet] = useState<Set<string>>(new Set());
+  const [supportAttachAnimSet, setSupportAttachAnimSet] = useState<Set<string>>(new Set());
+  const [scoreAnimPlayerId, setScoreAnimPlayerId] = useState<PlayerId | null>(null);
+  const animTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastFeedbackExportRef = useRef<string | null>(null);
   const aiExecutionRef = useRef<string | null>(null);
   const humanTurnPrepRef = useRef<string | null>(null);
   const [toastFeedback, setToastFeedback] = useState<ToastFeedback | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* Transient animation state - cleared automatically, must not affect gameplay */
+  const [recentlyRecycledId, setRecentlyRecycledId] = useState<string | null>(null);
+  const recycleAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function showMinorToast(key: ToastFeedback["key"], params?: Record<string, string | number>) {
     if (toastTimerRef.current) {
@@ -110,11 +119,38 @@ export function App() {
     }, 3000);
   }
 
+  function clearAnimTimer() {
+    if (animTimerRef.current) {
+      clearTimeout(animTimerRef.current);
+    }
+    animTimerRef.current = setTimeout(() => {
+      setFilledNewAnimSet(new Set());
+      setSupportAttachAnimSet(new Set());
+      setScoreAnimPlayerId(null);
+      animTimerRef.current = null;
+    }, 1400);
+  }
+
+  function clearAnimState() {
+    if (animTimerRef.current) {
+      clearTimeout(animTimerRef.current);
+      animTimerRef.current = null;
+    }
+    if (recycleAnimTimerRef.current) {
+      clearTimeout(recycleAnimTimerRef.current);
+      recycleAnimTimerRef.current = null;
+    }
+    setFilledNewAnimSet(new Set());
+    setSupportAttachAnimSet(new Set());
+    setScoreAnimPlayerId(null);
+    setRecentlyRecycledId(null);
+  }
+
   useEffect(() => {
     return () => {
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
-      }
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (recycleAnimTimerRef.current) clearTimeout(recycleAnimTimerRef.current);
+      if (animTimerRef.current) clearTimeout(animTimerRef.current);
     };
   }, []);
 
@@ -181,6 +217,7 @@ export function App() {
     setMessage(gameMode === "PVE_NORMAL" ? t(locale, "feedback.pveStarted") : t(locale, "feedback.gameStarted"));
     setScreen("battle");
     setHasSavedGame(false);
+    clearAnimState();
   }
 
   function resumeGame() {
@@ -308,6 +345,7 @@ export function App() {
     setHasSavedGame(false);
     setScreen("menu");
     setMessage(deleteResult.ok ? t(locale, "feedback.gameReset") : t(locale, "feedback.resetButDeleteFailed", { reason: storageErrorMessage(deleteResult.error) }));
+    clearAnimState();
   }
 
   function requestResetMatch() {
@@ -354,8 +392,18 @@ export function App() {
 
     setMatch(currentMatch);
     setSelectedCardId(null);
+    clearAnimState();
     const scoreEntry = findLatestScoreEntry(currentMatch.actionLog, startingLogLength);
-    setActionFeedback(scoreEntry ? { type: "combat", entry: scoreEntry } : null);
+    if (scoreEntry) {
+      setActionFeedback({ type: "combat", entry: scoreEntry });
+      const scoreOutcome = scoreEntry.outcomes?.find((o) => o.code === "SCORE_CHANGED");
+      if (scoreOutcome?.code === "SCORE_CHANGED") {
+        setScoreAnimPlayerId(scoreOutcome.playerId);
+        clearAnimTimer();
+      }
+    } else {
+      setActionFeedback(null);
+    }
     setMessage(t(locale, "feedback.turnResumed", { player: playerName(currentMatch.currentPlayerId, locale) }));
     setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
   }
@@ -365,17 +413,27 @@ export function App() {
       return;
     }
 
+    clearAnimState();
+
     const result = coordinator.dispatch({
       type: "END_TURN",
       playerId: match.currentPlayerId,
       payload: {}
     }, Date.now());
 
+    const oldP1 = match.players.P1.score;
+    const oldP2 = match.players.P2.score;
     setMatch(result.state);
     setSelectedCardId(null);
     if (!result.validation.valid) {
       setMessage(result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", "));
     } else {
+      const newP1 = result.state.players.P1.score;
+      const newP2 = result.state.players.P2.score;
+      const scoreEntry = result.state.actionLog.slice(-1)[0];
+      if (newP1 !== oldP1) { setScoreAnimPlayerId("P1"); clearAnimTimer(); }
+      if (newP2 !== oldP2) { setScoreAnimPlayerId("P2"); clearAnimTimer(); }
+      if (scoreEntry) setActionFeedback({ type: "combat", entry: scoreEntry });
       setMessage(t(locale, "feedback.turnEnded"));
       if (result.state.status === "FINISHED") {
         setScreen("result");
@@ -478,11 +536,15 @@ export function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coordinator, match, screen]);
 
-  function recycleSelected() {
-    if (!match || !selectedCardId) {
-      const reason = t(locale, "playability.reason.recycleNoCard");
-      setMessage(reason);
-      setActionFeedback({ type: "recycle", success: false, reason });
+  function recycleSelected(cardInstanceId?: string) {
+    if (!match) {
+      return;
+    }
+    const targetId = cardInstanceId ?? selectedCardId;
+    if (!targetId) {
+      setRecycleMode(true);
+      setMessage(t(locale, "recycle.guidance.chooseCard"));
+      setActionFeedback(null);
       return;
     }
     const before = match;
@@ -490,26 +552,37 @@ export function App() {
     const result = coordinator.dispatch({
       type: "RECYCLE",
       playerId: match.currentPlayerId,
-      payload: { cardInstanceId: selectedCardId }
+      payload: { cardInstanceId: targetId }
     }, Date.now());
 
     setMatch(result.state);
     setSelectedCardId(null);
+    setRecycleMode(false);
     if (!result.validation.valid) {
       const reason = result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", ");
       setMessage(reason);
       showMinorToast("toast.recycleFailed");
-      setActionFeedback(null);
+      setActionFeedback({ type: "recycle", success: false, reason });
+      setRecentlyRecycledId(null);
     } else {
-      setMessage(t(locale, "feedback.recycle.success"));
       const drawnId = result.state.players[match.currentPlayerId].hand.find((id) => !before.players[match.currentPlayerId].hand.includes(id));
+      const oldCardName = getLocalizedCard(getCardDefinition(match.cardsByInstanceId[targetId].definitionId).card_id, locale).name;
+      const newCardName = drawnId ? getLocalizedCard(getCardDefinition(result.state.cardsByInstanceId[drawnId].definitionId).card_id, locale).name : "";
+      setMessage(t(locale, "recycle.result.success", { old: oldCardName, new: newCardName }));
       setActionFeedback({
         type: "recycle",
         success: true,
-        selectedCardInstanceId: selectedCardId,
+        selectedCardInstanceId: targetId,
         drawnCardInstanceId: drawnId ?? undefined,
         deckCount: result.state.players[match.currentPlayerId].deck.length
       });
+      /* Trigger transient recycle animation cue */
+      setRecentlyRecycledId(targetId);
+      if (recycleAnimTimerRef.current) clearTimeout(recycleAnimTimerRef.current);
+      recycleAnimTimerRef.current = setTimeout(() => {
+        setRecentlyRecycledId(null);
+        recycleAnimTimerRef.current = null;
+      }, 400);
     }
 
     const sr2 = result.storageResult;
@@ -581,7 +654,37 @@ export function App() {
     } else {
       const localizedCard = getLocalizedCard(definition.card_id, locale);
       setMessage(`${localizedCard.name} ${t(locale, "log.result.full")}`);
-      setActionFeedback({ type: "combat", entry: result.state.actionLog[result.state.actionLog.length - 1] });
+      const lastEntry = result.state.actionLog[result.state.actionLog.length - 1];
+      setActionFeedback({ type: "combat", entry: lastEntry });
+      /* Derive transient animation cues from outcomes */
+      if (lastEntry?.outcomes) {
+        const newFilled = new Set(filledNewAnimSet);
+        const newSupport = new Set(supportAttachAnimSet);
+        let scorePlayer: PlayerId | null = null;
+        for (const outcome of lastEntry.outcomes) {
+          if (outcome.code === "ANIMAL_ENTERED_BOARD" && outcome.cardInstanceId) {
+            newFilled.add(outcome.cardInstanceId);
+          }
+          if (outcome.code === "CARD_ATTACHED" && outcome.targetInstanceId) {
+            newSupport.add(outcome.targetInstanceId);
+          }
+          if (outcome.code === "SCORE_CHANGED") {
+            scorePlayer = outcome.playerId;
+          }
+        }
+        if (newFilled.size > filledNewAnimSet.size) {
+          setFilledNewAnimSet(newFilled);
+          clearAnimTimer();
+        }
+        if (newSupport.size > supportAttachAnimSet.size) {
+          setSupportAttachAnimSet(newSupport);
+          clearAnimTimer();
+        }
+        if (scorePlayer) {
+          setScoreAnimPlayerId(scorePlayer);
+          clearAnimTimer();
+        }
+      }
       if (result.state.status === "FINISHED") {
         setScreen("result");
       }
@@ -600,6 +703,10 @@ export function App() {
         playCardFromHand(id, pendingAnimalSlot);
         return;
       }
+    }
+    if (match && recycleMode) {
+      recycleSelected(id);
+      return;
     }
     setSelectedCardId(id);
   }
@@ -733,6 +840,12 @@ export function App() {
           resetConfirmOpen={resetConfirmOpen}
           onCancelReset={cancelResetMatch}
           onConfirmReset={resetMatch}
+          recycleMode={recycleMode}
+          onCancelRecycle={() => { setRecycleMode(false); setMessage(""); }}
+          recentlyRecycledId={recentlyRecycledId}
+          filledNewAnimSet={filledNewAnimSet}
+          supportAttachAnimSet={supportAttachAnimSet}
+          scoreAnimPlayerId={scoreAnimPlayerId}
         />
     );
   }
@@ -938,6 +1051,17 @@ function getInteractionGuidanceState(match: MatchState, selectedCardId: string |
   return { recommendedAction: null, guidanceKey: null };
 }
 
+function getRecycleInvalidReason(match: MatchState, playerId: PlayerId, locale: Locale): string | null {
+  if (match.status === "FINISHED") return t(locale, "playability.reason.matchFinished");
+  if (match.phase !== "ACTION") return t(locale, "playability.reason.notActionPhase");
+  if (match.currentPlayerId !== playerId) return t(locale, "playability.reason.wrongPlayer");
+  if (match.turnNumber === 1) return t(locale, "playability.reason.recycleFirstTurn");
+  if (match.players[playerId].deck.length === 0) return t(locale, "playability.reason.recycleEmptyDeck");
+  if (match.players[playerId].recycleUsed) return t(locale, "recycle.reason.used");
+  if (match.players[playerId].hand.length === 0) return t(locale, "recycle.reason.noCard");
+  return null;
+}
+
 function BattleScreen(props: {
   match: MatchState;
   activePlayerId: PlayerId;
@@ -949,7 +1073,7 @@ function BattleScreen(props: {
   onSelectCard: (id: string) => void;
   onPlaySelected: (target?: Target) => void;
   onSelectEmptySlot: (target: Target) => void;
-  onRecycle: () => void;
+  onRecycle: (cardInstanceId?: string) => void;
   onEndTurn: () => void;
   onUndo: () => void;
   onOpenCard: (card: CardDefinition) => void;
@@ -968,12 +1092,24 @@ function BattleScreen(props: {
   resetConfirmOpen: boolean;
   onCancelReset: () => void;
   onConfirmReset: () => void;
+  recycleMode: boolean;
+  onCancelRecycle: () => void;
+  recentlyRecycledId: string | null;
+  filledNewAnimSet: Set<string>;
+  supportAttachAnimSet: Set<string>;
+  scoreAnimPlayerId: PlayerId | null;
 }) {
   const { match, activePlayerId, opponentId, selectedCardId, selectedDefinition } = props;
   const controlsDisabled = Boolean(props.controlsDisabled);
   const isAiTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2";
   const isPreparingHumanTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P1" && match.phase !== "ACTION";
   const resetConfirmButtonRef = useRef<HTMLButtonElement>(null);
+const [gameMenuOpen, setGameMenuOpen] = useState(false);
+const gameMenuRef = useRef<HTMLDivElement>(null);
+const gameMenuTriggerRef = useRef<HTMLButtonElement>(null);
+const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+const moreMenuRef = useRef<HTMLDivElement>(null);
+const moreMenuTriggerRef = useRef<HTMLButtonElement>(null);
 const visibleLogEntries = match.actionLog
   .map((entry) => ({ entry, formatted: formatActionLogEntry(match, entry, props.locale) }))
   .filter((item) => item.formatted !== null)
@@ -1055,14 +1191,42 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
     }
   }, [props.resetConfirmOpen]);
 
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (gameMenuOpen && gameMenuRef.current && !gameMenuRef.current.contains(event.target as Node) && gameMenuTriggerRef.current && !gameMenuTriggerRef.current.contains(event.target as Node)) {
+        setGameMenuOpen(false);
+      }
+      if (moreMenuOpen && moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node) && moreMenuTriggerRef.current && !moreMenuTriggerRef.current.contains(event.target as Node)) {
+        setMoreMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [gameMenuOpen, moreMenuOpen]);
+
+  useEffect(() => {
+    function handleKey(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setGameMenuOpen(false);
+        setMoreMenuOpen(false);
+        if (props.recycleMode) {
+          props.onCancelRecycle();
+        }
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [props.recycleMode, props.onCancelRecycle]);
+
   return (
     <main className="battle-app">
-      <section className="battle-header" aria-label={t(props.locale, "label.matchStatus")}>
-        <section className="scoreboard" aria-label={t(props.locale, "label.scoreboard")} aria-live="polite">
+      {/* Compact HUD */}
+      <section className="battle-hud" aria-label={t(props.locale, "label.matchStatus")}>
+        <div className="hud-primary">
           <div className={`scoreboard-player ${match.currentPlayerId === "P1" ? "active" : ""}`}>
             <span>{playerNameForMode("P1", match.gameMode, props.locale)}</span>
             <strong>{match.players.P1.score} / {gameConfig.target_score}</strong>
-            {scoreDeltas.P1 !== 0 && <em>{scoreDeltas.P1 > 0 ? "+" : ""}{scoreDeltas.P1}</em>}
+            {scoreDeltas.P1 !== 0 && <em className={props.scoreAnimPlayerId === "P1" ? "score-cue" : ""}>{scoreDeltas.P1 > 0 ? "+" : ""}{scoreDeltas.P1}</em>}
           </div>
           <div className="phase-panel">
             <strong>{t(props.locale, "label.turn")} {match.turnNumber} — {phaseLabel(match.phase, props.locale)}</strong>
@@ -1070,34 +1234,45 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
           <div className={`scoreboard-player ${match.currentPlayerId === "P2" ? "active" : ""}`}>
             <span>{playerNameForMode("P2", match.gameMode, props.locale)}</span>
             <strong>{match.players.P2.score} / {gameConfig.target_score}</strong>
-            {scoreDeltas.P2 !== 0 && <em>{scoreDeltas.P2 > 0 ? "+" : ""}{scoreDeltas.P2}</em>}
+            {scoreDeltas.P2 !== 0 && <em className={props.scoreAnimPlayerId === "P2" ? "score-cue" : ""}>{scoreDeltas.P2 > 0 ? "+" : ""}{scoreDeltas.P2}</em>}
           </div>
-        </section>
-        <div className="header-row-2">
-          <div className="header-left">
-            <LocaleSelector locale={props.locale} onChange={props.onLocaleChange} />
+        </div>
+        <div className="hud-secondary">
+          <div className="hud-secondary-left">
+            <span className="utility-status">{match.players[activePlayerId].utilityLocked ? t(props.locale, "label.utilityUsed") : match.players[activePlayerId].utilityActionUsed ? t(props.locale, "label.utilityUsed") : t(props.locale, "label.utilityAvailable")}</span>
           </div>
-          <div className="header-center utility-status">
-            <span>{match.players[activePlayerId].utilityLocked ? t(props.locale, "label.utilityUsed") : match.players[activePlayerId].utilityActionUsed ? t(props.locale, "label.utilityUsed") : t(props.locale, "label.utilityAvailable")}</span>
-          </div>
-          <div className="header-right opponent-summary">
+          <div className="hud-secondary-right">
             <span>{t(props.locale, "label.deck")} {match.players[opponentId].deck.length} | {t(props.locale, "label.hand")} {match.players[opponentId].hand.length}</span>
+            <button ref={gameMenuTriggerRef} type="button" className="game-menu-trigger" aria-label={t(props.locale, "menu.settings")} aria-expanded={gameMenuOpen} aria-controls="game-menu-popover" onClick={() => setGameMenuOpen((o) => !o)}>{t(props.locale, "menu.settings")}</button>
           </div>
         </div>
       </section>
 
+      {/* Game Menu Popover */}
+      {gameMenuOpen && (
+        <>
+          <div className="game-menu-overlay" onClick={() => setGameMenuOpen(false)} />
+          <div id="game-menu-popover" ref={gameMenuRef} className="game-menu-popover" role="menu" aria-label={t(props.locale, "menu.settings")}>
+            <div className="locale-group">
+              <span className="locale-group-label">{t(props.locale, "selector.aria")}</span>
+              {localeOptions().map((option) => (
+                <button key={option} type="button" role="menuitem" className={props.locale === option ? "locale-active" : ""} aria-pressed={props.locale === option} onClick={() => { props.onLocaleChange(option); setGameMenuOpen(false); }}>
+                  {option === "th" ? t(props.locale, "locale.th") : t(props.locale, "locale.en")}
+                </button>
+              ))}
+            </div>
+            <div className="menu-divider" />
+            <button type="button" role="menuitem" className="destructive-menu-item" onClick={() => { setGameMenuOpen(false); props.onResetMatch(); }}>
+              {t(props.locale, "label.reset")}
+            </button>
+          </div>
+        </>
+      )}
+
+      {/* Board */}
       <section className="board" aria-label={t(props.locale, "label.battlefield")}>
         {isAiTurn && <div className="ai-banner" role="status" aria-live="polite">{t(props.locale, "label.aiThinking")} — {t(props.locale, "label.computer")} is thinking...</div>}
         {isPreparingHumanTurn && <div className="ai-banner" role="status" aria-live="polite">{t(props.locale, "label.preparingTurn")}</div>}
-        <HiddenHand count={match.players[opponentId].hand.length} locale={props.locale} />
-        <div className="zone-label">{t(props.locale, "label.player2")}</div>
-        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} />
-        <div className="divider" />
-        <BoardRow match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} />
-        <div className="zone-label">{t(props.locale, "label.you")} — {t(props.locale, "label.score")} {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
-      </section>
-
-      <section className="battle-bottom">
         {scoreBreakdown && (
           <ScoreBreakdownBanner
             breakdown={scoreBreakdown}
@@ -1107,84 +1282,120 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
             onToggle={() => setScoreDetailsOpen((open) => !open)}
           />
         )}
-        <div className="log" role="status">
-          <strong>{t(props.locale, "label.actionLog")}</strong>
-          <p>{props.message}</p>
-          {visibleLogEntries.length === 0
-            ? <small>{t(props.locale, "log.noAction")}</small>
-            : visibleLogEntries.map((item, i) => <small key={i} className="log-entry">{item.formatted}</small>)
+        <HiddenHand count={match.players[opponentId].hand.length} locale={props.locale} />
+        <div className="zone-label">{t(props.locale, "label.player2")}</div>
+        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} filledNewAnimSet={props.filledNewAnimSet} supportAttachAnimSet={props.supportAttachAnimSet} />
+        <div className="divider" />
+        <BoardAnimalSlots match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} filledNewAnimSet={props.filledNewAnimSet} supportAttachAnimSet={props.supportAttachAnimSet} />
+        <BoardResourceRow match={match} ownerId={activePlayerId} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} />
+        <div className="zone-label">{t(props.locale, "label.you")} — {t(props.locale, "label.score")} {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
+      </section>
+
+      {/* Action Context Strip */}
+      <div className="action-context-strip" role="status" aria-live="polite">
+        {(() => {
+          if (props.recycleMode && !props.selectedCardId) {
+            return <span className="context-guidance">{t(props.locale, "recycle.guidance.chooseCard")}</span>;
           }
+          if (props.selectedCardId && props.selectedDefinition) {
+            const def = props.selectedDefinition;
+            const localized = getLocalizedCard(def.card_id, props.locale);
+            return (
+              <span className="context-preview">
+                {localized.name}
+                <button type="button" className="context-details-btn" onClick={() => props.onOpenCard(def)}>{t(props.locale, "label.details")}</button>
+              </span>
+            );
+          }
+          if (props.message) {
+            return <span className="context-message">{props.message}</span>;
+          }
+          if (visibleLogEntries.length > 0) {
+            return <span className="context-log">{visibleLogEntries[visibleLogEntries.length - 1].formatted}</span>;
+          }
+          return null;
+        })()}
+      </div>
+
+      {/* Player Hand */}
+      <section className="player-hand-section" aria-label={t(props.locale, "label.playerHand")} tabIndex={0}>
+        {match.players[activePlayerId].hand.map((id) => {
+          const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
+          const playability = getCardPlayability(match, activePlayerId, id);
+          const localizedCard = getLocalizedCard(definition.card_id, props.locale);
+          const localizedPlayabilityLabel = localizePlayabilityLabel(playability, props.locale);
+          const localizedCategory = localizedCategoryLabel(definition.category, props.locale);
+          const playerState = match.players[activePlayerId];
+          const isAnimal = definition.category === "Animal";
+          const usedThisTurn = isAnimal ? playerState.animalActionUsed : (playerState.utilityActionUsed || playerState.utilityLocked);
+          const isSelected = id === selectedCardId;
+          const recycleInvalid = getRecycleInvalidReason(match, activePlayerId, props.locale);
+          const isRecyclable = props.recycleMode && !recycleInvalid;
+          let cardState: string;
+          if (props.recycleMode) {
+            cardState = isRecyclable ? "recyclable" : "unavailable";
+          } else if (isSelected) {
+            cardState = playability.state === "PLAYABLE_AFTER_TARGET" ? "needs-target" : "selected";
+          } else if (usedThisTurn) {
+            cardState = "used-this-turn";
+          } else if (playability.state === "PLAYABLE_NOW") {
+            cardState = "playable";
+          } else if (playability.state === "PLAYABLE_AFTER_TARGET") {
+            cardState = "needs-target";
+          } else {
+            cardState = "unavailable";
+          }
+          const isRecommended = !props.recycleMode && !isSelected && cardState === "playable" && !firstPlayableFound;
+          if (isRecommended) firstPlayableFound = true;
+          const isRecycling = id === props.recentlyRecycledId;
+          const stateClasses = `hand-card ${categoryClass(definition.category)} ${isSelected ? "selected" : ""}${isRecyclable ? " recyclable" : ""}${isRecycling ? " recycling" : ""}`;
+          const sourceEvent = eventByInstanceId.get(id);
+          return (
+            <button key={id} type="button" className={stateClasses} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={cardState === "unavailable" || cardState === "used-this-turn"} aria-selected={isSelected || isRecyclable} data-state={cardState} data-recommended={isRecommended ? "true" : undefined} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`} data-combat-source={sourceEvent && !controlsDisabled ? sourceEvent.kind : undefined}>
+              <CardArtwork cardId={definition.card_id} locale={props.locale} variant="compact" alt="" />
+              <span className="hand-card-name">{localizedCard.name}</span>
+              <small className="hand-card-type">{localizedCategory}</small>
+              <small id={`playability-${id}`} className="playability-label">{localizedPlayabilityLabel}</small>
+              {sourceEvent && !controlsDisabled && <span className="combat-floating-label" role="status" aria-live="polite">{t(props.locale, visualLabelKey(sourceEvent.kind), visualLabelParams(sourceEvent))}</span>}
+            </button>
+          );
+        })}
+      </section>
+
+      {/* Action Dock */}
+      <section className="action-dock">
+        <div className="action-dock-buttons">
+          <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || selectedPlayability?.state === "NOT_PLAYABLE" || needsTarget(selectedDefinition)}>
+            {t(props.locale, "label.playCard")}
+          </button>
+          <button type="button" className={`secondary-button${props.recycleMode ? " recycle-active" : ""}`} onClick={() => { if (props.recycleMode) { props.onCancelRecycle(); } else { props.onRecycle(); } }} disabled={controlsDisabled} aria-pressed={props.recycleMode} data-recycle-mode={props.recycleMode ? "active" : undefined}>
+            {t(props.locale, "label.recycle")}
+          </button>
+          <button type="button" className={`danger-button${guidance.recommendedAction === "end-turn" ? " end-turn-recommended" : ""}`} onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")} data-recommended={guidance.recommendedAction === "end-turn" ? "true" : undefined}>
+            {t(props.locale, "label.endTurn")}
+          </button>
+          <button ref={moreMenuTriggerRef} type="button" className="secondary-button" aria-label={t(props.locale, "label.more")} aria-expanded={moreMenuOpen} aria-controls="action-dock-more-popover" onClick={() => { setMoreMenuOpen((o) => !o); if (props.recycleMode) props.onCancelRecycle(); }} disabled={controlsDisabled}>
+            {t(props.locale, "label.more")}
+          </button>
         </div>
-        <div className="bottom-right">
-          <div className="player-hand" aria-label={t(props.locale, "label.playerHand")} tabIndex={0}>
-            {match.players[activePlayerId].hand.map((id) => {
-              const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
-              const playability = getCardPlayability(match, activePlayerId, id);
-              const localizedCard = getLocalizedCard(definition.card_id, props.locale);
-              const localizedPlayabilityLabel = localizePlayabilityLabel(playability, props.locale);
-              const localizedCategory = localizedCategoryLabel(definition.category, props.locale);
-              const playerState = match.players[activePlayerId];
-              const isAnimal = definition.category === "Animal";
-              const usedThisTurn = isAnimal ? playerState.animalActionUsed : (playerState.utilityActionUsed || playerState.utilityLocked);
-              const isSelected = id === selectedCardId;
-              let cardState: string;
-              if (isSelected) {
-                cardState = playability.state === "PLAYABLE_AFTER_TARGET" ? "needs-target" : "selected";
-              } else if (usedThisTurn) {
-                cardState = "used-this-turn";
-              } else if (playability.state === "PLAYABLE_NOW") {
-                cardState = "playable";
-              } else if (playability.state === "PLAYABLE_AFTER_TARGET") {
-                cardState = "needs-target";
-              } else {
-                cardState = "unavailable";
-              }
-              const isRecommended = !isSelected && cardState === "playable" && !firstPlayableFound;
-              if (isRecommended) firstPlayableFound = true;
-              const stateClasses = `hand-card ${categoryClass(definition.category)} ${isSelected ? "selected" : ""}`;
-              const sourceEvent = eventByInstanceId.get(id);
-              return (
-                <button key={id} type="button" className={stateClasses} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={cardState === "unavailable" || cardState === "used-this-turn"} aria-selected={isSelected} data-state={cardState} data-recommended={isRecommended ? "true" : undefined} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`} data-combat-source={sourceEvent && !controlsDisabled ? sourceEvent.kind : undefined}>
-                  <CardArtwork cardId={definition.card_id} locale={props.locale} variant="compact" alt="" />
-                  <span>{definition.card_id}</span>
-                  <strong>{localizedCard.name}</strong>
-                  <small>{localizedCategory}</small>
-                  <small id={`playability-${id}`} className="playability-label">{localizedPlayabilityLabel}</small>
-                  {sourceEvent && !controlsDisabled && <span className="combat-floating-label" role="status" aria-live="polite">{t(props.locale, visualLabelKey(sourceEvent.kind), visualLabelParams(sourceEvent))}</span>}
-                </button>
-              );
-            })}
-          </div>
-          <div className="action-controls">
-            <div className="buttons">
-              <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || selectedPlayability?.state === "NOT_PLAYABLE" || needsTarget(selectedDefinition)}>
-                {t(props.locale, "label.playCard")}
-              </button>
-              <button type="button" className="secondary-button" onClick={props.onRecycle} disabled={controlsDisabled}>{t(props.locale, "label.recycle")}</button>
-              <button type="button" className="secondary-button" onClick={() => props.onOpenGraveyard(activePlayerId)}>{t(props.locale, "label.graveyard")}</button>
-              <button type="button" className="secondary-button" onClick={() => selectedDefinition && props.onOpenCard(selectedDefinition)} disabled={!selectedDefinition}>{t(props.locale, "label.details")}</button>
-              <button type="button" className="secondary-button" onClick={props.onUndo} disabled={!match.undoSnapshot}>{t(props.locale, "label.undo")}</button>
-              <button type="button" className={`danger-button${guidance.recommendedAction === "end-turn" ? " end-turn-recommended" : ""}`} onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")} data-recommended={guidance.recommendedAction === "end-turn" ? "true" : undefined}>{t(props.locale, "label.endTurn")}</button>
-            </div>
-            <button type="button" className="destructive-button reset-trigger" onClick={props.onResetMatch}>{t(props.locale, "label.reset")}</button>
-            {guidance.guidanceKey && <p className="guidance-text">{t(props.locale, guidance.guidanceKey)}</p>}
-            {props.toastFeedback && (
-              <div className="toast-banner" role="status" aria-live="polite">
-                {t(props.locale, props.toastFeedback.key, props.toastFeedback.params)}
-              </div>
-            )}
-            {selectedDefinition && (
-              <div className="effect-preview" aria-label={t(props.locale, "label.effectPreview")}>
-                <strong>{t(props.locale, "label.effectPreview")}</strong>
-                <ul>
-                  {previewLines(selectedDefinition, getCardPlayability(match, activePlayerId, selectedCardId ?? ""), props.locale).map((line) => <li key={line}>{line}</li>)}
-                </ul>
-              </div>
-            )}
-          </div>
+        <div className="dock-guidance" aria-live="polite">
+          {guidance.guidanceKey ? t(props.locale, guidance.guidanceKey) : ""}
         </div>
       </section>
 
+      {/* More Menu Popover */}
+      {moreMenuOpen && (
+        <>
+          <div className="action-dock-more-overlay" onClick={() => setMoreMenuOpen(false)} />
+          <div id="action-dock-more-popover" ref={moreMenuRef} className="action-dock-more-popover" role="menu" aria-label={t(props.locale, "label.more")}>
+            <button type="button" role="menuitem" onClick={() => { props.onOpenGraveyard(activePlayerId); setMoreMenuOpen(false); }}>{t(props.locale, "label.graveyard")}</button>
+            <button type="button" role="menuitem" onClick={() => { if (selectedDefinition) props.onOpenCard(selectedDefinition); setMoreMenuOpen(false); }} disabled={!selectedDefinition}>{t(props.locale, "label.details")}</button>
+            <button type="button" role="menuitem" onClick={props.onUndo} disabled={!match.undoSnapshot}>{t(props.locale, "label.undo")}</button>
+          </div>
+        </>
+      )}
+
+      {/* Combat/score feedback overlay */}
       {feedbackLines && feedbackLines.length > 0 && (
         <section className="effect-feedback" role="status" aria-live="polite" aria-label={t(props.locale, "label.effectFeedback")}>
           <div>
@@ -1197,6 +1408,14 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
         </section>
       )}
 
+      {/* Toast overlay */}
+      {props.toastFeedback && (
+        <div className="toast-banner" role="status" aria-live="polite">
+          {t(props.locale, props.toastFeedback.key, props.toastFeedback.params)}
+        </div>
+      )}
+
+      {/* Reset Confirm Modal */}
       {props.resetConfirmOpen && (
         <section className="action-modal" role="dialog" aria-modal="true" aria-label={t(props.locale, "label.resetGameConfirmTitle")} onKeyDown={(event) => { if (event.key === "Escape") { props.onCancelReset(); } }}>
           <div className="action-modal-panel">
@@ -1210,6 +1429,7 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
         </section>
       )}
 
+      {/* End Turn Confirm Modal */}
       {props.endTurnConfirmOpen && (
         <section className="action-modal" role="dialog" aria-modal="true" aria-label={t(props.locale, "label.endTurnConfirm")}>
           <div className="action-modal-panel">
@@ -1223,8 +1443,118 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
         </section>
       )}
 
+      {/* Card Detail / Graveyard Modal */}
       <Modal modal={props.modal} match={match} onClose={props.onCloseModal} locale={props.locale} />
     </main>
+  );
+}
+
+function BoardResourceRow({
+  match,
+  ownerId,
+  onOpenGraveyard,
+  locale
+}: {
+  match: MatchState;
+  ownerId: PlayerId;
+  onOpenGraveyard: (playerId: PlayerId) => void;
+  locale: Locale;
+}) {
+  const player = match.players[ownerId];
+  return (
+    <div className="row player-resource-row">
+      <div className="side-zone deck-zone"><span className="zone-title">{t(locale, "label.deck")}</span><strong>{player.deck.length}</strong></div>
+      <button type="button" className="side-zone graveyard-button" onClick={() => onOpenGraveyard(ownerId)}><span className="zone-title">{t(locale, "label.graveyard")}</span><strong>{player.graveyard.length}</strong></button>
+    </div>
+  );
+}
+
+function BoardAnimalSlots({
+  match,
+  ownerId,
+  viewerId,
+  selectedDefinition,
+  onTarget,
+  onSelectEmptySlot,
+  locale,
+  activeSourceInstanceIds,
+  activeTargetInstanceIds,
+  eventByInstanceId,
+  scoreContributionByAnimalId,
+  filledNewAnimSet = new Set(),
+  supportAttachAnimSet = new Set()
+}: {
+  match: MatchState;
+  ownerId: PlayerId;
+  viewerId: PlayerId;
+  selectedDefinition: CardDefinition | null;
+  onTarget: (target?: Target) => void;
+  onSelectEmptySlot: (target: Target) => void;
+  locale: Locale;
+  activeSourceInstanceIds: Set<string>;
+  activeTargetInstanceIds: Set<string>;
+  eventByInstanceId: Map<string, CombatVisualEvent>;
+  scoreContributionByAnimalId: Map<string, AnimalScoreContribution>;
+  filledNewAnimSet?: Set<string>;
+  supportAttachAnimSet?: Set<string>;
+}) {
+  const player = match.players[ownerId];
+  return (
+    <div className="animal-zone">
+      {player.board.map((instanceId, index) => {
+        if (!instanceId) {
+          const slotNo = (index + 1) as 1 | 2 | 3;
+          const canPlace = ownerId === viewerId && (!selectedDefinition || selectedDefinition.category === "Animal");
+          return canPlace
+            ? <button key={index} type="button" className={`slot empty-slot ${selectedDefinition?.category === "Animal" ? "targetable" : ""}`} data-target-state={selectedDefinition?.category === "Animal" ? "valid" : undefined} aria-label={`${t(locale, "label.animalZone")} ${index + 1} ${t(locale, "label.clearSelection")}`} onClick={() => onSelectEmptySlot({ playerId: ownerId, zone: "BOARD", slotNo })}>{t(locale, "label.animalZone")} {index + 1}</button>
+            : <div key={index} className="slot" aria-label={`${t(locale, "label.animalZone")} ${index + 1}`}>{t(locale, "label.animalZone")} {index + 1}</div>;
+        }
+        const animal = match.cardsByInstanceId[instanceId];
+        if (!isAnimalInstance(animal)) {
+          return <div key={index} className="slot" aria-label={`ช่อง Animal ${index + 1}`}>สัตว์ {index + 1}</div>;
+        }
+        const definition = getCardDefinition(animal.definitionId);
+        const localizedBoardCard = getLocalizedCard(definition.card_id, locale);
+        const legal = selectedDefinition ? canTarget(selectedDefinition, ownerId, viewerId, animal.level) : false;
+        const isSource = activeSourceInstanceIds.has(instanceId);
+        const isTarget = activeTargetInstanceIds.has(instanceId);
+        const event = eventByInstanceId.get(instanceId);
+        const sourceKind = isSource && event ? event.kind : undefined;
+        const targetKind = isTarget && event ? event.kind : undefined;
+        const scoreContribution = scoreContributionByAnimalId.get(instanceId);
+        const scoreTone = scoreContribution
+          ? scoreContribution.finalContribution > 0 ? "positive" : scoreContribution.finalContribution < 0 ? "negative" : scoreContribution.state === "skipped" || scoreContribution.state === "blocked" ? "blocked" : "zero"
+          : undefined;
+        const signedScore = scoreContribution ? `${scoreContribution.finalContribution > 0 ? "+" : ""}${scoreContribution.finalContribution}` : "";
+        const visualState = getCardLevelVisualState(animal.level, animal.evolutionPoints);
+        const isLevelEvent = event && (event.kind === "level-up" || event.kind === "level-down" || event.kind === "evolution-complete");
+        const animClass = event?.kind === "evolution-complete" ? "evolution-complete-active"
+          : event?.kind === "level-up" ? "level-up-active"
+          : event?.kind === "level-down" ? "level-down-active"
+          : "";
+        const evolutionProgressLabel = visualState.isEvolutionComplete
+          ? t(locale, "evolution.complete")
+          : t(locale, "evolution.progress", { current: visualState.progressCurrent, required: visualState.progressRequired });
+        const levelBadgeLabel = t(locale, "level.label") + " " + animal.level;
+          const isFilledNew = filledNewAnimSet.has(instanceId);
+          const isSupportAttach = supportAttachAnimSet.has(instanceId);
+          const extraAnimClass = isFilledNew && !animClass ? " filled-new" : isSupportAttach && !animClass ? " support-attach" : "";
+          return (
+            <button key={instanceId} type="button" className={`slot filled ${animClass}${extraAnimClass} ${legal ? "targetable" : "unavailable-target"}`} data-level-visual={visualState.tier} data-evolution-state={visualState.evolutionState} data-target-state={legal ? "valid" : undefined} disabled={!legal} aria-label={`${localizedBoardCard.name} ${levelBadgeLabel} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })} data-combat-source={sourceKind} data-combat-target={targetKind} data-effect-active={isSource || isTarget ? "true" : undefined} data-score-result={scoreTone}>
+            <span className="level-badge" aria-label={levelBadgeLabel}>{t(locale, "level.label")} {animal.level}</span>
+            <span className="target-badge">{legal ? t(locale, "label.select") : t(locale, "label.clearSelection")}</span>
+            {animal.attachedSupportIds.length > 0 && <span className="indicator support-indicator" title={t(locale, "label.attachedSupport")} aria-label={t(locale, "label.attachedSupport")}>S</span>}
+            {animal.statuses.length > 0 && <span className="indicator status-indicator" title={localizedAnimalStatuses(animal, locale)} aria-label={localizedAnimalStatuses(animal, locale)}>{animal.statuses.length > 1 ? `Sx${animal.statuses.length}` : "S"}</span>}
+            <CardArtwork cardId={definition.card_id} locale={locale} variant="board" alt="" level={animal.level} />
+            <span className="board-card-name">{localizedBoardCard.name}</span>
+            <span className="evolution-progress" data-evolution-state={visualState.evolutionState} role="progressbar" aria-valuemin={0} aria-valuemax={visualState.progressRequired} aria-valuenow={visualState.progressCurrent} aria-label={evolutionProgressLabel}>{evolutionProgressLabel}</span>
+            {isLevelEvent && <span className={`level-floating-cue ${event.kind === "evolution-complete" ? "evolution-complete-cue" : event.kind === "level-down" ? "level-down-cue" : "level-up-cue"}`} role="status" aria-live="polite">{t(locale, visualLabelKey(event.kind), visualLabelParams(event))}</span>}
+            {event && !isLevelEvent && (isSource || isTarget) && <span className="combat-floating-label" role="status" aria-live="polite">{t(locale, visualLabelKey(event.kind), visualLabelParams(event))}</span>}
+            {scoreContribution && <span className="score-floating-label" aria-hidden="true">{signedScore}</span>}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
@@ -1240,7 +1570,9 @@ function BoardRow({
   activeSourceInstanceIds,
   activeTargetInstanceIds,
   eventByInstanceId,
-  scoreContributionByAnimalId
+  scoreContributionByAnimalId,
+  filledNewAnimSet = new Set(),
+  supportAttachAnimSet = new Set()
 }: {
   match: MatchState;
   ownerId: PlayerId;
@@ -1254,65 +1586,14 @@ function BoardRow({
   activeTargetInstanceIds: Set<string>;
   eventByInstanceId: Map<string, CombatVisualEvent>;
   scoreContributionByAnimalId: Map<string, AnimalScoreContribution>;
+  filledNewAnimSet?: Set<string>;
+  supportAttachAnimSet?: Set<string>;
 }) {
   const player = match.players[ownerId];
   return (
     <div className="row">
       <div className="side-zone deck-zone"><span className="zone-title">{t(locale, "label.deck")}</span><strong>{player.deck.length}</strong></div>
-      <div className="animal-zone">
-        {player.board.map((instanceId, index) => {
-          if (!instanceId) {
-            const slotNo = (index + 1) as 1 | 2 | 3;
-            const canPlace = ownerId === viewerId && (!selectedDefinition || selectedDefinition.category === "Animal");
-            return canPlace
-              ? <button key={index} type="button" className={`slot empty-slot ${selectedDefinition?.category === "Animal" ? "targetable" : ""}`} data-target-state={selectedDefinition?.category === "Animal" ? "valid" : undefined} aria-label={`${t(locale, "label.animalZone")} ${index + 1} ${t(locale, "label.clearSelection")}`} onClick={() => onSelectEmptySlot({ playerId: ownerId, zone: "BOARD", slotNo })}>{t(locale, "label.animalZone")} {index + 1}</button>
-              : <div key={index} className="slot" aria-label={`${t(locale, "label.animalZone")} ${index + 1}`}>{t(locale, "label.animalZone")} {index + 1}</div>;
-          }
-          const animal = match.cardsByInstanceId[instanceId];
-          if (!isAnimalInstance(animal)) {
-            return <div key={index} className="slot" aria-label={`ช่อง Animal ${index + 1}`}>สัตว์ {index + 1}</div>;
-          }
-          const definition = getCardDefinition(animal.definitionId);
-          const localizedBoardCard = getLocalizedCard(definition.card_id, locale);
-          const legal = selectedDefinition ? canTarget(selectedDefinition, ownerId, viewerId, animal.level) : false;
-          const isSource = activeSourceInstanceIds.has(instanceId);
-          const isTarget = activeTargetInstanceIds.has(instanceId);
-          const event = eventByInstanceId.get(instanceId);
-          const sourceKind = isSource && event ? event.kind : undefined;
-          const targetKind = isTarget && event ? event.kind : undefined;
-          const scoreContribution = scoreContributionByAnimalId.get(instanceId);
-          const scoreTone = scoreContribution
-            ? scoreContribution.finalContribution > 0 ? "positive" : scoreContribution.finalContribution < 0 ? "negative" : scoreContribution.state === "skipped" || scoreContribution.state === "blocked" ? "blocked" : "zero"
-            : undefined;
-          const signedScore = scoreContribution ? `${scoreContribution.finalContribution > 0 ? "+" : ""}${scoreContribution.finalContribution}` : "";
-          const visualState = getCardLevelVisualState(animal.level, animal.evolutionPoints);
-          const isLevelEvent = event && (event.kind === "level-up" || event.kind === "level-down" || event.kind === "evolution-complete");
-          const animClass = event?.kind === "evolution-complete" ? "evolution-complete-active"
-            : event?.kind === "level-up" ? "level-up-active"
-            : event?.kind === "level-down" ? "level-down-active"
-            : "";
-          const evolutionProgressLabel = visualState.isEvolutionComplete
-            ? t(locale, "evolution.complete")
-            : t(locale, "evolution.progress", { current: visualState.progressCurrent, required: visualState.progressRequired });
-          const levelBadgeLabel = t(locale, "level.label") + " " + animal.level;
-          return (
-            <button key={instanceId} type="button" className={`slot filled ${animClass} ${legal ? "targetable" : "unavailable-target"}`} data-level-visual={visualState.tier} data-evolution-state={visualState.evolutionState} data-target-state={legal ? "valid" : undefined} disabled={!legal} aria-label={`${localizedBoardCard.name} ${levelBadgeLabel} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })} data-combat-source={sourceKind} data-combat-target={targetKind} data-effect-active={isSource || isTarget ? "true" : undefined} data-score-result={scoreTone}>
-              <span className="level-badge" aria-label={levelBadgeLabel}>{t(locale, "level.label")} {animal.level}</span>
-              <span className="target-badge">{legal ? t(locale, "label.select") : t(locale, "label.clearSelection")}</span>
-              <CardArtwork cardId={definition.card_id} locale={locale} variant="board" alt="" level={animal.level} />
-              <strong>{localizedBoardCard.name}</strong>
-              <span className="evolution-progress" data-evolution-state={visualState.evolutionState} role="progressbar" aria-valuemin={0} aria-valuemax={visualState.progressRequired} aria-valuenow={visualState.progressCurrent} aria-label={evolutionProgressLabel}>{evolutionProgressLabel}</span>
-              {animal.attachedSupportIds.map((supportId) => (
-                <span className="attached-support" key={supportId}>{t(locale, "label.attachedSupport")}: {getLocalizedCard(match.cardsByInstanceId[supportId].definitionId, locale).name}</span>
-              ))}
-              {animal.statuses.length > 0 && <small className="statuses">{t(locale, "label.statusCount")} {animal.statuses.length}: {localizedAnimalStatuses(animal, locale)}</small>}
-              {isLevelEvent && <span className={`level-floating-cue ${event.kind === "evolution-complete" ? "evolution-complete-cue" : event.kind === "level-down" ? "level-down-cue" : "level-up-cue"}`} role="status" aria-live="polite">{t(locale, visualLabelKey(event.kind), visualLabelParams(event))}</span>}
-              {event && !isLevelEvent && (isSource || isTarget) && <span className="combat-floating-label" role="status" aria-live="polite">{t(locale, visualLabelKey(event.kind), visualLabelParams(event))}</span>}
-              {scoreContribution && <span className="score-floating-label" aria-hidden="true">{signedScore}</span>}
-            </button>
-          );
-        })}
-      </div>
+      <BoardAnimalSlots match={match} ownerId={ownerId} viewerId={viewerId} selectedDefinition={selectedDefinition} onTarget={onTarget} onSelectEmptySlot={onSelectEmptySlot} locale={locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} filledNewAnimSet={filledNewAnimSet} supportAttachAnimSet={supportAttachAnimSet} />
       <button type="button" className="side-zone graveyard-button" onClick={() => onOpenGraveyard(ownerId)}><span className="zone-title">{t(locale, "label.graveyard")}</span><strong>{player.graveyard.length}</strong></button>
     </div>
   );
@@ -1672,46 +1953,7 @@ type PlayabilityInfo = {
   reason?: string;
 };
 
-function previewLines(card: CardDefinition, playability: PlayabilityInfo | undefined, locale: Locale): string[] {
-  const lines = [t(locale, "preview.type", { category: actionCategoryLabel(card, locale) })];
-  if (playability?.state === "NOT_PLAYABLE") {
-    lines.push(t(locale, "preview.notPlayable"), localizePlayabilityReason(playability.reason ?? playability.label, locale));
-    return lines;
-  }
-  if (playability?.state === "PLAYABLE_AFTER_TARGET") {
-    lines.push(t(locale, "preview.needsTarget"));
-  }
-  if (playability?.state === "PARTIAL_EFFECT_ONLY") {
-    lines.push(t(locale, "preview.partialEffect"));
-  }
-  if (card.category === "Animal") {
-    return [...lines, t(locale, "preview.animal.place"), t(locale, "preview.animal.usesAction")];
-  }
-  if (card.category === "Support") {
-    return [
-      ...lines,
-      t(locale, "preview.support.target"),
-      t(locale, "preview.support.levelUp"),
-      t(locale, "preview.support.additionalEffect"),
-      t(locale, "preview.usesUtility")
-    ];
-  }
-  if (card.category === "Weakness") {
-    return [
-      ...lines,
-      t(locale, "preview.weakness.target"),
-      t(locale, "preview.weakness.fullEffect"),
-      t(locale, "preview.weakness.offTarget"),
-      t(locale, "preview.weakness.mayBeBlocked")
-    ];
-  }
-  if (card.card_id === "X001") return [...lines, t(locale, "preview.x001.target"), t(locale, "preview.x001.effect"), t(locale, "preview.usesUtility")];
-  if (card.card_id === "X002") return [...lines, t(locale, "preview.x002.effect"), t(locale, "preview.x002.reactionOnly")];
-  if (card.card_id === "X003") return [...lines, t(locale, "preview.x003.target"), t(locale, "preview.x003.effect"), t(locale, "preview.x003.evolutionLoss")];
-  if (card.card_id === "X004") return [...lines, t(locale, "preview.x004.target"), t(locale, "preview.x004.effect"), t(locale, "preview.x004.mayBeBlocked")];
-  if (card.card_id === "X005") return [...lines, t(locale, "preview.x005.effect")];
-  return [...lines, t(locale, "preview.usesUtility")];
-}
+
 
 function getCardPlayability(match: MatchState, playerId: PlayerId, cardInstanceId: string): PlayabilityInfo {
   const card = match.cardsByInstanceId[cardInstanceId];
@@ -1785,12 +2027,6 @@ function localizeValidationReason(error: string | undefined, locale: Locale): st
   return t(locale, "playability.reason.fallback");
 }
 
-function localizePlayabilityReason(reason: string, locale: Locale): string {
-  const key = asTranslationKey(reason);
-  if (key) return t(locale, key);
-  return reason;
-}
-
 function asTranslationKey(value: string | undefined): TranslationKey | null {
   if (!value) return null;
   if (value.startsWith("playability.")) return value as TranslationKey;
@@ -1839,16 +2075,6 @@ function weaknessMatches(cardId: string, subtype: string): boolean {
     || (cardId === "W004" && subtype === "Bird")
     || (cardId === "W005" && subtype === "Fish")
   );
-}
-
-function actionCategoryLabel(card: CardDefinition, locale: Locale): string {
-  if (card.category === "Weakness") return t(locale, "preview.category.weakness");
-  if (card.category === "Support") return t(locale, "preview.category.support");
-  if (card.category === "Animal") return t(locale, "preview.category.animal");
-  if (card.card_id === "X005") return t(locale, "preview.category.stealScore");
-  if (card.card_id === "X004") return t(locale, "preview.category.returnToHand");
-  if (card.card_id === "X002") return t(locale, "preview.category.protect");
-  return t(locale, "preview.category.statusChange");
 }
 
 function canTarget(card: CardDefinition, ownerId: PlayerId, viewerId: PlayerId, level: number): boolean {

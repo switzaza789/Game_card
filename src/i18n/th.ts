@@ -47,7 +47,7 @@ export const th = {
   "label.cancel": "ยกเลิก",
   "label.close": "ปิด",
   "label.playCard": "เล่นการ์ด",
-  "label.recycle": "Recycle",
+  "label.recycle": "เปลี่ยนการ์ด",
   "label.endTurn": "จบเทิร์น",
   "label.undo": "ย้อนกลับ",
   "label.reset": "เริ่มเกมใหม่",
@@ -251,6 +251,7 @@ export const th = {
   "menu.howToPlay": "วิธีเล่น",
   "menu.cardLibrary": "คลังการ์ด",
   "menu.aiLabel": "Normal AI",
+  "menu.settings": "ตั้งค่า",
   "howToPlay.title": "วิธีเล่น",
   "howToPlay.rule1": "ผู้เล่น 2 คนสลับกันเล่นบนอุปกรณ์เดียวกัน ฝ่ายละ Deck 24 ใบ มือเริ่มต้น 5 ใบ และมี Animal Zone 3 ช่อง",
   "howToPlay.rule2": "ใน Action Phase ลง Animal ได้ 1 ใบ และใช้ Utility ได้ 1 ครั้ง โดย Support, Weakness, Special และ Recycle ใช้สิทธิ์ Utility ร่วมกัน",
@@ -366,6 +367,7 @@ export const th = {
   "toast.playFailedNotInHand": "การ์ดไม่อยู่ในมือของคุณ",
   "toast.playFailedWrongPhase": "สามารถเล่นได้เฉพาะใน Action Phase",
   "label.actionsComplete": "ไม่มีการกระทำที่เหลือ — คุณสามารถจบเทิร์นได้",
+  "label.more": "เพิ่มเติม",
   "guidance.selectTarget": "เลือกเป้าหมายสำหรับการ์ดนี้",
   "visual.weaknessFull": "โดนจุดอ่อน — ผลเต็ม",
   "visual.weaknessReduced": "ผลอ่อน",
@@ -421,5 +423,12 @@ export const th = {
   "level.maximum": "เลเวลสูงสุด: {max}",
   "level.up": "Level Up",
   "level.down": "Level Down",
-  "level.fromTo": "Lv.{from} → Lv.{to}"
+  "level.fromTo": "Lv.{from} → Lv.{to}",
+  "recycle.guidance.chooseCard": "เลือกการ์ดในมือ 1 ใบเพื่อเปลี่ยน",
+  "recycle.preview.selected": "เปลี่ยน \"{card}\" แล้วจั่วใหม่ 1 ใบ",
+  "recycle.result.success": "เปลี่ยน \"{old}\" → ได้ \"{new}\"",
+  "recycle.reason.noCard": "เลือกการ์ดในมือก่อน",
+  "recycle.reason.used": "ใช้เปลี่ยนการ์ดในเทิร์นนี้แล้ว",
+  "recycle.reason.unavailable": "ไม่สามารถเปลี่ยนการ์ดในช่วงนี้ได้",
+  "recycle.cancel": "ยกเลิกเปลี่ยนการ์ด"
 } satisfies Record<TranslationKey, string>;
