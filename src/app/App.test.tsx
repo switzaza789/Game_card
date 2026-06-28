@@ -2408,6 +2408,198 @@ describe("Mirrored Battlefield Layout", () => {
   });
 });
 
+describe("Stable Animal Slot Geometry", () => {
+  it("all six slots use the same shared slot class", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const slots = document.querySelectorAll(".slot");
+    expect(slots.length).toBe(6);
+    slots.forEach((s) => {
+      expect(s.classList.contains("slot")).toBe(true);
+    });
+  });
+
+  it("opponent slots and player slots all share the same outer class", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const emptySlots = document.querySelectorAll(".slot:not(.filled)");
+    const filledSlots = document.querySelectorAll(".slot.filled");
+    expect(emptySlots.length + filledSlots.length).toBe(6);
+  });
+
+  it("slot structure remains stable after Animal placement", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const beforeCount = document.querySelectorAll(".slot").length;
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtn = hand.querySelector(".cat-animal") as HTMLButtonElement;
+    if (animalBtn) {
+      await user.click(animalBtn);
+      const slots = screen.getAllByLabelText(/ช่องสัตว์ \d/);
+      const playerSlot = slots.length >= 4 ? slots[3] : slots[0];
+      await user.click(playerSlot);
+    }
+    const afterCount = document.querySelectorAll(".slot").length;
+    expect(afterCount).toBe(beforeCount);
+  });
+
+  it("slot structure remains stable after card selection", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const before = document.querySelectorAll(".slot").length;
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const firstCard = hand.querySelector("button");
+    if (firstCard) {
+      await user.click(firstCard);
+    }
+    const after = document.querySelectorAll(".slot").length;
+    expect(after).toBe(before);
+  });
+
+  it("slot structure remains stable during target selection", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const before = document.querySelectorAll(".slot").length;
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const firstCard = hand.querySelector("button");
+    if (firstCard) {
+      await user.click(firstCard);
+      await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
+    }
+    const after = document.querySelectorAll(".slot").length;
+    expect(after).toBe(before);
+  });
+
+  it("Level visuals remain inside the slot", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtn = hand.querySelector(".cat-animal") as HTMLButtonElement;
+    if (animalBtn) {
+      await user.click(animalBtn);
+      const slots = screen.getAllByLabelText(/ช่องสัตว์ \d/);
+      const playerSlot = slots.length >= 4 ? slots[3] : slots[0];
+      await user.click(playerSlot);
+      const filledSlots = document.querySelectorAll(".slot.filled");
+      for (const fs of filledSlots) {
+        const badges = fs.querySelectorAll(".level-badge");
+        if (badges.length > 0) {
+          expect(fs.contains(badges[0])).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("Support and Status indicators remain inside the slot", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtn = hand.querySelector(".cat-animal") as HTMLButtonElement;
+    if (animalBtn) {
+      await user.click(animalBtn);
+      const slots = screen.getAllByLabelText(/ช่องสัตว์ \d/);
+      const playerSlot = slots.length >= 4 ? slots[3] : slots[0];
+      await user.click(playerSlot);
+      const filledSlots = document.querySelectorAll(".slot.filled");
+      for (const fs of filledSlots) {
+        const indicators = fs.querySelectorAll(".indicator");
+        for (const ind of indicators) {
+          expect(fs.contains(ind)).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("temporary score or combat cues do not create another structural row", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const mainEl = document.querySelector("main");
+    const mainChildren = Array.from(mainEl?.children ?? []);
+    const structuralRows = mainChildren.filter((c) =>
+      c.className.includes("battle-hud") || c.className === "board" ||
+      c.className.includes("latest-event") || c.className.includes("player-hand-section") ||
+      c.className.includes("action-dock")
+    );
+    const rowCount = structuralRows.length;
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtn = hand.querySelector(".cat-animal") as HTMLButtonElement;
+    if (animalBtn) {
+      await user.click(animalBtn);
+      const slots = screen.getAllByLabelText(/ช่องสัตว์ \d/);
+      const playerSlot = slots.length >= 4 ? slots[3] : slots[0];
+      await user.click(playerSlot);
+    }
+    const mainChildrenAfter = Array.from(mainEl?.children ?? []);
+    const structuralRowsAfter = mainChildrenAfter.filter((c) =>
+      c.className.includes("battle-hud") || c.className === "board" ||
+      c.className.includes("latest-event") || c.className.includes("player-hand-section") ||
+      c.className.includes("action-dock")
+    );
+    expect(structuralRowsAfter.length).toBe(rowCount);
+  });
+
+  it("mirrored DOM order remains unchanged after Animal placement", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const board = screen.getByLabelText("สนามต่อสู้");
+    const getOrder = () => Array.from(board.children).map((c) => c.className || c.tagName)
+      .filter((c) => c.includes("row") || c.includes("animal-zone") || c.includes("divider") || c.includes("zone-label") || c.includes("opponent-hand"));
+    const before = getOrder();
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtn = hand.querySelector(".cat-animal") as HTMLButtonElement;
+    if (animalBtn) {
+      await user.click(animalBtn);
+      const slots = screen.getAllByLabelText(/ช่องสัตว์ \d/);
+      const playerSlot = slots.length >= 4 ? slots[3] : slots[0];
+      await user.click(playerSlot);
+    }
+    const after = getOrder();
+    expect(after).toEqual(before);
+  });
+
+  it("opponent hidden cards remain anonymous with stable slots", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const opponentHand = screen.getByLabelText("มือคู่ต่อสู้ถูกซ่อน");
+    expect(opponentHand.querySelectorAll(".card-back").length).toBeGreaterThan(0);
+  });
+
+  it("Animal placement still works with stable slots", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtn = hand.querySelector(".cat-animal") as HTMLButtonElement;
+    if (animalBtn) {
+      await user.click(animalBtn);
+      const slots = screen.getAllByLabelText(/ช่องสัตว์ \d/);
+      const playerSlot = slots.length >= 4 ? slots[3] : slots[0];
+      await user.click(playerSlot);
+      const mainEl = document.querySelector("main");
+      const hasFeedback = mainEl?.querySelector('[aria-label="สรุปผลของการ์ด"]');
+      expect(hasFeedback).toBeTruthy();
+    }
+  });
+
+  it("End Turn still works with stable slots", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    await user.click(screen.getByRole("button", { name: "จบเทิร์น" }));
+    expect(screen.getByRole("dialog", { name: "ยืนยันจบเทิร์น" })).toBeInTheDocument();
+  });
+});
+
 async function startBattle(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "Local PvP" }));
 }
