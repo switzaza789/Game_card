@@ -94,11 +94,19 @@ export function App() {
   const [endTurnConfirmOpen, setEndTurnConfirmOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [recycleMode, setRecycleMode] = useState(false);
+  const [filledNewAnimSet, setFilledNewAnimSet] = useState<Set<string>>(new Set());
+  const [supportAttachAnimSet, setSupportAttachAnimSet] = useState<Set<string>>(new Set());
+  const [scoreAnimPlayerId, setScoreAnimPlayerId] = useState<PlayerId | null>(null);
+  const animTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastFeedbackExportRef = useRef<string | null>(null);
   const aiExecutionRef = useRef<string | null>(null);
   const humanTurnPrepRef = useRef<string | null>(null);
   const [toastFeedback, setToastFeedback] = useState<ToastFeedback | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* Transient animation state - cleared automatically, must not affect gameplay */
+  const [recentlyRecycledId, setRecentlyRecycledId] = useState<string | null>(null);
+  const recycleAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function showMinorToast(key: ToastFeedback["key"], params?: Record<string, string | number>) {
     if (toastTimerRef.current) {
@@ -111,11 +119,38 @@ export function App() {
     }, 3000);
   }
 
+  function clearAnimTimer() {
+    if (animTimerRef.current) {
+      clearTimeout(animTimerRef.current);
+    }
+    animTimerRef.current = setTimeout(() => {
+      setFilledNewAnimSet(new Set());
+      setSupportAttachAnimSet(new Set());
+      setScoreAnimPlayerId(null);
+      animTimerRef.current = null;
+    }, 1400);
+  }
+
+  function clearAnimState() {
+    if (animTimerRef.current) {
+      clearTimeout(animTimerRef.current);
+      animTimerRef.current = null;
+    }
+    if (recycleAnimTimerRef.current) {
+      clearTimeout(recycleAnimTimerRef.current);
+      recycleAnimTimerRef.current = null;
+    }
+    setFilledNewAnimSet(new Set());
+    setSupportAttachAnimSet(new Set());
+    setScoreAnimPlayerId(null);
+    setRecentlyRecycledId(null);
+  }
+
   useEffect(() => {
     return () => {
-      if (toastTimerRef.current) {
-        clearTimeout(toastTimerRef.current);
-      }
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      if (recycleAnimTimerRef.current) clearTimeout(recycleAnimTimerRef.current);
+      if (animTimerRef.current) clearTimeout(animTimerRef.current);
     };
   }, []);
 
@@ -182,6 +217,7 @@ export function App() {
     setMessage(gameMode === "PVE_NORMAL" ? t(locale, "feedback.pveStarted") : t(locale, "feedback.gameStarted"));
     setScreen("battle");
     setHasSavedGame(false);
+    clearAnimState();
   }
 
   function resumeGame() {
@@ -309,6 +345,7 @@ export function App() {
     setHasSavedGame(false);
     setScreen("menu");
     setMessage(deleteResult.ok ? t(locale, "feedback.gameReset") : t(locale, "feedback.resetButDeleteFailed", { reason: storageErrorMessage(deleteResult.error) }));
+    clearAnimState();
   }
 
   function requestResetMatch() {
@@ -506,6 +543,7 @@ export function App() {
       setMessage(reason);
       showMinorToast("toast.recycleFailed");
       setActionFeedback({ type: "recycle", success: false, reason });
+      setRecentlyRecycledId(null);
     } else {
       const drawnId = result.state.players[match.currentPlayerId].hand.find((id) => !before.players[match.currentPlayerId].hand.includes(id));
       const oldCardName = getLocalizedCard(getCardDefinition(match.cardsByInstanceId[targetId].definitionId).card_id, locale).name;
@@ -518,6 +556,13 @@ export function App() {
         drawnCardInstanceId: drawnId ?? undefined,
         deckCount: result.state.players[match.currentPlayerId].deck.length
       });
+      /* Trigger transient recycle animation cue */
+      setRecentlyRecycledId(targetId);
+      if (recycleAnimTimerRef.current) clearTimeout(recycleAnimTimerRef.current);
+      recycleAnimTimerRef.current = setTimeout(() => {
+        setRecentlyRecycledId(null);
+        recycleAnimTimerRef.current = null;
+      }, 400);
     }
 
     const sr2 = result.storageResult;
@@ -589,7 +634,37 @@ export function App() {
     } else {
       const localizedCard = getLocalizedCard(definition.card_id, locale);
       setMessage(`${localizedCard.name} ${t(locale, "log.result.full")}`);
-      setActionFeedback({ type: "combat", entry: result.state.actionLog[result.state.actionLog.length - 1] });
+      const lastEntry = result.state.actionLog[result.state.actionLog.length - 1];
+      setActionFeedback({ type: "combat", entry: lastEntry });
+      /* Derive transient animation cues from outcomes */
+      if (lastEntry?.outcomes) {
+        const newFilled = new Set(filledNewAnimSet);
+        const newSupport = new Set(supportAttachAnimSet);
+        let scorePlayer: PlayerId | null = null;
+        for (const outcome of lastEntry.outcomes) {
+          if (outcome.code === "ANIMAL_ENTERED_BOARD" && outcome.cardInstanceId) {
+            newFilled.add(outcome.cardInstanceId);
+          }
+          if (outcome.code === "CARD_ATTACHED" && outcome.targetInstanceId) {
+            newSupport.add(outcome.targetInstanceId);
+          }
+          if (outcome.code === "SCORE_CHANGED") {
+            scorePlayer = outcome.playerId;
+          }
+        }
+        if (newFilled.size > filledNewAnimSet.size) {
+          setFilledNewAnimSet(newFilled);
+          clearAnimTimer();
+        }
+        if (newSupport.size > supportAttachAnimSet.size) {
+          setSupportAttachAnimSet(newSupport);
+          clearAnimTimer();
+        }
+        if (scorePlayer) {
+          setScoreAnimPlayerId(scorePlayer);
+          clearAnimTimer();
+        }
+      }
       if (result.state.status === "FINISHED") {
         setScreen("result");
       }
@@ -747,6 +822,10 @@ export function App() {
           onConfirmReset={resetMatch}
           recycleMode={recycleMode}
           onCancelRecycle={() => { setRecycleMode(false); setMessage(""); }}
+          recentlyRecycledId={recentlyRecycledId}
+          filledNewAnimSet={filledNewAnimSet}
+          supportAttachAnimSet={supportAttachAnimSet}
+          scoreAnimPlayerId={scoreAnimPlayerId}
         />
     );
   }
@@ -995,6 +1074,10 @@ function BattleScreen(props: {
   onConfirmReset: () => void;
   recycleMode: boolean;
   onCancelRecycle: () => void;
+  recentlyRecycledId: string | null;
+  filledNewAnimSet: Set<string>;
+  supportAttachAnimSet: Set<string>;
+  scoreAnimPlayerId: PlayerId | null;
 }) {
   const { match, activePlayerId, opponentId, selectedCardId, selectedDefinition } = props;
   const controlsDisabled = Boolean(props.controlsDisabled);
@@ -1123,7 +1206,7 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
           <div className={`scoreboard-player ${match.currentPlayerId === "P1" ? "active" : ""}`}>
             <span>{playerNameForMode("P1", match.gameMode, props.locale)}</span>
             <strong>{match.players.P1.score} / {gameConfig.target_score}</strong>
-            {scoreDeltas.P1 !== 0 && <em>{scoreDeltas.P1 > 0 ? "+" : ""}{scoreDeltas.P1}</em>}
+            {scoreDeltas.P1 !== 0 && <em className={props.scoreAnimPlayerId === "P1" ? "score-cue" : ""}>{scoreDeltas.P1 > 0 ? "+" : ""}{scoreDeltas.P1}</em>}
           </div>
           <div className="phase-panel">
             <strong>{t(props.locale, "label.turn")} {match.turnNumber} — {phaseLabel(match.phase, props.locale)}</strong>
@@ -1131,7 +1214,7 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
           <div className={`scoreboard-player ${match.currentPlayerId === "P2" ? "active" : ""}`}>
             <span>{playerNameForMode("P2", match.gameMode, props.locale)}</span>
             <strong>{match.players.P2.score} / {gameConfig.target_score}</strong>
-            {scoreDeltas.P2 !== 0 && <em>{scoreDeltas.P2 > 0 ? "+" : ""}{scoreDeltas.P2}</em>}
+            {scoreDeltas.P2 !== 0 && <em className={props.scoreAnimPlayerId === "P2" ? "score-cue" : ""}>{scoreDeltas.P2 > 0 ? "+" : ""}{scoreDeltas.P2}</em>}
           </div>
         </div>
         <div className="hud-secondary">
@@ -1181,9 +1264,9 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
         )}
         <HiddenHand count={match.players[opponentId].hand.length} locale={props.locale} />
         <div className="zone-label">{t(props.locale, "label.player2")}</div>
-        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} />
+        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} filledNewAnimSet={props.filledNewAnimSet} supportAttachAnimSet={props.supportAttachAnimSet} />
         <div className="divider" />
-        <BoardAnimalSlots match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} />
+        <BoardAnimalSlots match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} filledNewAnimSet={props.filledNewAnimSet} supportAttachAnimSet={props.supportAttachAnimSet} />
         <BoardResourceRow match={match} ownerId={activePlayerId} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} />
         <div className="zone-label">{t(props.locale, "label.you")} — {t(props.locale, "label.score")} {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
       </section>
@@ -1244,7 +1327,8 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
           }
           const isRecommended = !props.recycleMode && !isSelected && cardState === "playable" && !firstPlayableFound;
           if (isRecommended) firstPlayableFound = true;
-          const stateClasses = `hand-card ${categoryClass(definition.category)} ${isSelected ? "selected" : ""}${isRecyclable ? " recyclable" : ""}`;
+          const isRecycling = id === props.recentlyRecycledId;
+          const stateClasses = `hand-card ${categoryClass(definition.category)} ${isSelected ? "selected" : ""}${isRecyclable ? " recyclable" : ""}${isRecycling ? " recycling" : ""}`;
           const sourceEvent = eventByInstanceId.get(id);
           return (
             <button key={id} type="button" className={stateClasses} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={cardState === "unavailable" || cardState === "used-this-turn"} aria-selected={isSelected || isRecyclable} data-state={cardState} data-recommended={isRecommended ? "true" : undefined} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`} data-combat-source={sourceEvent && !controlsDisabled ? sourceEvent.kind : undefined}>
@@ -1376,7 +1460,9 @@ function BoardAnimalSlots({
   activeSourceInstanceIds,
   activeTargetInstanceIds,
   eventByInstanceId,
-  scoreContributionByAnimalId
+  scoreContributionByAnimalId,
+  filledNewAnimSet = new Set(),
+  supportAttachAnimSet = new Set()
 }: {
   match: MatchState;
   ownerId: PlayerId;
@@ -1389,6 +1475,8 @@ function BoardAnimalSlots({
   activeTargetInstanceIds: Set<string>;
   eventByInstanceId: Map<string, CombatVisualEvent>;
   scoreContributionByAnimalId: Map<string, AnimalScoreContribution>;
+  filledNewAnimSet?: Set<string>;
+  supportAttachAnimSet?: Set<string>;
 }) {
   const player = match.players[ownerId];
   return (
@@ -1428,8 +1516,11 @@ function BoardAnimalSlots({
           ? t(locale, "evolution.complete")
           : t(locale, "evolution.progress", { current: visualState.progressCurrent, required: visualState.progressRequired });
         const levelBadgeLabel = t(locale, "level.label") + " " + animal.level;
-        return (
-          <button key={instanceId} type="button" className={`slot filled ${animClass} ${legal ? "targetable" : "unavailable-target"}`} data-level-visual={visualState.tier} data-evolution-state={visualState.evolutionState} data-target-state={legal ? "valid" : undefined} disabled={!legal} aria-label={`${localizedBoardCard.name} ${levelBadgeLabel} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })} data-combat-source={sourceKind} data-combat-target={targetKind} data-effect-active={isSource || isTarget ? "true" : undefined} data-score-result={scoreTone}>
+          const isFilledNew = filledNewAnimSet.has(instanceId);
+          const isSupportAttach = supportAttachAnimSet.has(instanceId);
+          const extraAnimClass = isFilledNew && !animClass ? " filled-new" : isSupportAttach && !animClass ? " support-attach" : "";
+          return (
+            <button key={instanceId} type="button" className={`slot filled ${animClass}${extraAnimClass} ${legal ? "targetable" : "unavailable-target"}`} data-level-visual={visualState.tier} data-evolution-state={visualState.evolutionState} data-target-state={legal ? "valid" : undefined} disabled={!legal} aria-label={`${localizedBoardCard.name} ${levelBadgeLabel} ${t(locale, "label.animalZone")} ${animal.slotNo}${legal ? ` ${t(locale, "label.select")}` : ` ${t(locale, "label.clearSelection")}`}`} onClick={() => onTarget({ playerId: ownerId, zone: "BOARD", instanceId, slotNo: animal.slotNo })} data-combat-source={sourceKind} data-combat-target={targetKind} data-effect-active={isSource || isTarget ? "true" : undefined} data-score-result={scoreTone}>
             <span className="level-badge" aria-label={levelBadgeLabel}>{t(locale, "level.label")} {animal.level}</span>
             <span className="target-badge">{legal ? t(locale, "label.select") : t(locale, "label.clearSelection")}</span>
             {animal.attachedSupportIds.length > 0 && <span className="indicator support-indicator" title={t(locale, "label.attachedSupport")} aria-label={t(locale, "label.attachedSupport")}>S</span>}
@@ -1459,7 +1550,9 @@ function BoardRow({
   activeSourceInstanceIds,
   activeTargetInstanceIds,
   eventByInstanceId,
-  scoreContributionByAnimalId
+  scoreContributionByAnimalId,
+  filledNewAnimSet = new Set(),
+  supportAttachAnimSet = new Set()
 }: {
   match: MatchState;
   ownerId: PlayerId;
@@ -1473,12 +1566,14 @@ function BoardRow({
   activeTargetInstanceIds: Set<string>;
   eventByInstanceId: Map<string, CombatVisualEvent>;
   scoreContributionByAnimalId: Map<string, AnimalScoreContribution>;
+  filledNewAnimSet?: Set<string>;
+  supportAttachAnimSet?: Set<string>;
 }) {
   const player = match.players[ownerId];
   return (
     <div className="row">
       <div className="side-zone deck-zone"><span className="zone-title">{t(locale, "label.deck")}</span><strong>{player.deck.length}</strong></div>
-      <BoardAnimalSlots match={match} ownerId={ownerId} viewerId={viewerId} selectedDefinition={selectedDefinition} onTarget={onTarget} onSelectEmptySlot={onSelectEmptySlot} locale={locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} />
+      <BoardAnimalSlots match={match} ownerId={ownerId} viewerId={viewerId} selectedDefinition={selectedDefinition} onTarget={onTarget} onSelectEmptySlot={onSelectEmptySlot} locale={locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} filledNewAnimSet={filledNewAnimSet} supportAttachAnimSet={supportAttachAnimSet} />
       <button type="button" className="side-zone graveyard-button" onClick={() => onOpenGraveyard(ownerId)}><span className="zone-title">{t(locale, "label.graveyard")}</span><strong>{player.graveyard.length}</strong></button>
     </div>
   );

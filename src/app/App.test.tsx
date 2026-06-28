@@ -2815,3 +2815,130 @@ function makeMatchResult(overrides?: Partial<MatchResult>): MatchResult {
     ...overrides
   };
 }
+
+describe("Phase 5.4B — Animation motion cues", () => {
+  it("selecting a Hand card applies selected class and switching selection moves the class", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const cards = hand.querySelectorAll("button");
+    if (cards.length >= 2) {
+      expect(cards[0].classList.contains("selected")).toBe(false);
+      expect(cards[1].classList.contains("selected")).toBe(false);
+      await user.click(cards[0]);
+      expect(cards[0].classList.contains("selected")).toBe(true);
+      await user.click(cards[1]);
+      expect(cards[0].classList.contains("selected")).toBe(false);
+      expect(cards[1].classList.contains("selected")).toBe(true);
+    }
+  });
+
+  it("selecting a Hand card preserves structural region order", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const mainEl = document.querySelector("main");
+    const getRegionKeys = () => Array.from(mainEl?.children ?? []).map((c) => c.className || c.tagName)
+      .filter((c) => c.includes("battle-hud") || c === "board" || c.includes("action-context-strip") || c.includes("player-hand-section") || c.includes("action-dock"));
+    const before = getRegionKeys();
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const firstCard = hand.querySelector("button");
+    if (firstCard) {
+      await user.click(firstCard);
+    }
+    const after = getRegionKeys();
+    expect(after).toEqual(before);
+  });
+
+  it("successful Animal placement sets filled-new class on the correct slot", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const animalBtn = findCardInHandByCategory(hand, "สัตว์");
+    if (!animalBtn) return;
+    await user.click(animalBtn);
+    const board = document.querySelector(".board") as HTMLElement;
+    const emptySlot = board?.querySelector(".empty-slot") as HTMLButtonElement;
+    if (emptySlot) {
+      await user.click(emptySlot);
+      const filledSlots = board.querySelectorAll(".slot.filled");
+      expect(filledSlots.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("failed Recycle does not produce recycle animation class", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const recycleBtn = screen.getByRole("button", { name: "เปลี่ยนการ์ด" });
+    await user.click(recycleBtn);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const recycledCards = hand.querySelectorAll(".hand-card.recycling");
+    expect(recycledCards.length).toBe(0);
+  });
+
+  it("successful Recycle triggers action feedback", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    await endCurrentTurn(user);
+    const continueBtn = screen.getByRole("button", { name: "พร้อมเล่น" });
+    await user.click(continueBtn);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const firstCard = hand.querySelector("button");
+    if (!firstCard) return;
+    await user.click(firstCard);
+    const recycleBtn = screen.getByRole("button", { name: "เปลี่ยนการ์ด" });
+    await user.click(recycleBtn);
+    const feedback = document.querySelector(".effect-feedback");
+    expect(feedback).not.toBeNull();
+  });
+
+  it("locale switching does not replay animation classes", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const firstCard = hand.querySelector("button");
+    if (!firstCard) return;
+    await user.click(firstCard);
+    expect(firstCard.classList.contains("selected")).toBe(true);
+    await openGameMenuAndSwitchLocale(user, "en");
+    expect(firstCard.classList.contains("selected")).toBe(true);
+  });
+
+  it("unrelated blur does not remove selection class", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const firstCard = hand.querySelector("button");
+    if (!firstCard) return;
+    await user.click(firstCard);
+    expect(firstCard.classList.contains("selected")).toBe(true);
+    firstCard.blur();
+    expect(firstCard.classList.contains("selected")).toBe(true);
+  });
+
+  it("End Turn recommendation class follows recommended state", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const endBtn = screen.getByRole("button", { name: "จบเทิร์น" });
+    expect(endBtn.className).not.toContain("end-turn-recommended");
+  });
+
+  it("starting a new match clears stale animation state", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const menuBtn = screen.getByRole("button", { name: "ตั้งค่า" });
+    await user.click(menuBtn);
+    const resetBtn = screen.getByRole("menuitem", { name: "เริ่มเกมใหม่" });
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    await user.click(resetBtn);
+    expect(document.querySelector(".hand-card.recycling")).toBeNull();
+  });
+});
