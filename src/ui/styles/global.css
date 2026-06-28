@@ -262,7 +262,7 @@ h1 {
 .hand-card {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   min-height: 100px;
   width: var(--hand-card-width);
   border: 1px solid #475569;
@@ -272,24 +272,34 @@ h1 {
   background: #ffffff;
   padding: 3px;
   box-shadow: var(--card-shadow);
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease;
   cursor: pointer;
+  will-change: transform;
 }
 
 .hand-card:hover {
   box-shadow: var(--card-shadow-raised);
 }
 
+@media (hover: hover) {
+  .hand-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  }
+}
+
 .hand-card.selected {
-  transform: translateY(-4px);
-  box-shadow: var(--card-shadow-raised);
+  transform: translateY(-6px);
+  box-shadow: 0 8px 20px rgba(36, 90, 133, 0.3);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .hand-card .card-artwork {
   margin: 0;
   width: 100%;
   aspect-ratio: 5/7;
-  max-height: 80px;
+  max-height: 90px;
   border-radius: 4px;
   flex-shrink: 0;
 }
@@ -859,22 +869,30 @@ h1 {
   color: #fff;
 }
 
-/* Hand card compact styling */
+/* Hand card compact styling - cards visually dominate, text is minimal */
 .hand-card-name {
   display: block;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  margin-top: 1px;
 }
 
 .hand-card-type {
   display: block;
-  font-size: 0.55rem;
+  font-size: 0.5rem;
   color: var(--muted);
+  line-height: 1;
+}
+
+.hand-card .playability-label {
+  font-size: 0.55rem;
   line-height: 1.1;
+  padding: 1px 3px;
+  margin-top: 1px;
 }
 
 .divider {
@@ -1790,9 +1808,83 @@ h1 {
   }
 }
 
+@media (min-width: 1024px) {
+  .battle-app {
+    --desktop-padding: 16px 24px;
+    padding: var(--desktop-padding);
+    gap: 6px;
+  }
+
+  .card-artwork.variant-compact {
+    max-height: 110px;
+  }
+
+  .card-artwork.variant-board {
+    max-height: 140px;
+  }
+
+  .hand-card {
+    flex: 0 0 clamp(100px, 9vw, 130px);
+    min-height: 110px;
+  }
+
+  .slot {
+    min-height: 130px;
+  }
+
+  .side-zone {
+    min-height: 130px;
+  }
+
+  /* -------------------------------------------------------------- */
+  /*  Desktop Battlefield Table Container                            */
+  /* -------------------------------------------------------------- */
+  .board {
+    border-radius: var(--battle-radius) var(--battle-radius) 0 0;
+    border-bottom: none;
+    padding: 8px 10px;
+  }
+
+  .player-hand-section {
+    border: 1px solid var(--battle-border);
+    border-top: none;
+    border-radius: 0 0 var(--battle-radius) var(--battle-radius);
+    background: rgba(0, 0, 0, 0.22);
+    margin-top: 0;
+    padding: 6px 10px;
+    min-height: 96px;
+  }
+
+  .action-context-strip {
+    margin-top: 2px;
+    border-color: var(--battle-border);
+    background: rgba(255, 255, 255, 0.92);
+    min-height: 26px;
+    font-size: 0.72rem;
+  }
+
+  .action-dock {
+    padding-top: 2px;
+  }
+
+  .action-dock-buttons button {
+    font-size: 0.72rem;
+    min-height: 36px;
+    padding: 0.3rem 0.5rem;
+  }
+
+  /* Divider line between opponent and player boards */
+  .board .divider {
+    margin: 4px 0;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.12);
+  }
+}
+
 @media (min-width: 1366px) {
   .battle-app {
-    padding: 12px 20px;
+    padding: 18px 28px;
+    gap: 8px;
   }
 
   .card-artwork.variant-compact {
@@ -1816,6 +1908,14 @@ h1 {
     min-height: 150px;
   }
 
+  .board {
+    padding: 10px 14px;
+  }
+
+  .player-hand-section {
+    padding: 8px 14px;
+    min-height: 100px;
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -2333,6 +2433,119 @@ h1 {
   }
   .evolution-progress {
     transition: none;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Phase 5.4 — Animation / Motion Polish                              */
+/* ------------------------------------------------------------------ */
+
+/* Card selection lift animation */
+@keyframes cardSelectLift {
+  0% { transform: translateY(0); }
+  60% { transform: translateY(-8px); }
+  100% { transform: translateY(-6px); }
+}
+
+.hand-card.selected {
+  animation: cardSelectLift 0.25s ease-out forwards;
+}
+
+/* Card placement into board slot */
+@keyframes cardPlaceGlow {
+  0% { box-shadow: 0 0 0 0 rgba(125, 173, 113, 0.6); }
+  50% { box-shadow: 0 0 16px 6px rgba(125, 173, 113, 0.3); }
+  100% { box-shadow: var(--card-shadow); }
+}
+
+.slot.filled-new {
+  animation: cardPlaceGlow 0.8s ease-out forwards;
+}
+
+/* Support attach green pulse */
+@keyframes supportAttachPulse {
+  0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7); outline-color: #16a34a; }
+  50% { box-shadow: 0 0 12px 6px rgba(22, 163, 74, 0.3); }
+  100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); outline-color: transparent; }
+}
+
+.slot.support-attach {
+  animation: supportAttachPulse 1s ease-out forwards;
+}
+
+/* Recycle / discard slide cue */
+@keyframes recycleSlide {
+  0% { opacity: 1; transform: translateX(0); }
+  50% { opacity: 0.6; transform: translateX(8px); }
+  100% { opacity: 0; transform: translateX(16px); }
+}
+
+.hand-card.recycling {
+  animation: recycleSlide 0.4s ease-in forwards;
+  pointer-events: none;
+}
+
+/* Score cue emphasis */
+@keyframes scoreCuePop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.2); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
+.scoreboard-player em.score-cue {
+  animation: scoreCuePop 0.4s ease-out;
+}
+
+/* Card hover lift refinement */
+@media (hover: hover) {
+  .hand-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+  }
+
+  .slot:not(.filled):hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* End-turn recommendation pulse refinement */
+.hand-card[data-recommended="true"] {
+  outline: 3px solid #22c55e;
+  outline-offset: 2px;
+  animation: recommendPulse 2s ease-in-out infinite;
+}
+
+@keyframes recommendPulse {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.3); }
+  50% { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.5), 0 0 12px rgba(34, 197, 94, 0.2); }
+}
+
+/* Reduced motion: disable all Phase 5.4 animations but keep state cues visible */
+@media (prefers-reduced-motion: reduce) {
+  .hand-card.selected {
+    animation: none;
+  }
+  .slot.filled-new {
+    animation: none;
+  }
+  .slot.support-attach {
+    animation: none;
+  }
+  .hand-card.recycling {
+    animation: none;
+    opacity: 1;
+  }
+  .scoreboard-player em.score-cue {
+    animation: none;
+  }
+  .hand-card[data-recommended="true"] {
+    animation: none;
+  }
+  .hand-card:hover,
+  .slot:not(.filled):hover {
+    transform: none;
   }
 }
 
