@@ -423,5 +423,12 @@ export const en = {
   "level.maximum": "Max Level: {max}",
   "level.up": "Level Up",
   "level.down": "Level Down",
-  "level.fromTo": "Lv.{from} → Lv.{to}"
+  "level.fromTo": "Lv.{from} → Lv.{to}",
+  "recycle.guidance.chooseCard": "Choose 1 card from your hand to recycle",
+  "recycle.preview.selected": "Recycle \"{card}\" and draw 1 replacement",
+  "recycle.result.success": "Recycled \"{old}\" → drew \"{new}\"",
+  "recycle.reason.noCard": "Select a card in hand first",
+  "recycle.reason.used": "Recycle already used this turn",
+  "recycle.reason.unavailable": "Cannot recycle at this time",
+  "recycle.cancel": "Cancel Recycle"
 } satisfies Record<TranslationKey, string>;

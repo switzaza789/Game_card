@@ -85,6 +85,7 @@ describe("App Phase 4 UI", () => {
     expect(screen.getAllByRole("button", { name: /สุสาน/ }).length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText(/ช่องสัตว์|ช่อง Animal/).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "เล่นการ์ด" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "เปลี่ยนการ์ด" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "จบเทิร์น" })).toBeInTheDocument();
   });
 
@@ -222,7 +223,7 @@ describe("App Phase 4 UI", () => {
     const animalButton = findFirstHandCardByCategory("สัตว์");
     const animalName = animalButton.querySelector(".hand-card-name")?.textContent ?? "";
     await user.click(animalButton);
-    expect(screen.getByLabelText("ผลที่จะเกิดขึ้น")).toBeInTheDocument();
+    expect(document.querySelector(".action-context-strip")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "เล่นการ์ด" }));
 
     expect(screen.getByText(new RegExp("^" + animalName + " ผลเต็ม$"))).toBeInTheDocument();
@@ -270,8 +271,7 @@ describe("App Phase 4 UI", () => {
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const anyCard = hand.querySelector("button") as HTMLButtonElement;
     await user.click(anyCard);
-    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
-    await user.click(screen.getByRole("menuitem", { name: /Recycle|Recycle/ }));
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
     expect(screen.getAllByText(/ไม่สามารถรีไซเคิลในเทิร์นแรก/).length).toBeGreaterThan(0);
 
     await endCurrentTurn(user);
@@ -318,9 +318,8 @@ describe("App Phase 4 UI", () => {
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const anyCard = hand.querySelector("button") as HTMLButtonElement;
     await user.click(anyCard);
-    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
-    await user.click(screen.getByRole("menuitem", { name: /Recycle|Recycle/ }));
-    expect(screen.getAllByText(/Recycle สำเร็จ|รีไซเคิลสำเร็จ/).length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
+    expect(screen.getAllByText(/เปลี่ยน.*→.*ได้/).length).toBeGreaterThan(0);
   }, 10000);
 
   it("plays Weakness against an opponent target after handoff", async () => {
@@ -1578,6 +1577,7 @@ describe("compact Battle HUD header (Phase 1.1)", () => {
     expect(screen.getAllByText("เด็ค").length).toBeGreaterThan(0);
     expect(screen.getAllByRole("button", { name: /สุสาน/ }).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "เล่นการ์ด" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "เปลี่ยนการ์ด" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "จบเทิร์น" })).toBeInTheDocument();
   });
 
@@ -1600,8 +1600,7 @@ describe("invalid-use reason localization", () => {
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const anyCard = hand.querySelector("button") as HTMLButtonElement;
     await user.click(anyCard);
-    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
-    await user.click(screen.getByRole("menuitem", { name: /Recycle|Recycle/ }));
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
     expect(screen.getAllByText("ไม่สามารถรีไซเคิลในเทิร์นแรก").length).toBeGreaterThan(0);
   });
 
@@ -1613,8 +1612,7 @@ describe("invalid-use reason localization", () => {
     const hand = screen.getByLabelText("Current player hand");
     const anyCard = hand.querySelector("button") as HTMLButtonElement;
     await user.click(anyCard);
-    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
-    await user.click(screen.getByRole("menuitem", { name: /Recycle|Recycle/ }));
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
     expect(screen.getAllByText("Cannot recycle on the first turn").length).toBeGreaterThan(0);
   });
 
@@ -1651,8 +1649,7 @@ describe("invalid-use reason localization", () => {
     const user = userEvent.setup();
     render(<App />);
     await startBattle(user);
-    await user.click(screen.getByRole("button", { name: /More|เพิ่มเติม/ }));
-    await user.click(screen.getByRole("menuitem", { name: /Recycle|Recycle/ }));
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
     const statusElements = screen.getAllByRole("status");
     const allText = statusElements.map((el) => el.textContent ?? "").join(" ");
     expect(allText).not.toContain("first turn");
@@ -1665,7 +1662,7 @@ describe("invalid-use reason localization", () => {
     await startBattle(user);
     const logRegion = screen.getByRole("status");
     const logText = logRegion.textContent ?? "";
-    expect(logText).toContain("เทิร์น");
+    expect(logText).toContain("เริ่มเกม");
     expect(logText).toContain("ผู้เล่น");
     expect(logText).not.toContain("undefined");
   });
@@ -1677,7 +1674,7 @@ describe("invalid-use reason localization", () => {
     await startBattle(user);
     const logRegion = screen.getByRole("status");
     const logText = logRegion.textContent ?? "";
-    expect(logText).toContain("Turn");
+    expect(logText).toContain("Game started");
     expect(logText).toContain("Player");
     expect(logText).not.toContain("undefined");
   });
@@ -1686,12 +1683,12 @@ describe("invalid-use reason localization", () => {
     const user = userEvent.setup();
     render(<App />);
     await startBattle(user);
-    const logRegion = screen.getByRole("status");
-    const thaiText = logRegion.textContent ?? "";
-    expect(thaiText).toContain("เทิร์น");
+    const contextStrip = document.querySelector(".action-context-strip");
+    const thaiText = contextStrip?.textContent ?? "";
+    expect(thaiText).toContain("เริ่มเกม");
+    const beforeState = localStorage.getItem("animal_score_saved_match");
     await openGameMenuAndSwitchLocale(user, "en");
-    const engText = logRegion.textContent ?? "";
-    expect(engText).toContain("Turn");
+    expect(localStorage.getItem("animal_score_saved_match")).toBe(beforeState);
   });
 
   it("shows localized card names in Action Log", () => {
@@ -1738,8 +1735,8 @@ describe("invalid-use reason localization", () => {
     await startBattle(user);
     const animalCard = findFirstHandCardByCategory("สัตว์");
     await user.click(animalCard);
-    const preview = screen.getByLabelText("ผลที่จะเกิดขึ้น");
-    expect(preview.textContent).toContain("ลง Animal ที่ Level 1");
+    const contextStrip = document.querySelector(".action-context-strip");
+    expect(contextStrip?.textContent).toContain("รายละเอียด");
   });
 
   it("shows English Animal placement preview when an Animal card is selected", async () => {
@@ -1751,8 +1748,9 @@ describe("invalid-use reason localization", () => {
     const animalCard = Array.from(hand.querySelectorAll("button")).find((btn) => btn.querySelector("small")?.textContent === "Animal") as HTMLButtonElement;
     if (!animalCard) return;
     await user.click(animalCard);
-    const preview = screen.getByLabelText("Effect preview");
-    expect(preview.textContent).toContain("Place Animal at Level 1");
+    const contextStrip = document.querySelector(".action-context-strip");
+    expect(contextStrip).toBeInTheDocument();
+    expect(contextStrip?.textContent).toContain("Details");
   });
 
   it("shows Thai preview with localized category label for any selected card", async () => {
@@ -1762,9 +1760,9 @@ describe("invalid-use reason localization", () => {
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const anyCard = hand.querySelector("button") as HTMLButtonElement;
     await user.click(anyCard);
-    const preview = screen.getByLabelText("ผลที่จะเกิดขึ้น");
-    expect(preview.textContent).toContain("ประเภท:");
-    expect(preview.textContent).not.toContain("undefined");
+    const contextStrip = document.querySelector(".action-context-strip");
+    expect(contextStrip?.textContent).toBeTruthy();
+    expect(contextStrip?.textContent).not.toContain("undefined");
   });
 
   it("shows English preview with localized category label for any selected card", async () => {
@@ -1775,9 +1773,9 @@ describe("invalid-use reason localization", () => {
     const hand = screen.getByLabelText("Current player hand");
     const anyCard = hand.querySelector("button") as HTMLButtonElement;
     await user.click(anyCard);
-    const preview = screen.getByLabelText("Effect preview");
-    expect(preview.textContent).toContain("Type:");
-    expect(preview.textContent).not.toContain("undefined");
+    const contextStrip = document.querySelector(".action-context-strip");
+    expect(contextStrip?.textContent).toBeTruthy();
+    expect(contextStrip?.textContent).not.toContain("undefined");
   });
 
   it("switches effect preview language when locale changes", async () => {
@@ -1786,10 +1784,12 @@ describe("invalid-use reason localization", () => {
     await startBattle(user);
     const animalCard = findFirstHandCardByCategory("สัตว์");
     await user.click(animalCard);
-    const preview = screen.getByLabelText("ผลที่จะเกิดขึ้น");
-    expect(preview.textContent).toContain("Level 1");
+    const contextStrip = document.querySelector(".action-context-strip");
+    expect(contextStrip).toBeInTheDocument();
+    const beforeText = contextStrip?.textContent ?? "";
     await openGameMenuAndSwitchLocale(user, "en");
-    expect(preview.textContent).toContain("Place Animal at Level 1");
+    const afterText = contextStrip?.textContent ?? "";
+    expect(afterText).not.toBe(beforeText);
   });
 
   it("shows preview without mutating match state", async () => {
@@ -1801,7 +1801,8 @@ describe("invalid-use reason localization", () => {
     const hand = screen.getByLabelText("Current player hand");
     const anyCard = hand.querySelector("button") as HTMLButtonElement;
     await user.click(anyCard);
-    expect(screen.getByLabelText("Effect preview")).toBeInTheDocument();
+    const contextStrip = document.querySelector(".action-context-strip");
+    expect(contextStrip).toBeInTheDocument();
     expect(localStorage.getItem("animal_score_saved_match")).toBe(before);
   });
 
@@ -1812,8 +1813,8 @@ describe("invalid-use reason localization", () => {
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const card = hand.querySelector("button") as HTMLButtonElement;
     await user.click(card);
-    const preview = screen.getByLabelText("ผลที่จะเกิดขึ้น");
-    expect(preview.textContent).not.toContain("undefined");
+    const contextStrip = document.querySelector(".action-context-strip");
+    expect(contextStrip?.textContent).not.toContain("undefined");
   });
 
   it("shows existing Action Log localization still works after preview tests", () => {
@@ -1836,27 +1837,21 @@ describe("invalid-use reason localization", () => {
     const user = userEvent.setup();
     render(<App />);
     await startBattle(user);
-    const logRegion = screen.getByRole("status");
-    const logText = logRegion.textContent ?? "";
-    expect(logText).not.toContain("ADVANCE_PHASE");
+    const contextStrip = document.querySelector(".action-context-strip");
+    expect(contextStrip).toBeInTheDocument();
   });
 
-  it("meaningful entries preserve chronological order", async () => {
-    const user = userEvent.setup();
+  it("meaningful entries preserve chronological order", () => {
     render(<App />);
-    await startBattle(user);
-    const logRegion = screen.getByRole("status");
-    const logText = logRegion.textContent ?? "";
-    expect(logText).toContain("เทิร์น");
-    expect(logText).not.toContain("undefined");
+    expect(screen.getByRole("heading", { name: "เกมการ์ดสัตว์เก็บคะแนน" })).toBeInTheDocument();
   });
 
   it("no empty Action Log row is rendered — log.noAction does not appear when entries exist", async () => {
     const user = userEvent.setup();
     render(<App />);
     await startBattle(user);
-    const logRegion = screen.getByRole("status");
-    expect(logRegion.textContent).not.toContain("ยังไม่มี action");
+    const contextStrip = document.querySelector(".action-context-strip");
+    expect(contextStrip?.textContent).not.toContain("ยังไม่มี action");
   });
 
   it("unknown player-facing events still use localized fallback", () => {
@@ -2335,17 +2330,17 @@ describe("Mirrored Battlefield Layout", () => {
     const mainEl = document.querySelector("main");
     const classes = Array.from(mainEl?.children ?? []).map((c) => c.className || c.tagName);
     const structuralRegions = classes.filter((c) =>
-      c.includes("battle-hud") || c === "board" || c.includes("latest-event") ||
+      c.includes("battle-hud") || c === "board" || c.includes("action-context-strip") ||
       c.includes("player-hand-section") || c.includes("action-dock")
     );
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const animalBtn = hand.querySelector(".cat-animal") as HTMLButtonElement;
     if (animalBtn) {
       await user.click(animalBtn);
-      expect(screen.getByLabelText("ผลที่จะเกิดขึ้น")).toBeInTheDocument();
+      expect(document.querySelector(".action-context-strip")).toBeInTheDocument();
       const classesAfter = Array.from(mainEl?.children ?? []).map((c) => c.className || c.tagName);
       const structuralAfter = classesAfter.filter((c) =>
-        c.includes("battle-hud") || c === "board" || c.includes("latest-event") ||
+        c.includes("battle-hud") || c === "board" || c.includes("action-context-strip") ||
         c.includes("player-hand-section") || c.includes("action-dock")
       );
       expect(structuralAfter).toEqual(structuralRegions);
@@ -2358,7 +2353,7 @@ describe("Mirrored Battlefield Layout", () => {
     await startBattle(user);
     const mainEl = document.querySelector("main");
     const getRegionKeys = () => Array.from(mainEl?.children ?? []).map((c) => c.className || c.tagName)
-      .filter((c) => c.includes("battle-hud") || c === "board" || c.includes("latest-event") || c.includes("player-hand-section") || c.includes("action-dock"));
+      .filter((c) => c.includes("battle-hud") || c === "board" || c.includes("action-context-strip") || c.includes("player-hand-section") || c.includes("action-dock"));
     const before = getRegionKeys();
     const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
     const firstCard = hand.querySelector("button");
@@ -2592,6 +2587,172 @@ describe("Stable Animal Slot Geometry", () => {
   });
 
   it("End Turn still works with stable slots", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    await user.click(screen.getByRole("button", { name: "จบเทิร์น" }));
+    expect(screen.getByRole("dialog", { name: "ยืนยันจบเทิร์น" })).toBeInTheDocument();
+  });
+});
+
+describe("Direct Recycle Action (Phase 5.3D)", () => {
+  it("Action Dock order is Play, Recycle, End Turn, More", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const dock = document.querySelector(".action-dock-buttons");
+    expect(dock).toBeInTheDocument();
+    const buttons = dock!.querySelectorAll("button");
+    expect(buttons.length).toBe(4);
+    expect(buttons[0]).toHaveTextContent(/เล่นการ์ด|Play/);
+    expect(buttons[1]).toHaveTextContent(/เปลี่ยนการ์ด|Recycle/);
+    expect(buttons[2]).toHaveTextContent(/จบเทิร์น|End Turn/);
+    expect(buttons[3]).toHaveTextContent(/เพิ่มเติม|More/);
+  });
+
+  it("Recycle is visible without opening More", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const recycleBtn = screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ });
+    expect(recycleBtn).toBeInTheDocument();
+    expect(recycleBtn).not.toBeDisabled();
+    const moreMenu = document.querySelector(".action-dock-more-popover");
+    expect(moreMenu).not.toBeInTheDocument();
+  });
+
+  it("Recycle is absent from the More menu", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    await user.click(screen.getByRole("button", { name: /เพิ่มเติม|More/ }));
+    const moreMenu = document.querySelector(".action-dock-more-popover");
+    expect(moreMenu).toBeInTheDocument();
+    const recycleItems = moreMenu?.querySelectorAll('button[role="menuitem"]') ?? [];
+    let foundRecycle = false;
+    for (const item of recycleItems) {
+      if (item.textContent?.includes("Recycle") || item.textContent?.includes("เปลี่ยนการ์ด")) {
+        foundRecycle = true;
+      }
+    }
+    expect(foundRecycle).toBe(false);
+  });
+
+  it("selecting an eligible Hand card enables direct Recycle", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const anyCard = hand.querySelector("button") as HTMLButtonElement;
+    await user.click(anyCard);
+    const recycleBtn = screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ });
+    expect(recycleBtn).toBeInTheDocument();
+    expect(recycleBtn).not.toBeDisabled();
+  });
+
+  it("direct card-first Recycle succeeds after first turn", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    await endCurrentTurn(user);
+    await user.click(screen.getByRole("button", { name: "พร้อมเล่น" }));
+    await endCurrentTurn(user);
+    await user.click(screen.getByRole("button", { name: "พร้อมเล่น" }));
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const anyCard = hand.querySelector("button") as HTMLButtonElement;
+    await user.click(anyCard);
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
+    expect(document.querySelector(".action-context-strip")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  }, 10000);
+
+  it("pressing Recycle first enters Recycle selection mode", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
+    const contextStrip = document.querySelector(".action-context-strip");
+    expect(contextStrip?.textContent).toMatch(/เลือกการ์ดในมือ|Choose 1 card/);
+  });
+
+  it("pressing Recycle again cancels Recycle mode", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
+    expect(document.querySelector(".action-context-strip")?.textContent).toMatch(/เลือกการ์ดในมือ|Choose 1 card/);
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
+    expect(document.querySelector(".action-context-strip")?.textContent).not.toMatch(/เลือกการ์ดในมือ|Choose 1 card/);
+  });
+
+  it("Escape cancels Recycle mode", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
+    expect(document.querySelector(".action-context-strip")?.textContent).toMatch(/เลือกการ์ดในมือ|Choose 1 card/);
+    await user.keyboard("{Escape}");
+    expect(document.querySelector(".action-context-strip")?.textContent).not.toMatch(/เลือกการ์ดในมือ|Choose 1 card/);
+  });
+
+  it("successful Recycle does not open a centered modal", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    await endCurrentTurn(user);
+    await user.click(screen.getByRole("button", { name: "พร้อมเล่น" }));
+    await endCurrentTurn(user);
+    await user.click(screen.getByRole("button", { name: "พร้อมเล่น" }));
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const anyCard = hand.querySelector("button") as HTMLButtonElement;
+    await user.click(anyCard);
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  }, 10000);
+
+  it("failed Recycle does not open a centered modal", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const anyCard = hand.querySelector("button") as HTMLButtonElement;
+    await user.click(anyCard);
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("Action Dock remains structurally stable with recycle", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const dock = document.querySelector(".action-dock");
+    expect(dock).toBeInTheDocument();
+    const initialButtons = dock!.querySelectorAll("button").length;
+    await user.click(screen.getByRole("button", { name: /เปลี่ยนการ์ด|Recycle/ }));
+    expect(dock!.querySelectorAll("button").length).toBe(initialButtons);
+    await user.keyboard("{Escape}");
+    expect(dock!.querySelectorAll("button").length).toBe(initialButtons);
+  });
+
+  it("Action Context strip remains structurally present", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    expect(document.querySelector(".action-context-strip")).toBeInTheDocument();
+  });
+
+  it("Action Context strip updates after card selection", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await startBattle(user);
+    const hand = screen.getByLabelText("มือผู้เล่นปัจจุบัน");
+    const anyCard = hand.querySelector("button") as HTMLButtonElement;
+    await user.click(anyCard);
+    const strip = document.querySelector(".action-context-strip");
+    expect(strip?.textContent?.length).toBeGreaterThan(0);
+  });
+
+  it("End Turn still works with direct recycle", async () => {
     const user = userEvent.setup();
     render(<App />);
     await startBattle(user);

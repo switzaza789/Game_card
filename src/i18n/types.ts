@@ -426,6 +426,13 @@ export type TranslationKey =
   | "level.maximum"
   | "level.up"
   | "level.down"
-  | "level.fromTo";
+  | "level.fromTo"
+  | "recycle.guidance.chooseCard"
+  | "recycle.preview.selected"
+  | "recycle.result.success"
+  | "recycle.reason.noCard"
+  | "recycle.reason.used"
+  | "recycle.reason.unavailable"
+  | "recycle.cancel";
 
 export type TranslationParams = Record<string, string | number>;

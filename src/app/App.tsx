@@ -93,6 +93,7 @@ export function App() {
   const [pendingAnimalSlot, setPendingAnimalSlot] = useState<Target | null>(null);
   const [endTurnConfirmOpen, setEndTurnConfirmOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const [recycleMode, setRecycleMode] = useState(false);
   const lastFeedbackExportRef = useRef<string | null>(null);
   const aiExecutionRef = useRef<string | null>(null);
   const humanTurnPrepRef = useRef<string | null>(null);
@@ -478,11 +479,15 @@ export function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coordinator, match, screen]);
 
-  function recycleSelected() {
-    if (!match || !selectedCardId) {
-      const reason = t(locale, "playability.reason.recycleNoCard");
-      setMessage(reason);
-      setActionFeedback({ type: "recycle", success: false, reason });
+  function recycleSelected(cardInstanceId?: string) {
+    if (!match) {
+      return;
+    }
+    const targetId = cardInstanceId ?? selectedCardId;
+    if (!targetId) {
+      setRecycleMode(true);
+      setMessage(t(locale, "recycle.guidance.chooseCard"));
+      setActionFeedback(null);
       return;
     }
     const before = match;
@@ -490,23 +495,26 @@ export function App() {
     const result = coordinator.dispatch({
       type: "RECYCLE",
       playerId: match.currentPlayerId,
-      payload: { cardInstanceId: selectedCardId }
+      payload: { cardInstanceId: targetId }
     }, Date.now());
 
     setMatch(result.state);
     setSelectedCardId(null);
+    setRecycleMode(false);
     if (!result.validation.valid) {
       const reason = result.validation.errors.map(e => localizeValidationReason(e, locale)).join(", ");
       setMessage(reason);
       showMinorToast("toast.recycleFailed");
-      setActionFeedback(null);
+      setActionFeedback({ type: "recycle", success: false, reason });
     } else {
-      setMessage(t(locale, "feedback.recycle.success"));
       const drawnId = result.state.players[match.currentPlayerId].hand.find((id) => !before.players[match.currentPlayerId].hand.includes(id));
+      const oldCardName = getLocalizedCard(getCardDefinition(match.cardsByInstanceId[targetId].definitionId).card_id, locale).name;
+      const newCardName = drawnId ? getLocalizedCard(getCardDefinition(result.state.cardsByInstanceId[drawnId].definitionId).card_id, locale).name : "";
+      setMessage(t(locale, "recycle.result.success", { old: oldCardName, new: newCardName }));
       setActionFeedback({
         type: "recycle",
         success: true,
-        selectedCardInstanceId: selectedCardId,
+        selectedCardInstanceId: targetId,
         drawnCardInstanceId: drawnId ?? undefined,
         deckCount: result.state.players[match.currentPlayerId].deck.length
       });
@@ -600,6 +608,10 @@ export function App() {
         playCardFromHand(id, pendingAnimalSlot);
         return;
       }
+    }
+    if (match && recycleMode) {
+      recycleSelected(id);
+      return;
     }
     setSelectedCardId(id);
   }
@@ -733,6 +745,8 @@ export function App() {
           resetConfirmOpen={resetConfirmOpen}
           onCancelReset={cancelResetMatch}
           onConfirmReset={resetMatch}
+          recycleMode={recycleMode}
+          onCancelRecycle={() => { setRecycleMode(false); setMessage(""); }}
         />
     );
   }
@@ -938,6 +952,17 @@ function getInteractionGuidanceState(match: MatchState, selectedCardId: string |
   return { recommendedAction: null, guidanceKey: null };
 }
 
+function getRecycleInvalidReason(match: MatchState, playerId: PlayerId, locale: Locale): string | null {
+  if (match.status === "FINISHED") return t(locale, "playability.reason.matchFinished");
+  if (match.phase !== "ACTION") return t(locale, "playability.reason.notActionPhase");
+  if (match.currentPlayerId !== playerId) return t(locale, "playability.reason.wrongPlayer");
+  if (match.turnNumber === 1) return t(locale, "playability.reason.recycleFirstTurn");
+  if (match.players[playerId].deck.length === 0) return t(locale, "playability.reason.recycleEmptyDeck");
+  if (match.players[playerId].recycleUsed) return t(locale, "recycle.reason.used");
+  if (match.players[playerId].hand.length === 0) return t(locale, "recycle.reason.noCard");
+  return null;
+}
+
 function BattleScreen(props: {
   match: MatchState;
   activePlayerId: PlayerId;
@@ -949,7 +974,7 @@ function BattleScreen(props: {
   onSelectCard: (id: string) => void;
   onPlaySelected: (target?: Target) => void;
   onSelectEmptySlot: (target: Target) => void;
-  onRecycle: () => void;
+  onRecycle: (cardInstanceId?: string) => void;
   onEndTurn: () => void;
   onUndo: () => void;
   onOpenCard: (card: CardDefinition) => void;
@@ -968,6 +993,8 @@ function BattleScreen(props: {
   resetConfirmOpen: boolean;
   onCancelReset: () => void;
   onConfirmReset: () => void;
+  recycleMode: boolean;
+  onCancelRecycle: () => void;
 }) {
   const { match, activePlayerId, opponentId, selectedCardId, selectedDefinition } = props;
   const controlsDisabled = Boolean(props.controlsDisabled);
@@ -1079,11 +1106,14 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
       if (event.key === "Escape") {
         setGameMenuOpen(false);
         setMoreMenuOpen(false);
+        if (props.recycleMode) {
+          props.onCancelRecycle();
+        }
       }
     }
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, []);
+  }, [props.recycleMode, props.onCancelRecycle]);
 
   return (
     <main className="battle-app">
@@ -1158,11 +1188,30 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
         <div className="zone-label">{t(props.locale, "label.you")} — {t(props.locale, "label.score")} {match.players[activePlayerId].score} / {gameConfig.target_score}</div>
       </section>
 
-      {/* Latest Event Strip */}
-      <div className="latest-event-strip" role="status">
-        <strong>{t(props.locale, "label.actionLog")}</strong>
-        <p>{props.message}</p>
-        {visibleLogEntries.length > 0 && <small className="log-entry">{visibleLogEntries[visibleLogEntries.length - 1].formatted}</small>}
+      {/* Action Context Strip */}
+      <div className="action-context-strip" role="status" aria-live="polite">
+        {(() => {
+          if (props.recycleMode && !props.selectedCardId) {
+            return <span className="context-guidance">{t(props.locale, "recycle.guidance.chooseCard")}</span>;
+          }
+          if (props.selectedCardId && props.selectedDefinition) {
+            const def = props.selectedDefinition;
+            const localized = getLocalizedCard(def.card_id, props.locale);
+            return (
+              <span className="context-preview">
+                {localized.name}
+                <button type="button" className="context-details-btn" onClick={() => props.onOpenCard(def)}>{t(props.locale, "label.details")}</button>
+              </span>
+            );
+          }
+          if (props.message) {
+            return <span className="context-message">{props.message}</span>;
+          }
+          if (visibleLogEntries.length > 0) {
+            return <span className="context-log">{visibleLogEntries[visibleLogEntries.length - 1].formatted}</span>;
+          }
+          return null;
+        })()}
       </div>
 
       {/* Player Hand */}
@@ -1177,8 +1226,12 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
           const isAnimal = definition.category === "Animal";
           const usedThisTurn = isAnimal ? playerState.animalActionUsed : (playerState.utilityActionUsed || playerState.utilityLocked);
           const isSelected = id === selectedCardId;
+          const recycleInvalid = getRecycleInvalidReason(match, activePlayerId, props.locale);
+          const isRecyclable = props.recycleMode && !recycleInvalid;
           let cardState: string;
-          if (isSelected) {
+          if (props.recycleMode) {
+            cardState = isRecyclable ? "recyclable" : "unavailable";
+          } else if (isSelected) {
             cardState = playability.state === "PLAYABLE_AFTER_TARGET" ? "needs-target" : "selected";
           } else if (usedThisTurn) {
             cardState = "used-this-turn";
@@ -1189,12 +1242,12 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
           } else {
             cardState = "unavailable";
           }
-          const isRecommended = !isSelected && cardState === "playable" && !firstPlayableFound;
+          const isRecommended = !props.recycleMode && !isSelected && cardState === "playable" && !firstPlayableFound;
           if (isRecommended) firstPlayableFound = true;
-          const stateClasses = `hand-card ${categoryClass(definition.category)} ${isSelected ? "selected" : ""}`;
+          const stateClasses = `hand-card ${categoryClass(definition.category)} ${isSelected ? "selected" : ""}${isRecyclable ? " recyclable" : ""}`;
           const sourceEvent = eventByInstanceId.get(id);
           return (
-            <button key={id} type="button" className={stateClasses} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={cardState === "unavailable" || cardState === "used-this-turn"} aria-selected={isSelected} data-state={cardState} data-recommended={isRecommended ? "true" : undefined} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`} data-combat-source={sourceEvent && !controlsDisabled ? sourceEvent.kind : undefined}>
+            <button key={id} type="button" className={stateClasses} onClick={() => props.onSelectCard(id)} disabled={controlsDisabled} aria-disabled={cardState === "unavailable" || cardState === "used-this-turn"} aria-selected={isSelected || isRecyclable} data-state={cardState} data-recommended={isRecommended ? "true" : undefined} aria-describedby={`playability-${id}`} aria-label={`${definition.card_id} ${localizedCard.name}, ${localizedCategory} ${t(props.locale, "card.type")}`} data-combat-source={sourceEvent && !controlsDisabled ? sourceEvent.kind : undefined}>
               <CardArtwork cardId={definition.card_id} locale={props.locale} variant="compact" alt="" />
               <span className="hand-card-name">{localizedCard.name}</span>
               <small className="hand-card-type">{localizedCategory}</small>
@@ -1211,10 +1264,13 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
           <button type="button" onClick={() => selectedDefinition?.category === "Animal" || selectedDefinition?.card_id === "X005" ? props.onPlaySelected() : undefined} disabled={controlsDisabled || !selectedDefinition || selectedPlayability?.state === "NOT_PLAYABLE" || needsTarget(selectedDefinition)}>
             {t(props.locale, "label.playCard")}
           </button>
+          <button type="button" className={`secondary-button${props.recycleMode ? " recycle-active" : ""}`} onClick={() => { if (props.recycleMode) { props.onCancelRecycle(); } else { props.onRecycle(); } }} disabled={controlsDisabled} aria-pressed={props.recycleMode} data-recycle-mode={props.recycleMode ? "active" : undefined}>
+            {t(props.locale, "label.recycle")}
+          </button>
           <button type="button" className={`danger-button${guidance.recommendedAction === "end-turn" ? " end-turn-recommended" : ""}`} onClick={props.onEndTurn} disabled={isAiTurn || (match.phase !== "ACTION" && match.phase !== "END")} data-recommended={guidance.recommendedAction === "end-turn" ? "true" : undefined}>
             {t(props.locale, "label.endTurn")}
           </button>
-          <button ref={moreMenuTriggerRef} type="button" className="secondary-button" aria-label={t(props.locale, "label.more")} aria-expanded={moreMenuOpen} aria-controls="action-dock-more-popover" onClick={() => setMoreMenuOpen((o) => !o)} disabled={controlsDisabled}>
+          <button ref={moreMenuTriggerRef} type="button" className="secondary-button" aria-label={t(props.locale, "label.more")} aria-expanded={moreMenuOpen} aria-controls="action-dock-more-popover" onClick={() => { setMoreMenuOpen((o) => !o); if (props.recycleMode) props.onCancelRecycle(); }} disabled={controlsDisabled}>
             {t(props.locale, "label.more")}
           </button>
         </div>
@@ -1228,23 +1284,11 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
         <>
           <div className="action-dock-more-overlay" onClick={() => setMoreMenuOpen(false)} />
           <div id="action-dock-more-popover" ref={moreMenuRef} className="action-dock-more-popover" role="menu" aria-label={t(props.locale, "label.more")}>
-            <button type="button" role="menuitem" onClick={props.onRecycle} disabled={controlsDisabled}>{t(props.locale, "label.recycle")}</button>
             <button type="button" role="menuitem" onClick={() => { props.onOpenGraveyard(activePlayerId); setMoreMenuOpen(false); }}>{t(props.locale, "label.graveyard")}</button>
             <button type="button" role="menuitem" onClick={() => { if (selectedDefinition) props.onOpenCard(selectedDefinition); setMoreMenuOpen(false); }} disabled={!selectedDefinition}>{t(props.locale, "label.details")}</button>
             <button type="button" role="menuitem" onClick={props.onUndo} disabled={!match.undoSnapshot}>{t(props.locale, "label.undo")}</button>
           </div>
         </>
-      )}
-
-      {/* Effect Preview Overlay */}
-      {selectedDefinition && (
-        <div className="effect-preview-overlay" aria-label={t(props.locale, "label.effectPreview")}>
-          <button type="button" className="preview-close" onClick={() => props.onSelectCard("")}>{t(props.locale, "label.close")}</button>
-          <strong>{t(props.locale, "label.effectPreview")}</strong>
-          <ul>
-            {previewLines(selectedDefinition, getCardPlayability(match, activePlayerId, selectedCardId ?? ""), props.locale).map((line) => <li key={line}>{line}</li>)}
-          </ul>
-        </div>
       )}
 
       {/* Combat/score feedback overlay */}
@@ -1794,46 +1838,7 @@ type PlayabilityInfo = {
   reason?: string;
 };
 
-function previewLines(card: CardDefinition, playability: PlayabilityInfo | undefined, locale: Locale): string[] {
-  const lines = [t(locale, "preview.type", { category: actionCategoryLabel(card, locale) })];
-  if (playability?.state === "NOT_PLAYABLE") {
-    lines.push(t(locale, "preview.notPlayable"), localizePlayabilityReason(playability.reason ?? playability.label, locale));
-    return lines;
-  }
-  if (playability?.state === "PLAYABLE_AFTER_TARGET") {
-    lines.push(t(locale, "preview.needsTarget"));
-  }
-  if (playability?.state === "PARTIAL_EFFECT_ONLY") {
-    lines.push(t(locale, "preview.partialEffect"));
-  }
-  if (card.category === "Animal") {
-    return [...lines, t(locale, "preview.animal.place"), t(locale, "preview.animal.usesAction")];
-  }
-  if (card.category === "Support") {
-    return [
-      ...lines,
-      t(locale, "preview.support.target"),
-      t(locale, "preview.support.levelUp"),
-      t(locale, "preview.support.additionalEffect"),
-      t(locale, "preview.usesUtility")
-    ];
-  }
-  if (card.category === "Weakness") {
-    return [
-      ...lines,
-      t(locale, "preview.weakness.target"),
-      t(locale, "preview.weakness.fullEffect"),
-      t(locale, "preview.weakness.offTarget"),
-      t(locale, "preview.weakness.mayBeBlocked")
-    ];
-  }
-  if (card.card_id === "X001") return [...lines, t(locale, "preview.x001.target"), t(locale, "preview.x001.effect"), t(locale, "preview.usesUtility")];
-  if (card.card_id === "X002") return [...lines, t(locale, "preview.x002.effect"), t(locale, "preview.x002.reactionOnly")];
-  if (card.card_id === "X003") return [...lines, t(locale, "preview.x003.target"), t(locale, "preview.x003.effect"), t(locale, "preview.x003.evolutionLoss")];
-  if (card.card_id === "X004") return [...lines, t(locale, "preview.x004.target"), t(locale, "preview.x004.effect"), t(locale, "preview.x004.mayBeBlocked")];
-  if (card.card_id === "X005") return [...lines, t(locale, "preview.x005.effect")];
-  return [...lines, t(locale, "preview.usesUtility")];
-}
+
 
 function getCardPlayability(match: MatchState, playerId: PlayerId, cardInstanceId: string): PlayabilityInfo {
   const card = match.cardsByInstanceId[cardInstanceId];
@@ -1907,12 +1912,6 @@ function localizeValidationReason(error: string | undefined, locale: Locale): st
   return t(locale, "playability.reason.fallback");
 }
 
-function localizePlayabilityReason(reason: string, locale: Locale): string {
-  const key = asTranslationKey(reason);
-  if (key) return t(locale, key);
-  return reason;
-}
-
 function asTranslationKey(value: string | undefined): TranslationKey | null {
   if (!value) return null;
   if (value.startsWith("playability.")) return value as TranslationKey;
@@ -1961,16 +1960,6 @@ function weaknessMatches(cardId: string, subtype: string): boolean {
     || (cardId === "W004" && subtype === "Bird")
     || (cardId === "W005" && subtype === "Fish")
   );
-}
-
-function actionCategoryLabel(card: CardDefinition, locale: Locale): string {
-  if (card.category === "Weakness") return t(locale, "preview.category.weakness");
-  if (card.category === "Support") return t(locale, "preview.category.support");
-  if (card.category === "Animal") return t(locale, "preview.category.animal");
-  if (card.card_id === "X005") return t(locale, "preview.category.stealScore");
-  if (card.card_id === "X004") return t(locale, "preview.category.returnToHand");
-  if (card.card_id === "X002") return t(locale, "preview.category.protect");
-  return t(locale, "preview.category.statusChange");
 }
 
 function canTarget(card: CardDefinition, ownerId: PlayerId, viewerId: PlayerId, level: number): boolean {

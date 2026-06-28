@@ -47,7 +47,7 @@ export const th = {
   "label.cancel": "ยกเลิก",
   "label.close": "ปิด",
   "label.playCard": "เล่นการ์ด",
-  "label.recycle": "Recycle",
+  "label.recycle": "เปลี่ยนการ์ด",
   "label.endTurn": "จบเทิร์น",
   "label.undo": "ย้อนกลับ",
   "label.reset": "เริ่มเกมใหม่",
@@ -423,5 +423,12 @@ export const th = {
   "level.maximum": "เลเวลสูงสุด: {max}",
   "level.up": "Level Up",
   "level.down": "Level Down",
-  "level.fromTo": "Lv.{from} → Lv.{to}"
+  "level.fromTo": "Lv.{from} → Lv.{to}",
+  "recycle.guidance.chooseCard": "เลือกการ์ดในมือ 1 ใบเพื่อเปลี่ยน",
+  "recycle.preview.selected": "เปลี่ยน \"{card}\" แล้วจั่วใหม่ 1 ใบ",
+  "recycle.result.success": "เปลี่ยน \"{old}\" → ได้ \"{new}\"",
+  "recycle.reason.noCard": "เลือกการ์ดในมือก่อน",
+  "recycle.reason.used": "ใช้เปลี่ยนการ์ดในเทิร์นนี้แล้ว",
+  "recycle.reason.unavailable": "ไม่สามารถเปลี่ยนการ์ดในช่วงนี้ได้",
+  "recycle.cancel": "ยกเลิกเปลี่ยนการ์ด"
 } satisfies Record<TranslationKey, string>;

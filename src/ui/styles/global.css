@@ -956,7 +956,12 @@ h1 {
   outline: 3px solid #245a85;
 }
 
-.latest-event-strip {
+.hand-card.recyclable {
+  outline: 3px solid #245a85;
+  background: #e8f6ef;
+}
+
+.action-context-strip {
   grid-area: event;
   flex-shrink: 0;
   display: flex;
@@ -974,20 +979,49 @@ h1 {
   margin-top: 4px;
 }
 
-.latest-event-strip strong {
-  display: none;
+.action-context-strip .context-invalid {
+  color: #b42318;
+  font-weight: 600;
 }
 
-.latest-event-strip p {
-  margin: 0;
+.action-context-strip .context-guidance {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.action-context-strip .context-preview {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.action-context-strip .context-details-btn {
+  background: transparent;
+  color: var(--accent);
+  padding: 0 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  min-height: 20px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
   flex-shrink: 0;
 }
 
-.latest-event-strip small {
-  white-space: nowrap;
+.action-context-strip .context-details-btn:hover {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.action-context-strip .context-message {
+  color: #1f2937;
+}
+
+.action-context-strip .context-log {
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
-  color: var(--muted);
 }
 
 .action-dock {
@@ -1020,6 +1054,11 @@ h1 {
 
 .action-dock-buttons .danger-button.end-turn-recommended {
   background: #1f7a5a;
+}
+
+.action-dock-buttons .recycle-active {
+  background: #245a85;
+  outline: 2px solid #f59e0b;
 }
 
 .dock-guidance {
