@@ -26,7 +26,8 @@ function makeMatchResult(overrides?: Partial<MatchResult>): MatchResult {
   return {
     matchId: "test-match-1",
     winner: "P1",
-    finalScores: { P1: 15, P2: 8 },
+    finalScores: { P1: 10, P2: 8 },
+    targetScore: 10,
     turnCount: 12,
     startedAt: 1000,
     endedAt: 2000,

@@ -34,6 +34,7 @@ export function createMatch(options: CreateMatchOptions): MatchState {
     currentPlayerId: "P1",
     phase: "READY",
     turnNumber: 1,
+    targetScore: engineConfig.target_score,
     rng,
     actionLog: []
   };

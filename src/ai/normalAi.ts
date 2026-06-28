@@ -1,6 +1,5 @@
 import type { Action, AnimalInstance, CardDefinition, MatchState, PlayerId, Target } from "../types/game";
 import { getCardDefinition, isAnimalInstance } from "../engine/cards/deck";
-import { engineConfig } from "../engine/config/config";
 import { otherPlayerId } from "../engine/state/selectors";
 import { validateAction } from "../engine/validation/validation";
 import type { AiDecision, AiDecisionContext } from "./aiTypes";
@@ -126,8 +125,9 @@ function scoreAction(state: MatchState, action: Action): number {
   const def = getCardDefinition(card.definitionId);
   const opponentId = otherPlayerId(action.playerId);
   const target = action.payload.target?.instanceId ? state.cardsByInstanceId[action.payload.target.instanceId] : undefined;
-  const canWinSoon = state.players[action.playerId].score + boardScore(state, action.playerId) >= engineConfig.target_score;
-  const opponentThreat = state.players[opponentId].score + boardScore(state, opponentId) >= engineConfig.target_score;
+  const targetScore = state.targetScore;
+  const canWinSoon = state.players[action.playerId].score + boardScore(state, action.playerId) >= targetScore;
+  const opponentThreat = state.players[opponentId].score + boardScore(state, opponentId) >= targetScore;
   let score = 0;
 
   if (def.category === "Animal") {

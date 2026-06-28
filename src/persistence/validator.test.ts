@@ -151,6 +151,28 @@ describe("validator — validateStoredMatch", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("adds legacy default targetScore of 15 when missing", () => {
+    const payload = makeValidPayload();
+    const state = { ...payload.state };
+    // @ts-expect-error simulate legacy data without targetScore
+    delete state.targetScore;
+    const result = validateStoredMatch({ ...payload, state });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.state.targetScore).toBe(15);
+    }
+  });
+
+  it("preserves explicit targetScore when present", () => {
+    const payload = makeValidPayload();
+    const state = { ...payload.state, targetScore: 10 };
+    const result = validateStoredMatch({ ...payload, state });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.state.targetScore).toBe(10);
+    }
+  });
+
   it("defaults old saved board Animals without evolutionPoints to zero", () => {
     const payload = makeValidPayload();
     const animalId = payload.state.players.P1.hand.find((id) => getCardDefinition(payload.state.cardsByInstanceId[id].definitionId).category === "Animal");

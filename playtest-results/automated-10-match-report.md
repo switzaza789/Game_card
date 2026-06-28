@@ -12,63 +12,63 @@ This was automated synthetic playtesting, not human playtesting. No human opinio
 
 | Match | Seed | Winner | Finish reason | Turns | Recycles | Persistence | Bugs |
 | --- | --- | --- | --- | ---: | ---: | --- | ---: |
-| 1 | automated-playtest-001 | P1 | TARGET_SCORE | 6 | 2 | PASS | 0 |
-| 2 | automated-playtest-002 | P1 | TARGET_SCORE | 7 | 2 | PASS | 0 |
-| 3 | automated-playtest-003 | P1 | TARGET_SCORE | 8 | 3 | PASS | 0 |
-| 4 | automated-playtest-004 | P1 | TARGET_SCORE | 6 | 2 | PASS | 0 |
-| 5 | automated-playtest-005 | P1 | TARGET_SCORE | 6 | 2 | PASS | 0 |
-| 6 | automated-playtest-006 | P1 | TARGET_SCORE | 6 | 1 | PASS | 0 |
-| 7 | automated-playtest-007 | P1 | TARGET_SCORE | 7 | 1 | PASS | 0 |
-| 8 | automated-playtest-008 | P1 | TARGET_SCORE | 7 | 2 | PASS | 0 |
-| 9 | automated-playtest-009 | P1 | TARGET_SCORE | 8 | 3 | PASS | 0 |
-| 10 | automated-playtest-010 | P2 | TARGET_SCORE | 7 | 2 | PASS | 0 |
+| 1 | automated-playtest-001 | P1 | TARGET_SCORE | 5 | 1 | PASS | 0 |
+| 2 | automated-playtest-002 | P1 | TARGET_SCORE | 6 | 2 | PASS | 0 |
+| 3 | automated-playtest-003 | P1 | TARGET_SCORE | 7 | 3 | PASS | 0 |
+| 4 | automated-playtest-004 | P1 | TARGET_SCORE | 5 | 2 | PASS | 0 |
+| 5 | automated-playtest-005 | P1 | TARGET_SCORE | 5 | 2 | PASS | 0 |
+| 6 | automated-playtest-006 | P1 | TARGET_SCORE | 5 | 1 | PASS | 0 |
+| 7 | automated-playtest-007 | P1 | TARGET_SCORE | 6 | 1 | PASS | 0 |
+| 8 | automated-playtest-008 | P1 | TARGET_SCORE | 6 | 2 | PASS | 0 |
+| 9 | automated-playtest-009 | P1 | TARGET_SCORE | 6 | 2 | PASS | 0 |
+| 10 | automated-playtest-010 | P1 | TARGET_SCORE | 6 | 2 | PASS | 0 |
 
 ## 4. Aggregate statistics
 
 - Completed matches: 10/10
-- P1 win rate: 90%
-- P2 win rate: 10%
+- P1 win rate: 100%
+- P2 win rate: 0%
 - Draw rate: 0%
-- Average turns: 6.8
-- Median turns: 7
-- Average deterministic duration: 68200 ms
+- Average turns: 5.7
+- Median turns: 6
+- Average deterministic duration: 56400 ms
 
 ## 5. Card usage frequency
 
 | Card | ID | Uses |
 | --- | --- | ---: |
-| Playful Dog | A001 | 20 |
+| Playful Dog | A001 | 19 |
 | Curious Cat | A002 | 18 |
 | Swift Rabbit | A003 | 17 |
-| Delicious Bone | S001 | 14 |
-| Fresh Carrot | S003 | 10 |
-| Colorful Yarn | S002 | 8 |
-| Sweet Honey | S004 | 8 |
-| Energetic Fish | A006 | 7 |
+| Delicious Bone | S001 | 12 |
+| Fresh Carrot | S003 | 9 |
+| Colorful Yarn | S002 | 7 |
 | Fishing Hook | W005 | 7 |
-| Muzzle | W001 | 6 |
-| Laser Pointer | W002 | 6 |
-| Gentle Bear | A004 | 5 |
-| Premium Seeds | S005 | 5 |
-| Ground Trap | W003 | 5 |
+| Energetic Fish | A006 | 6 |
+| Gentle Bear | A004 | 4 |
+| Muzzle | W001 | 4 |
+| Ground Trap | W003 | 4 |
 | Bird Cage | W004 | 4 |
-| Quick Swap | X003 | 3 |
+| Sweet Honey | S004 | 3 |
+| Laser Pointer | W002 | 3 |
 | Strong Wind | X004 | 3 |
 | Armored Turtle | A007 | 2 |
 | Special Fish Food | S006 | 2 |
-| Lullaby | X001 | 2 |
+| Quick Swap | X003 | 2 |
+| Food Thief | X005 | 2 |
+| Messenger Bird | A005 | 1 |
 
 ## 6. Card score contribution
 
 | Card | ID | Score contribution |
 | --- | --- | ---: |
-| Playful Dog | A001 | 96 |
-| Curious Cat | A002 | 74 |
-| Swift Rabbit | A003 | 62 |
-| Gentle Bear | A004 | 18 |
-| Energetic Fish | A006 | 13 |
-| Messenger Bird | A005 | 8 |
-| Armored Turtle | A007 | 7 |
+| Playful Dog | A001 | 70 |
+| Curious Cat | A002 | 53 |
+| Swift Rabbit | A003 | 39 |
+| Gentle Bear | A004 | 10 |
+| Energetic Fish | A006 | 8 |
+| Messenger Bird | A005 | 5 |
+| Armored Turtle | A007 | 5 |
 | Food Thief | X005 | 2 |
 
 ## 7. Finish-reason distribution
@@ -79,27 +79,27 @@ This was automated synthetic playtesting, not human playtesting. No human opinio
 
 ## 8. P1/P2 result distribution
 
-- P1 wins: 9
-- P2 wins: 1
+- P1 wins: 10
+- P2 wins: 0
 - Draws: 0
 
 ## 9. Recycle usage
 
-- Average recycle count: 2
-- Total recycle count: 20
+- Average recycle count: 1.8
+- Total recycle count: 18
 
 ## 9.1 Evolution usage
 
-- Level 3 evolutions: 14
-- Average evolutions per match: 1.4
-- Evolution turns: 4, 5, 6, 5, 4, 6, 5, 6, 4, 5, 6, 5, 5, 7
-- Matches ending before any evolution: 3
+- Level 3 evolutions: 6
+- Average evolutions per match: 0.6
+- Evolution turns: 4, 5, 4, 4, 5, 5
+- Matches ending before any evolution: 4
 
 | Card | ID | Level 3 evolutions |
 | --- | --- | ---: |
-| Playful Dog | A001 | 7 |
-| Swift Rabbit | A003 | 5 |
-| Curious Cat | A002 | 2 |
+| Playful Dog | A001 | 4 |
+| Curious Cat | A002 | 1 |
+| Swift Rabbit | A003 | 1 |
 
 ## 10. Stuck-state analysis
 
@@ -132,8 +132,8 @@ No repeated rejected-action pattern was recorded.
 
 ## 14. Repeated objective anomalies
 
-- Preliminary usage signal: A001 20, A002 18, A003 17.
-- Preliminary score-contribution signal: A001 96, A002 74, A003 62; requires human verification.
+- Preliminary usage signal: A001 19, A002 18, A003 17.
+- Preliminary score-contribution signal: A001 70, A002 53, A003 39; requires human verification.
 
 ## 15. Potential balance signals requiring human verification
 

@@ -134,6 +134,7 @@ export class PersistenceCoordinator {
         P1: state.players.P1.score,
         P2: state.players.P2.score
       },
+      targetScore: state.targetScore,
       turnCount: state.turnNumber,
       startedAt,
       endedAt: endedTimestamp,

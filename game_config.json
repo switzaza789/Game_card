@@ -6,7 +6,7 @@
   "starting_hand": 5,
   "hand_limit": 7,
   "animal_zone_slots": 3,
-  "target_score": 15,
+  "target_score": 10,
   "max_turns_per_player": 12,
   "level_min": 1,
   "level_max": 3,

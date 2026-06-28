@@ -38,6 +38,7 @@ export interface MatchResult {
   gameMode?: GameMode;
   winner: PlayerId | "DRAW";
   finalScores: Record<PlayerId, number>;
+  targetScore?: number;
   turnCount: number;
   startedAt: number;
   endedAt: number;
