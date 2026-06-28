@@ -2,12 +2,13 @@ import { cardsSeed } from "../../data/cardsSeed";
 import type { CardInstance, GameMode, MatchState, PlayerId, PlayerState, RngState } from "../../types/game";
 import { buildPlayerDeck, isAnimalDefinition } from "../cards/deck";
 import { engineConfig } from "../config/config";
-import { createRng } from "../rng/rng";
+import { createRng, nextFloat } from "../rng/rng";
 
 type CreateMatchOptions = {
   matchId?: string;
   seed: string;
   gameMode?: GameMode;
+  startingPlayerId?: PlayerId;
 };
 
 const playerIds: PlayerId[] = ["P1", "P2"];
@@ -25,13 +26,24 @@ export function createMatch(options: CreateMatchOptions): MatchState {
     players[playerId] = createPlayerState(playerId, builtDeck.deck);
   }
 
+  let startingPlayerId: PlayerId;
+  if (options.startingPlayerId) {
+    startingPlayerId = options.startingPlayerId;
+  } else {
+    const starterRoll = nextFloat(rng);
+    rng = starterRoll.rng;
+    startingPlayerId = starterRoll.value < 0.5 ? "P1" : "P2";
+  }
+
   let state: MatchState = {
     matchId: options.matchId ?? `match-${options.seed}`,
     gameMode: options.gameMode ?? "LOCAL_PVP",
     status: "ACTIVE",
     players,
     cardsByInstanceId,
-    currentPlayerId: "P1",
+    currentPlayerId: startingPlayerId,
+    startingPlayerId,
+    pregameStep: "STARTER_REVEAL",
     phase: "READY",
     turnNumber: 1,
     targetScore: engineConfig.target_score,

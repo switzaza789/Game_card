@@ -69,6 +69,7 @@ function runPveMatch(seed: string) {
   let aiActionLimitFallbacks = 0;
   const aiCardUsage: Record<string, number> = {};
   state = accept(state, { type: "START_MATCH", playerId: "P1", payload: { seed } });
+  state = accept(state, { type: "ACKNOWLEDGE_STARTER", playerId: state.currentPlayerId, payload: {} });
 
   while (state.status !== "FINISHED" && accepted < 500) {
     while (state.status !== "FINISHED" && state.phase !== "ACTION") {

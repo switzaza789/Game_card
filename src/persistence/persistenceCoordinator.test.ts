@@ -42,6 +42,7 @@ describe("PersistenceCoordinator — dispatch", () => {
       playerId: "P1",
       payload: { seed: state.rng.seed }
     }, timestamp);
+    coordinator.dispatch({ type: "ACKNOWLEDGE_STARTER", playerId: coordinator.getState()!.currentPlayerId, payload: {} }, Date.now());
 
     // advance to ACTION phase so game is active
     let current = coordinator.getState()!;
@@ -63,6 +64,7 @@ describe("PersistenceCoordinator — dispatch", () => {
 
     const timestamp = Date.now();
     coordinator.dispatch({ type: "START_MATCH", playerId: "P1", payload: { seed: state.rng.seed } }, timestamp);
+    coordinator.dispatch({ type: "ACKNOWLEDGE_STARTER", playerId: coordinator.getState()!.currentPlayerId, payload: {} }, Date.now());
 
     let current = coordinator.getState()!;
     while (current.phase !== "ACTION" && current.status !== "FINISHED") {

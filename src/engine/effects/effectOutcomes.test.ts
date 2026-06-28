@@ -85,7 +85,7 @@ describe("structured effect outcomes", () => {
 });
 
 function setupActionState(): MatchState {
-  return forcePhase(createMatch({ seed: "effect-outcomes" }), "ACTION");
+  return forcePhase(createMatch({ startingPlayerId: "P1",  seed: "effect-outcomes" }), "ACTION");
 }
 
 function forceCardToHand(state: MatchState, playerId: PlayerId, definitionId: string): MatchState {

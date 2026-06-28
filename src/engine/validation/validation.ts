@@ -4,17 +4,23 @@ import { engineConfig } from "../config/config";
 import { validateEffect } from "../effects/effectEngine";
 
 export function validateAction(state: MatchState, action: Action): ValidationResult {
+  if (action.type === "START_MATCH") {
+    return state.actionLog.length === 0 && action.payload.seed === state.rng.seed
+      ? valid()
+      : invalid(["START_MATCH is only valid before a MatchState exists"]);
+  }
+
   const baseErrors = validateBaseAction(state, action.playerId);
 
   if (baseErrors.length > 0) {
     return invalid(baseErrors);
   }
 
+  if (state.pregameStep === "STARTER_REVEAL" && action.type !== "ACKNOWLEDGE_STARTER") {
+    return invalid(["Pregame starter reveal must be acknowledged before gameplay"]);
+  }
+
   switch (action.type) {
-    case "START_MATCH":
-      return state.actionLog.length === 0 && action.payload.seed === state.rng.seed
-        ? valid()
-        : invalid(["START_MATCH is only valid before a MatchState exists"]);
     case "ADVANCE_PHASE":
       return valid();
     case "END_TURN":
@@ -29,6 +35,10 @@ export function validateAction(state: MatchState, action: Action): ValidationRes
       return validateRecycle(state, action.playerId, action.payload.cardInstanceId);
     case "UNDO_LAST_REVERSIBLE_ACTION":
       return validateUndo(state, action.playerId);
+    case "ACKNOWLEDGE_STARTER":
+      return state.pregameStep === "STARTER_REVEAL"
+        ? valid()
+        : invalid(["Starter has already been acknowledged"]);
   }
 }
 

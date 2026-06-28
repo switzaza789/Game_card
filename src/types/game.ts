@@ -2,6 +2,8 @@ export type CardCategory = "Animal" | "Support" | "Weakness" | "Special";
 
 export type Phase = "READY" | "DRAW" | "SCORE" | "ACTION" | "END";
 
+export type PregameStep = "STARTER_REVEAL" | "COMPLETE";
+
 export type PlayerId = "P1" | "P2";
 
 export type MatchStatus = "READY" | "ACTIVE" | "FINISHED";
@@ -164,6 +166,8 @@ export type MatchState = {
   players: Record<PlayerId, PlayerState>;
   cardsByInstanceId: Record<string, CardInstance | AnimalInstance>;
   currentPlayerId: PlayerId;
+  startingPlayerId: PlayerId;
+  pregameStep: PregameStep;
   phase: Phase;
   turnNumber: number;
   targetScore: number;
@@ -230,6 +234,11 @@ export type Action =
     }
   | {
       type: "UNDO_LAST_REVERSIBLE_ACTION";
+      playerId: PlayerId;
+      payload: Record<string, never>;
+    }
+  | {
+      type: "ACKNOWLEDGE_STARTER";
       playerId: PlayerId;
       payload: Record<string, never>;
     };

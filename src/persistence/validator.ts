@@ -218,9 +218,15 @@ export function validateStoredMatch(data: unknown): StorageResult<PersistedActiv
     }
   }
 
-  // Set legacy default for targetScore if missing
+  // Set legacy defaults for targetScore / startingPlayerId / pregameStep
   if (typeof state.targetScore !== "number" || state.targetScore < 1) {
-    state.targetScore = 15;
+    state.targetScore = 10;
+  }
+  if (typeof state.startingPlayerId !== "string" || !["P1", "P2"].includes(state.startingPlayerId)) {
+    state.startingPlayerId = ["P1", "P2"].includes(state.currentPlayerId) ? state.currentPlayerId : "P1";
+  }
+  if (typeof state.pregameStep !== "string" || !["STARTER_REVEAL", "COMPLETE"].includes(state.pregameStep)) {
+    state.pregameStep = "COMPLETE";
   }
 
   if (errors.length > 0) {

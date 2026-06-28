@@ -590,7 +590,7 @@ function scoreResolution(state: MatchState): StructuredScoreResolution {
 }
 
 function setupActionState(): MatchState {
-  return forcePhase(createMatch({ seed: "phase-3-effects" }), "ACTION");
+  return forcePhase(createMatch({ startingPlayerId: "P1",  seed: "phase-3-effects" }), "ACTION");
 }
 
 function play(state: MatchState, playerId: PlayerId, definitionId: string, target?: ReturnType<typeof targetOf>) {

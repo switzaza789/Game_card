@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useRef, type RefObject } from "react";
 import { runPveNormalAiTurn } from "../ai/aiTurnController";
 import { preparePveHumanTurnToAction } from "./pveHumanTurnController";
+import { StarterReveal } from "./StarterReveal";
 import { cardCatalog } from "../data/cardsSeed";
 import { gameConfig } from "../data/gameConfig";
 import { getCardDefinition, isAnimalInstance } from "../engine/cards/deck";
@@ -201,23 +202,30 @@ export function App() {
       payload: { seed: freshMatch.rng.seed }
     }, timestamp);
 
-    let currentMatch = dispatchResult.state;
-    let loopRes = dispatchResult;
-    while (currentMatch.status !== "FINISHED" && currentMatch.phase !== "ACTION") {
-      loopRes = coordinator.dispatch({
-        type: "ADVANCE_PHASE",
-        playerId: currentMatch.currentPlayerId,
-        payload: {}
-      }, Date.now());
-      currentMatch = loopRes.state;
-    }
-
-    setMatch(currentMatch);
+    setMatch(dispatchResult.state);
     setSelectedCardId(null);
     setMessage(gameMode === "PVE_NORMAL" ? t(locale, "feedback.pveStarted") : t(locale, "feedback.gameStarted"));
     setScreen("battle");
     setHasSavedGame(false);
     clearAnimState();
+  }
+
+  function handleStarterAcknowledged() {
+    if (!match) return;
+
+    let currentMatch = match;
+    const loopRes = coordinator.dispatch({
+      type: "ACKNOWLEDGE_STARTER",
+      playerId: match.currentPlayerId,
+      payload: {}
+    }, Date.now());
+
+    currentMatch = loopRes.state;
+
+    setMatch(currentMatch);
+    setSelectedCardId(null);
+    clearAnimState();
+    setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
   }
 
   function resumeGame() {
@@ -451,7 +459,7 @@ export function App() {
   }
 
   useEffect(() => {
-    if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.currentPlayerId !== "P2" || match.status === "FINISHED") {
+    if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.currentPlayerId !== "P2" || match.status === "FINISHED" || match.pregameStep === "STARTER_REVEAL") {
       return;
     }
     const aiTurnKey = `${match.matchId}:${match.turnNumber}:${match.currentPlayerId}`;
@@ -494,7 +502,7 @@ export function App() {
   }, [coordinator, match, screen]);
 
   useEffect(() => {
-    if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.currentPlayerId !== "P1" || match.status === "FINISHED" || match.phase === "ACTION") {
+    if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.currentPlayerId !== "P1" || match.status === "FINISHED" || match.phase === "ACTION" || match.pregameStep === "STARTER_REVEAL") {
       return;
     }
     const prepKey = `${match.matchId}:${match.turnNumber}:${match.currentPlayerId}`;
@@ -799,7 +807,12 @@ export function App() {
   }
 
   if (screen === "battle" && match) {
+    const starterLabel = match.gameMode === "PVE_NORMAL"
+      ? (match.startingPlayerId === "P1" ? t(locale, "pregame.youGoFirst") : t(locale, "pregame.computerGoesFirst"))
+      : (match.startingPlayerId === "P1" ? t(locale, "pregame.player1GoesFirst") : t(locale, "pregame.player2GoesFirst"));
+
     return (
+      <>
         <BattleScreen
           match={match}
         activePlayerId={match.currentPlayerId}
@@ -847,6 +860,15 @@ export function App() {
           supportAttachAnimSet={supportAttachAnimSet}
           scoreAnimPlayerId={scoreAnimPlayerId}
         />
+        {match.pregameStep === "STARTER_REVEAL" && (
+          <StarterReveal
+            label={starterLabel}
+            title={t(locale, "pregame.choosingStarter")}
+            buttonLabel={t(locale, "pregame.startMatch")}
+            onAcknowledge={handleStarterAcknowledged}
+          />
+        )}
+      </>
     );
   }
 

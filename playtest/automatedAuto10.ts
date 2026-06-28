@@ -53,6 +53,14 @@ export interface AutomatedPlaytestSummary {
   P1Wins: number;
   P2Wins: number;
   draws: number;
+  P1Starts: number;
+  P2Starts: number;
+  starterWins: number;
+  nonStarterWins: number;
+  starterWinRate: string;
+  nonStarterWinRate: string;
+  averageStarterTurns: number;
+  nonTerminatingMatches: number;
   averageTurns: number;
   medianTurns: number;
   averageDurationMs: number;
@@ -81,6 +89,7 @@ export interface BugFinding {
 export interface MatchPlaytestResult {
   matchIndex: number;
   seed: string;
+  startingPlayerId: PlayerId;
   strategies: Record<PlayerId, StrategyName>;
   completed: boolean;
   failed: boolean;
@@ -152,6 +161,7 @@ export function runOneMatch(seed: string, matchIndex: number): MatchPlaytestResu
   };
 
   accept(runtime, { type: "START_MATCH", playerId: "P1", payload: { seed } });
+  accept(runtime, { type: "ACKNOWLEDGE_STARTER", playerId: runtime.state.currentPlayerId, payload: {} });
   completeMulligan(runtime, "P1");
   advanceToAction(runtime);
 
@@ -205,6 +215,7 @@ export function runOneMatch(seed: string, matchIndex: number): MatchPlaytestResu
   }
 
   runtime.observations.acceptedActions = runtime.acceptedActions;
+  runtime.observations.startingPlayerId = runtime.state.startingPlayerId;
   runtime.observations.rejectedActionCount = Object.values(runtime.rejectedReasons).reduce((sum, count) => sum + count, 0);
   runtime.observations.repeatedRejectedActionReason = runtime.rejectedReasons;
   runtime.observations.turns = runtime.state.turnNumber;
@@ -249,6 +260,14 @@ export function aggregateResults(results: MatchPlaytestResult[], commitHash: str
     P1Wins: completed.filter((result) => result.winner === "P1").length,
     P2Wins: completed.filter((result) => result.winner === "P2").length,
     draws: completed.filter((result) => result.winner === "DRAW").length,
+    P1Starts: results.filter((result) => result.startingPlayerId === "P1").length,
+    P2Starts: results.filter((result) => result.startingPlayerId === "P2").length,
+    starterWins: completed.filter((result) => result.winner === result.startingPlayerId).length,
+    nonStarterWins: completed.filter((result) => result.winner && result.winner !== "DRAW" && result.winner !== result.startingPlayerId).length,
+    starterWinRate: percent(completed.filter((result) => result.winner === result.startingPlayerId).length, completed.length),
+    nonStarterWinRate: percent(completed.filter((result) => result.winner && result.winner !== "DRAW" && result.winner !== result.startingPlayerId).length, completed.length),
+    averageStarterTurns: average(completed.map((result) => result.turns)),
+    nonTerminatingMatches: results.filter((result) => !result.completed).length,
     averageTurns: average(turns),
     medianTurns: median(turns),
     averageDurationMs: average(completed.map((result) => result.durationMs)),
@@ -632,6 +651,7 @@ function emptyMatchResult(seed: string, matchIndex: number, strategies: Record<P
   return {
     matchIndex,
     seed,
+    startingPlayerId: "P1",
     strategies,
     completed: false,
     failed: false,
@@ -747,7 +767,7 @@ function topEntries(map: Record<string, number>, count: number): Array<[string, 
 
 function buildReport(summary: AutomatedPlaytestSummary): string {
   const outcomeRows = summary.perMatchResults.map((result) =>
-    `| ${result.matchIndex} | ${result.seed} | ${result.winner ?? "-"} | ${result.finishReason ?? "-"} | ${result.turns} | ${result.recycleCount} | ${result.persistenceResult} | ${result.bugs.length} |`
+    `| ${result.matchIndex} | ${result.seed} | ${result.startingPlayerId} | ${result.winner ?? "-"} | ${result.finishReason ?? "-"} | ${result.turns} | ${result.recycleCount} | ${result.persistenceResult} | ${result.bugs.length} |`
   ).join("\n");
   const usageRows = topEntries(summary.totalCardUsage, 20).map(([card, count]) => `| ${cardName(card)} | ${card} | ${count} |`).join("\n");
   const scoreRows = topEntries(summary.scoreContribution, 20).map(([card, score]) => `| ${cardName(card)} | ${card} | ${score} |`).join("\n");
@@ -769,8 +789,8 @@ This was automated synthetic playtesting, not human playtesting. No human opinio
 
 ## 3. Match results
 
-| Match | Seed | Winner | Finish reason | Turns | Recycles | Persistence | Bugs |
-| --- | --- | --- | --- | ---: | ---: | --- | ---: |
+| Match | Seed | Starter | Winner | Finish reason | Turns | Recycles | Persistence | Bugs |
+| --- | --- | --- | --- | --- | ---: | ---: | --- | ---: |
 ${outcomeRows}
 
 ## 4. Aggregate statistics
@@ -779,8 +799,14 @@ ${outcomeRows}
 - P1 win rate: ${percent(summary.P1Wins, summary.completedMatches)}
 - P2 win rate: ${percent(summary.P2Wins, summary.completedMatches)}
 - Draw rate: ${percent(summary.draws, summary.completedMatches)}
+- P1 starts: ${summary.P1Starts}
+- P2 starts: ${summary.P2Starts}
+- Starter wins: ${summary.starterWins} (${summary.starterWinRate})
+- Non-starter wins: ${summary.nonStarterWins} (${summary.nonStarterWinRate})
+- Non-terminating matches: ${summary.nonTerminatingMatches}
 - Average turns: ${summary.averageTurns}
 - Median turns: ${summary.medianTurns}
+- Average turns by starter: ${summary.averageStarterTurns}
 - Average deterministic duration: ${summary.averageDurationMs} ms
 
 ## 5. Card usage frequency

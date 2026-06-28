@@ -104,7 +104,7 @@ describe("Normal PvE AI", () => {
 });
 
 function p2ActionState(seed: string): MatchState {
-  return { ...forcePhase(createMatch({ seed, gameMode: "PVE_NORMAL" }), "ACTION"), currentPlayerId: "P2" };
+  return { ...forcePhase(createMatch({ startingPlayerId: "P1",  seed, gameMode: "PVE_NORMAL" }), "ACTION"), currentPlayerId: "P2" };
 }
 
 function dispatch(state: MatchState, action: Parameters<typeof dispatchAction>[1]["action"]): MatchState {

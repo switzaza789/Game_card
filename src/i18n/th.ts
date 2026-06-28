@@ -430,5 +430,11 @@ export const th = {
   "recycle.reason.noCard": "เลือกการ์ดในมือก่อน",
   "recycle.reason.used": "ใช้เปลี่ยนการ์ดในเทิร์นนี้แล้ว",
   "recycle.reason.unavailable": "ไม่สามารถเปลี่ยนการ์ดในช่วงนี้ได้",
-  "recycle.cancel": "ยกเลิกเปลี่ยนการ์ด"
+  "recycle.cancel": "ยกเลิกเปลี่ยนการ์ด",
+  "pregame.choosingStarter": "กำลังสุ่มผู้เริ่มก่อน\u2026",
+  "pregame.youGoFirst": "คุณได้เริ่มก่อน",
+  "pregame.computerGoesFirst": "คอมพิวเตอร์ได้เริ่มก่อน",
+  "pregame.player1GoesFirst": "ผู้เล่น 1 ได้เริ่มก่อน",
+  "pregame.player2GoesFirst": "ผู้เล่น 2 ได้เริ่มก่อน",
+  "pregame.startMatch": "เริ่มเกม"
 } satisfies Record<TranslationKey, string>;

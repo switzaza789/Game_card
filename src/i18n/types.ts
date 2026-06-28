@@ -433,6 +433,12 @@ export type TranslationKey =
   | "recycle.reason.noCard"
   | "recycle.reason.used"
   | "recycle.reason.unavailable"
-  | "recycle.cancel";
+  | "recycle.cancel"
+  | "pregame.choosingStarter"
+  | "pregame.youGoFirst"
+  | "pregame.computerGoesFirst"
+  | "pregame.player1GoesFirst"
+  | "pregame.player2GoesFirst"
+  | "pregame.startMatch";
 
 export type TranslationParams = Record<string, string | number>;

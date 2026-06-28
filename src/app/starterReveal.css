@@ -1,0 +1,73 @@
+.starter-reveal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(15, 23, 42, 0.62);
+}
+
+.starter-reveal-card {
+  width: min(420px, 100%);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1.25rem;
+  text-align: center;
+  color: var(--ink);
+  background: var(--panel);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.28);
+}
+
+.starter-reveal-card h2 {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+}
+
+.starter-reveal-versus {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.starter-reveal-versus span {
+  width: 54px;
+  height: 76px;
+  border: 2px solid #334155;
+  border-radius: 8px;
+  background: repeating-linear-gradient(135deg, #1f2937 0 8px, #475569 8px 16px);
+  animation: starterFlip 780ms ease-out both;
+}
+
+.starter-reveal-versus span + span {
+  animation-delay: 120ms;
+}
+
+.starter-reveal-player {
+  margin: 0.5rem 0 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+
+.starter-reveal-button {
+  margin-top: 1rem;
+  min-height: 44px;
+}
+
+@keyframes starterFlip {
+  0% {
+    transform: rotateY(90deg) translateY(4px);
+    opacity: 0.3;
+  }
+  100% {
+    transform: rotateY(0deg) translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .starter-reveal-versus span {
+    animation: none;
+  }
+}

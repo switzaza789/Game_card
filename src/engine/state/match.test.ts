@@ -22,6 +22,25 @@ describe("match initialization", () => {
     expect(Object.keys(first.cardsByInstanceId)).toHaveLength(48);
   });
 
+  it("chooses and preserves the starting player deterministically during setup", () => {
+    const first = createMatch({ seed: "starter-seed" });
+    const second = createMatch({ seed: "starter-seed" });
+
+    expect(first.startingPlayerId).toBe(second.startingPlayerId);
+    expect(first.currentPlayerId).toBe(first.startingPlayerId);
+    expect(first.pregameStep).toBe("STARTER_REVEAL");
+    expect(first.targetScore).toBe(10);
+    expect(first.rng).toEqual(second.rng);
+  });
+
+  it("can produce either player as deterministic starter across seeds", () => {
+    const starters = new Set(
+      Array.from({ length: 20 }, (_, index) => createMatch({ seed: `starter-${index}` }).startingPlayerId)
+    );
+
+    expect(starters).toEqual(new Set(["P1", "P2"]));
+  });
+
   it("guarantees at least one Animal in each starting hand", () => {
     const state = createMatch({ seed: "animal-guarantee" });
 

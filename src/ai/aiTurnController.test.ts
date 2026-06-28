@@ -6,7 +6,7 @@ import { runPveNormalAiTurn } from "./aiTurnController";
 
 describe("PvE AI turn controller", () => {
   it("ends each AI turn once and returns control to playable P1 cycles", () => {
-    let state = forcePhase(createMatch({ seed: "pve-duplicate-end-turn", gameMode: "PVE_NORMAL" }), "ACTION");
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "pve-duplicate-end-turn", gameMode: "PVE_NORMAL" }), "ACTION");
     const actions: Action[] = [];
 
     for (let cycle = 0; cycle < 3; cycle += 1) {
@@ -40,7 +40,7 @@ describe("PvE AI turn controller", () => {
   });
 
   it("does not dispatch from a stale callback after ownership changes to P1", () => {
-    let state = forcePhase(createMatch({ seed: "stale-ai-callback", gameMode: "PVE_NORMAL" }), "ACTION");
+    let state = forcePhase(createMatch({ startingPlayerId: "P1",  seed: "stale-ai-callback", gameMode: "PVE_NORMAL" }), "ACTION");
     state = { ...state, currentPlayerId: "P1" };
     const actions: Action[] = [];
     const result = runPveNormalAiTurn({
@@ -58,7 +58,7 @@ describe("PvE AI turn controller", () => {
   });
 
   it("action-limit fallback dispatches exactly one END_TURN", () => {
-    let state: MatchState = { ...forcePhase(createMatch({ seed: "ai-action-limit", gameMode: "PVE_NORMAL" }), "ACTION"), currentPlayerId: "P2" };
+    let state: MatchState = { ...forcePhase(createMatch({ startingPlayerId: "P1",  seed: "ai-action-limit", gameMode: "PVE_NORMAL" }), "ACTION"), currentPlayerId: "P2" };
     const actions: Action[] = [];
     const result = runPveNormalAiTurn({
       getState: () => state,
