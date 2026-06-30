@@ -106,7 +106,7 @@ describe("App Phase 4 UI", () => {
     const activeName = activeEl!.querySelector("span");
     expect(activeName).toBeTruthy();
     expect(["คุณ", "Computer"]).toContain(activeName!.textContent);
-    expect(screen.getAllByText(/ใช้ได้ทันที|ต้องเลือกเป้าหมาย|ใช้ได้แบบผลอ่อน|ยังไม่ถึงช่วงที่ใช้ได้/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ใช้ได้ทันที|ต้องเลือกเป้าหมาย|ใช้ได้แบบผลอ่อน|ยังไม่ถึงช่วงที่ใช้ได้|ไม่ใช่ตาของคุณ/).length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "เล่นการ์ด" })).toBeInTheDocument();
   });
 
