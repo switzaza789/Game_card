@@ -439,6 +439,11 @@ export type TranslationKey =
   | "pregame.computerGoesFirst"
   | "pregame.player1GoesFirst"
   | "pregame.player2GoesFirst"
-  | "pregame.startMatch";
+  | "pregame.startMatch"
+  | "pregame.openingDraw"
+  | "pregame.drawCard"
+  | "pregame.openingProgress"
+  | "pregame.opponentDrawing"
+  | "pregame.mulliganHint";
 
 export type TranslationParams = Record<string, string | number>;

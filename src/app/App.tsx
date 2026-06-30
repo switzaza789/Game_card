@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef, type RefObject } from "react";
 import { runPveNormalAiTurn } from "../ai/aiTurnController";
 import { preparePveHumanTurnToAction } from "./pveHumanTurnController";
 import { StarterReveal } from "./StarterReveal";
+import { OpeningDrawPanel } from "./OpeningDrawPanel";
 import { cardCatalog } from "../data/cardsSeed";
 import { gameConfig } from "../data/gameConfig";
 import { getCardDefinition, isAnimalInstance } from "../engine/cards/deck";
@@ -102,6 +103,7 @@ export function App() {
   const lastFeedbackExportRef = useRef<string | null>(null);
   const aiExecutionRef = useRef<string | null>(null);
   const humanTurnPrepRef = useRef<string | null>(null);
+  const aiOpeningDrawRef = useRef<string | null>(null);
   const [toastFeedback, setToastFeedback] = useState<ToastFeedback | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -226,6 +228,44 @@ export function App() {
     setSelectedCardId(null);
     clearAnimState();
     setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
+  }
+
+  function handleDrawOpeningCard() {
+    if (!match || match.pregameStep !== "OPENING_DRAW") return;
+
+    const result = coordinator.dispatch({
+      type: "DRAW_OPENING_CARD",
+      playerId: match.openingDrawPlayerId,
+      payload: {}
+    }, Date.now());
+
+    setMatch(result.state);
+    setSelectedCardId(null);
+    clearAnimState();
+  }
+
+  function handleOpeningReady(cardInstanceIds: string[] = []) {
+    if (!match || match.pregameStep !== "COMPLETE" || match.phase !== "READY") return;
+
+    let currentMatch = coordinator.dispatch({
+      type: "MULLIGAN",
+      playerId: match.currentPlayerId,
+      payload: { cardInstanceIds }
+    }, Date.now()).state;
+
+    while (currentMatch.status !== "FINISHED" && currentMatch.pregameStep === "COMPLETE" && currentMatch.phase !== "ACTION") {
+      currentMatch = coordinator.dispatch({
+        type: "ADVANCE_PHASE",
+        playerId: currentMatch.currentPlayerId,
+        payload: {}
+      }, Date.now()).state;
+    }
+
+    setMatch(currentMatch);
+    setSelectedCardId(null);
+    clearAnimState();
+    setScreen(currentMatch.status === "FINISHED" ? "result" : "battle");
+    setMessage(currentMatch.phase === "ACTION" ? t(locale, "feedback.yourTurn") : t(locale, "feedback.preparingTurn"));
   }
 
   function resumeGame() {
@@ -459,7 +499,7 @@ export function App() {
   }
 
   useEffect(() => {
-    if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.currentPlayerId !== "P2" || match.status === "FINISHED" || match.pregameStep === "STARTER_REVEAL") {
+    if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.currentPlayerId !== "P2" || match.status === "FINISHED" || match.pregameStep !== "COMPLETE") {
       return;
     }
     const aiTurnKey = `${match.matchId}:${match.turnNumber}:${match.currentPlayerId}`;
@@ -502,7 +542,44 @@ export function App() {
   }, [coordinator, match, screen]);
 
   useEffect(() => {
-    if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.currentPlayerId !== "P1" || match.status === "FINISHED" || match.phase === "ACTION" || match.pregameStep === "STARTER_REVEAL") {
+    if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.status === "FINISHED" || match.pregameStep !== "OPENING_DRAW" || match.openingDrawPlayerId !== "P2") {
+      return;
+    }
+    const drawKey = `${match.matchId}:opening-draw:${match.openingDrawRemaining.P2}`;
+    if (aiOpeningDrawRef.current === drawKey) {
+      return;
+    }
+    aiOpeningDrawRef.current = drawKey;
+    const timer = window.setTimeout(() => {
+      try {
+        const latest = coordinator.getState() ?? match;
+        if (latest.pregameStep !== "OPENING_DRAW" || latest.openingDrawPlayerId !== "P2") {
+          return;
+        }
+        const result = coordinator.dispatch({
+          type: "DRAW_OPENING_CARD",
+          playerId: "P2",
+          payload: {}
+        }, Date.now());
+        setMatch(result.state);
+        setSelectedCardId(null);
+        clearAnimState();
+      } finally {
+        if (aiOpeningDrawRef.current === drawKey) {
+          aiOpeningDrawRef.current = null;
+        }
+      }
+    }, 250);
+    return () => {
+      window.clearTimeout(timer);
+      if (aiOpeningDrawRef.current === drawKey) {
+        aiOpeningDrawRef.current = null;
+      }
+    };
+  }, [coordinator, match, screen]);
+
+  useEffect(() => {
+    if (!match || screen !== "battle" || match.gameMode !== "PVE_NORMAL" || match.currentPlayerId !== "P1" || match.status === "FINISHED" || match.phase === "ACTION" || match.pregameStep !== "COMPLETE") {
       return;
     }
     const prepKey = `${match.matchId}:${match.turnNumber}:${match.currentPlayerId}`;
@@ -868,6 +945,21 @@ export function App() {
             onAcknowledge={handleStarterAcknowledged}
           />
         )}
+        {match.pregameStep === "OPENING_DRAW" && (
+          <OpeningDrawPanel
+            locale={locale}
+            match={match}
+            onDrawCard={handleDrawOpeningCard}
+          />
+        )}
+        {match.pregameStep === "COMPLETE" && match.phase === "READY" && match.turnNumber === 1 && (
+          <OpeningDrawPanel
+            locale={locale}
+            match={match}
+            onDrawCard={handleDrawOpeningCard}
+            onReady={handleOpeningReady}
+          />
+        )}
       </>
     );
   }
@@ -1123,8 +1215,11 @@ function BattleScreen(props: {
 }) {
   const { match, activePlayerId, opponentId, selectedCardId, selectedDefinition } = props;
   const controlsDisabled = Boolean(props.controlsDisabled);
-  const isAiTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2";
-  const isPreparingHumanTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P1" && match.phase !== "ACTION";
+  const isAiTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P2" && match.pregameStep === "COMPLETE";
+  const isPreparingHumanTurn = match.gameMode === "PVE_NORMAL" && match.currentPlayerId === "P1" && match.phase !== "ACTION" && match.pregameStep === "COMPLETE";
+  const bottomPlayerId = match.gameMode === "PVE_NORMAL" ? "P1" : activePlayerId;
+  const topPlayerId = match.gameMode === "PVE_NORMAL" ? "P2" : opponentId;
+  const viewerId = match.gameMode === "PVE_NORMAL" ? "P1" : activePlayerId;
   const resetConfirmButtonRef = useRef<HTMLButtonElement>(null);
 const [gameMenuOpen, setGameMenuOpen] = useState(false);
 const gameMenuRef = useRef<HTMLDivElement>(null);
@@ -1264,7 +1359,7 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
             <span className="utility-status">{match.players[activePlayerId].utilityLocked ? t(props.locale, "label.utilityUsed") : match.players[activePlayerId].utilityActionUsed ? t(props.locale, "label.utilityUsed") : t(props.locale, "label.utilityAvailable")}</span>
           </div>
           <div className="hud-secondary-right">
-            <span>{t(props.locale, "label.deck")} {match.players[opponentId].deck.length} | {t(props.locale, "label.hand")} {match.players[opponentId].hand.length}</span>
+            <span>{t(props.locale, "label.deck")} {match.players[topPlayerId].deck.length} | {t(props.locale, "label.hand")} {match.players[topPlayerId].hand.length}</span>
             <button ref={gameMenuTriggerRef} type="button" className="game-menu-trigger" aria-label={t(props.locale, "menu.settings")} aria-expanded={gameMenuOpen} aria-controls="game-menu-popover" onClick={() => setGameMenuOpen((o) => !o)}>{t(props.locale, "menu.settings")}</button>
           </div>
         </div>
@@ -1304,13 +1399,13 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
             onToggle={() => setScoreDetailsOpen((open) => !open)}
           />
         )}
-        <HiddenHand count={match.players[opponentId].hand.length} locale={props.locale} />
-        <div className="zone-label">{t(props.locale, "label.player2")}</div>
-        <BoardRow match={match} ownerId={opponentId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} filledNewAnimSet={props.filledNewAnimSet} supportAttachAnimSet={props.supportAttachAnimSet} />
+        <HiddenHand count={match.players[topPlayerId].hand.length} locale={props.locale} />
+        <div className="zone-label">{playerNameForMode(topPlayerId, match.gameMode, props.locale)}</div>
+        <BoardRow match={match} ownerId={topPlayerId} viewerId={viewerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} filledNewAnimSet={props.filledNewAnimSet} supportAttachAnimSet={props.supportAttachAnimSet} />
         <div className="divider" />
-        <BoardAnimalSlots match={match} ownerId={activePlayerId} viewerId={activePlayerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} filledNewAnimSet={props.filledNewAnimSet} supportAttachAnimSet={props.supportAttachAnimSet} />
-        <BoardResourceRow match={match} ownerId={activePlayerId} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} />
-        <div className="zone-label">{t(props.locale, "label.you")} — {t(props.locale, "label.score")} {match.players[activePlayerId].score} / {match.targetScore}</div>
+        <BoardAnimalSlots match={match} ownerId={bottomPlayerId} viewerId={viewerId} selectedDefinition={controlsDisabled ? null : selectedDefinition} onTarget={props.onPlaySelected} onSelectEmptySlot={props.onSelectEmptySlot} locale={props.locale} activeSourceInstanceIds={activeSourceInstanceIds} activeTargetInstanceIds={activeTargetInstanceIds} eventByInstanceId={eventByInstanceId} scoreContributionByAnimalId={scoreContributionByAnimalId} filledNewAnimSet={props.filledNewAnimSet} supportAttachAnimSet={props.supportAttachAnimSet} />
+        <BoardResourceRow match={match} ownerId={bottomPlayerId} onOpenGraveyard={props.onOpenGraveyard} locale={props.locale} />
+        <div className="zone-label">{playerNameForMode(bottomPlayerId, match.gameMode, props.locale)} — {t(props.locale, "label.score")} {match.players[bottomPlayerId].score} / {match.targetScore}</div>
       </section>
 
       {/* Action Context Strip */}
@@ -1341,17 +1436,17 @@ const scoreDeltas = scoreDeltaByPlayer(lastLogEntry);
 
       {/* Player Hand */}
       <section className="player-hand-section" aria-label={t(props.locale, "label.playerHand")} tabIndex={0}>
-        {match.players[activePlayerId].hand.map((id) => {
+        {match.players[bottomPlayerId].hand.map((id) => {
           const definition = getCardDefinition(match.cardsByInstanceId[id].definitionId);
-          const playability = getCardPlayability(match, activePlayerId, id);
+          const playability = getCardPlayability(match, bottomPlayerId, id);
           const localizedCard = getLocalizedCard(definition.card_id, props.locale);
           const localizedPlayabilityLabel = localizePlayabilityLabel(playability, props.locale);
           const localizedCategory = localizedCategoryLabel(definition.category, props.locale);
-          const playerState = match.players[activePlayerId];
+          const playerState = match.players[bottomPlayerId];
           const isAnimal = definition.category === "Animal";
           const usedThisTurn = isAnimal ? playerState.animalActionUsed : (playerState.utilityActionUsed || playerState.utilityLocked);
           const isSelected = id === selectedCardId;
-          const recycleInvalid = getRecycleInvalidReason(match, activePlayerId, props.locale);
+          const recycleInvalid = getRecycleInvalidReason(match, bottomPlayerId, props.locale);
           const isRecyclable = props.recycleMode && !recycleInvalid;
           let cardState: string;
           if (props.recycleMode) {

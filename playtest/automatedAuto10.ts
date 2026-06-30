@@ -162,7 +162,8 @@ export function runOneMatch(seed: string, matchIndex: number): MatchPlaytestResu
 
   accept(runtime, { type: "START_MATCH", playerId: "P1", payload: { seed } });
   accept(runtime, { type: "ACKNOWLEDGE_STARTER", playerId: runtime.state.currentPlayerId, payload: {} });
-  completeMulligan(runtime, "P1");
+  completeOpeningDraws(runtime);
+  completeMulligan(runtime, runtime.state.currentPlayerId);
   advanceToAction(runtime);
 
   while (runtime.state.status !== "FINISHED" && runtime.acceptedActions <= 500) {
@@ -357,6 +358,13 @@ function accept(runtime: RuntimeMatch, action: Action): void {
   runtime.acceptedActions += 1;
   recordAction(runtime, action, before, result.state);
   assertValidSerializableState(runtime.state);
+}
+
+function completeOpeningDraws(runtime: RuntimeMatch): void {
+  while (runtime.state.pregameStep === "OPENING_DRAW") {
+    const pid = runtime.state.openingDrawPlayerId;
+    accept(runtime, { type: "DRAW_OPENING_CARD", playerId: pid, payload: {} });
+  }
 }
 
 function completeMulligan(runtime: RuntimeMatch, playerId: PlayerId): void {

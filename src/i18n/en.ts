@@ -436,5 +436,10 @@ export const en = {
   "pregame.computerGoesFirst": "Computer goes first",
   "pregame.player1GoesFirst": "Player 1 goes first",
   "pregame.player2GoesFirst": "Player 2 goes first",
-  "pregame.startMatch": "Start Match"
+  "pregame.startMatch": "Start Match",
+  "pregame.openingDraw": "Opening Draw",
+  "pregame.drawCard": "Draw Card",
+  "pregame.openingProgress": "You: {human}/{total} | {opponent}: {opponent}/{total}",
+  "pregame.opponentDrawing": "Opponent is drawing",
+  "pregame.mulliganHint": "Select cards to redraw, or press ready to keep them all"
 } satisfies Record<TranslationKey, string>;

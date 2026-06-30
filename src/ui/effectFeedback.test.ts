@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createMatch } from "../engine/state/match";
+import { createMatch, drawCards } from "../engine/state/match";
 import type { ActionLogEntry, EffectOutcome } from "../types/game";
 import { formatActionLogEntry, localizedStatusLabel, renderActionFeedback, renderCombatOutcomeLines, statusDisplayMeta, statusLabel, summarizeOutcomes, type FeedbackSeverity, type ToastFeedback } from "./effectFeedback";
 
 describe("effect feedback display", () => {
   it("keeps raw outcome codes language-independent while rendering Thai summaries", () => {
     const state = createMatch({ seed: "feedback-display" });
+    drawCards(state, "P1", 1);
     const outcomes: EffectOutcome[] = [
       { code: "CARD_PLAYED", cardInstanceId: state.players.P1.hand[0], definitionId: state.cardsByInstanceId[state.players.P1.hand[0]].definitionId, playerId: "P1" },
       { code: "LEVEL_CHANGED", targetInstanceId: "P1-A001-1", fromLevel: 1, toLevel: 2 }
@@ -70,6 +71,8 @@ describe("effect feedback display", () => {
 
   it("formats opponent-target, score-change, prevention, and legacy action log entries in Thai", () => {
     const state = createMatch({ seed: "combat-display", gameMode: "PVE_NORMAL" });
+    drawCards(state, "P1", 1);
+    drawCards(state, "P2", 1);
     const source = state.players.P2.hand[0];
     const target = state.players.P1.hand[0];
     const entry: ActionLogEntry = {
@@ -100,6 +103,8 @@ describe("effect feedback display", () => {
 
   it("formats action log entries in English", () => {
     const state = createMatch({ seed: "combat-display-en", gameMode: "PVE_NORMAL" });
+    drawCards(state, "P1", 1);
+    drawCards(state, "P2", 1);
     const source = state.players.P2.hand[0];
     const target = state.players.P1.hand[0];
     const entry: ActionLogEntry = {
@@ -152,6 +157,7 @@ describe("effect feedback display", () => {
 
   it("shows localized card names in log entries", () => {
     const state = createMatch({ seed: "card-name-test" });
+    drawCards(state, "P1", 1);
     const cardId = state.players.P1.hand[0];
     const entry: ActionLogEntry = {
       seq: 1,
@@ -201,6 +207,7 @@ describe("effect feedback display", () => {
 describe("renderActionFeedback — centered action feedback", () => {
   it("renders Thai recycle success feedback with card names", () => {
     const state = createMatch({ seed: "recycle-th" });
+    drawCards(state, "P1", 1);
     const cardId = state.players.P1.hand[0];
     const feedback = renderActionFeedback(state, {
       type: "recycle",
@@ -219,6 +226,7 @@ describe("renderActionFeedback — centered action feedback", () => {
 
   it("renders English recycle success feedback with card names", () => {
     const state = createMatch({ seed: "recycle-en" });
+    drawCards(state, "P1", 1);
     const cardId = state.players.P1.hand[0];
     const feedback = renderActionFeedback(state, {
       type: "recycle",
@@ -267,6 +275,7 @@ describe("renderActionFeedback — centered action feedback", () => {
 
   it("renders play failed feedback in both locales", () => {
     const state = createMatch({ seed: "play-fail" });
+    drawCards(state, "P1", 1);
     const cardId = state.players.P1.hand[0];
     const thai = renderActionFeedback(state, { type: "playFailed", cardInstanceId: cardId, reason: "ไม่สามารถใช้ได้" }, "th");
     expect(thai[0]).toContain("ไม่สำเร็จ");
@@ -286,6 +295,8 @@ describe("renderActionFeedback — centered action feedback", () => {
 
   it("renders combat feedback through ActionFeedback", () => {
     const state = createMatch({ seed: "combat-fb", gameMode: "PVE_NORMAL" });
+    drawCards(state, "P1", 1);
+    drawCards(state, "P2", 1);
     const source = state.players.P2.hand[0];
     const target = state.players.P1.hand[0];
     const entry: ActionLogEntry = {
@@ -321,6 +332,7 @@ describe("renderActionFeedback — centered action feedback", () => {
 
   it("does not mutate match state when rendering feedback", () => {
     const state = createMatch({ seed: "no-mutate" });
+    drawCards(state, "P1", 1);
     const beforeScore = state.players.P1.score;
     const cardId = state.players.P1.hand[0];
     renderActionFeedback(state, { type: "recycle", success: true, selectedCardInstanceId: cardId }, "th");
@@ -329,6 +341,7 @@ describe("renderActionFeedback — centered action feedback", () => {
 
   it("displays localized card names matching the selected locale in recycle feedback", () => {
     const state = createMatch({ seed: "card-names-locale" });
+    drawCards(state, "P1", 1);
     const cardId = state.players.P1.hand[0];
     const thDef = renderActionFeedback(state, { type: "recycle", success: true, selectedCardInstanceId: cardId }, "th");
     const enDef = renderActionFeedback(state, { type: "recycle", success: true, selectedCardInstanceId: cardId }, "en");
@@ -439,6 +452,7 @@ describe("Phase 2 — FeedbackSeverity, ToastFeedback, ADVANCE_PHASE filtering",
 
   it("formatActionLogEntry returns string for non-ADVANCE_PHASE entries", () => {
     const state = createMatch({ seed: "non-adv-phase" });
+    drawCards(state, "P1", 1);
     const entry: ActionLogEntry = {
       seq: 1,
       action: { type: "PLAY_CARD", playerId: "P1", payload: { cardInstanceId: state.players.P1.hand[0] } },

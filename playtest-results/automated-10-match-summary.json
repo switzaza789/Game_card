@@ -10,83 +10,81 @@
   "targetScoreFinishes": 10,
   "turnLimitFinishes": 0,
   "stuckMatches": 0,
-  "P1Wins": 8,
-  "P2Wins": 2,
+  "P1Wins": 9,
+  "P2Wins": 1,
   "draws": 0,
   "P1Starts": 6,
   "P2Starts": 4,
-  "starterWins": 8,
-  "nonStarterWins": 2,
-  "starterWinRate": "80%",
-  "nonStarterWinRate": "20%",
-  "averageStarterTurns": 6,
+  "starterWins": 7,
+  "nonStarterWins": 3,
+  "starterWinRate": "70%",
+  "nonStarterWinRate": "30%",
+  "averageStarterTurns": 5.9,
   "nonTerminatingMatches": 0,
-  "averageTurns": 6,
+  "averageTurns": 5.9,
   "medianTurns": 6,
-  "averageDurationMs": 57300,
+  "averageDurationMs": 67800,
   "averageRecycleCount": 1.8,
-  "totalLevel3Evolutions": 7,
-  "averageEvolutionsPerMatch": 0.7,
+  "totalLevel3Evolutions": 8,
+  "averageEvolutionsPerMatch": 0.8,
   "evolutionTurns": [
     5,
     6,
     5,
     6,
+    4,
     5,
-    7,
+    5,
     4
   ],
   "cardsMostFrequentlyReachingLevel3": {
     "A002": 2,
-    "A001": 3,
+    "A001": 4,
     "A003": 1,
     "A006": 1
   },
-  "matchesEndingBeforeAnyEvolution": 4,
+  "matchesEndingBeforeAnyEvolution": 3,
   "totalCardUsage": {
-    "S002": 8,
-    "S001": 10,
-    "S003": 8,
-    "X004": 5,
-    "A001": 22,
+    "S002": 7,
+    "S001": 13,
+    "S003": 9,
+    "X004": 3,
+    "A001": 20,
     "A002": 17,
-    "A003": 15,
-    "A005": 4,
-    "S006": 4,
-    "W004": 6,
-    "W002": 4,
+    "A003": 14,
+    "A005": 3,
+    "W002": 3,
+    "W004": 5,
     "W005": 6,
-    "A006": 4,
-    "A007": 5,
-    "S005": 2,
+    "A006": 5,
+    "S005": 1,
     "W003": 5,
-    "W001": 4,
-    "A004": 6,
-    "S004": 4,
-    "X001": 2,
+    "A004": 5,
+    "A008": 2,
+    "S004": 3,
+    "S006": 3,
+    "A007": 2,
+    "W001": 3,
+    "X001": 1,
     "X003": 2,
-    "A008": 1
+    "X005": 1
   },
   "scoreContribution": {
-    "A001": 62,
-    "A002": 52,
+    "A001": 67,
+    "A002": 55,
     "A003": 33,
-    "A005": 11,
-    "A004": 14,
-    "A007": 5,
-    "A006": 7,
-    "A008": 1
+    "A005": 7,
+    "A006": 16,
+    "A004": 12,
+    "A007": 4,
+    "A008": 2,
+    "X005": 1
   },
-  "repeatedRejectedActions": {
-    "Action player is not the current player": 4,
-    "MULLIGAN is only valid during READY phase": 5
-  },
+  "repeatedRejectedActions": {},
   "bugs": [],
   "objectiveObservations": [
-    "Repeated rejected-action pattern: Action player is not the current player (4).",
-    "Repeated rejected-action pattern: MULLIGAN is only valid during READY phase (5).",
-    "Preliminary usage signal: A001 22, A002 17, A003 15.",
-    "Preliminary score-contribution signal: A001 62, A002 52, A003 33; requires human verification."
+    "Preliminary usage signal: A001 20, A002 17, A003 14.",
+    "Preliminary score-contribution signal: A001 67, A002 55, A003 33; requires human verification."
   ],
   "seeds": [
     "automated-playtest-001",
@@ -115,12 +113,10 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 6,
-      "acceptedActions": 52,
-      "rejectedActionCount": 1,
-      "repeatedRejectedActionReason": {
-        "Action player is not the current player": 1
-      },
-      "durationMs": 53000,
+      "acceptedActions": 65,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 65000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -206,12 +202,10 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 6,
-      "acceptedActions": 58,
-      "rejectedActionCount": 1,
-      "repeatedRejectedActionReason": {
-        "MULLIGAN is only valid during READY phase": 1
-      },
-      "durationMs": 59000,
+      "acceptedActions": 70,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 70000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -222,12 +216,10 @@
           "A002": 1,
           "A003": 1,
           "A005": 1,
-          "A006": 1,
-          "A007": 1
+          "A006": 1
         }
       },
       "supportCardsUsed": {
-        "S006": 1,
         "S003": 1,
         "S001": 1,
         "S002": 1
@@ -236,16 +228,16 @@
         "S003": 1
       },
       "weaknessCardsUsed": {
-        "W004": 1,
         "W002": 1,
+        "W004": 1,
         "W005": 1
       },
       "directWeaknessHits": {
-        "W002": 1,
-        "W005": 1
+        "W002": 1
       },
       "offTargetWeaknessUses": {
-        "W004": 1
+        "W004": 1,
+        "W005": 1
       },
       "specialCardsUsed": {},
       "namedSpecialUses": {
@@ -264,23 +256,24 @@
         "A003": 1
       },
       "animalsSentToGraveyard": {
-        "A004": 1,
+        "A008": 1,
         "A002": 1,
-        "A006": 1
+        "A004": 1
       },
       "animalsReturnedToHand": {},
       "voluntarySwaps": {},
       "scoreContributionByCard": {
         "A001": 5,
-        "A002": 5,
-        "A003": 8,
-        "A005": 2
+        "A002": 4,
+        "A003": 6,
+        "A005": 2,
+        "A006": 1
       },
       "highestScoringCard": {
-        "cardId": "A003",
-        "nameTh": "กระต่ายว่องไว",
+        "cardId": "A001",
+        "nameTh": "สุนัขจอมซน",
         "score": 5,
-        "ownerId": "P2"
+        "ownerId": "P1"
       },
       "noUsefulLegalActionTurns": 10,
       "onlyRecycleOrEndTurnTurns": 10,
@@ -299,15 +292,13 @@
       "completed": true,
       "failed": false,
       "stuck": false,
-      "winner": "P2",
+      "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 7,
-      "acceptedActions": 69,
-      "rejectedActionCount": 1,
-      "repeatedRejectedActionReason": {
-        "Action player is not the current player": 1
-      },
-      "durationMs": 70000,
+      "acceptedActions": 78,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 78000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -320,30 +311,31 @@
           "A002": 1,
           "A003": 1,
           "A006": 1,
-          "A007": 1
+          "A008": 1
         }
       },
       "supportCardsUsed": {
-        "S005": 1
+        "S005": 1,
+        "S001": 1
       },
-      "matchingSupportsUsed": {},
+      "matchingSupportsUsed": {
+        "S001": 1
+      },
       "weaknessCardsUsed": {
         "W003": 2,
-        "W001": 1,
-        "W004": 2,
+        "W005": 2,
         "W002": 1,
-        "W005": 2
+        "W004": 1
       },
       "directWeaknessHits": {
-        "W001": 1,
         "W002": 1,
-        "W005": 1,
-        "W003": 1
+        "W003": 1,
+        "W005": 1
       },
       "offTargetWeaknessUses": {
         "W003": 1,
-        "W004": 2,
-        "W005": 1
+        "W005": 1,
+        "W004": 1
       },
       "specialCardsUsed": {},
       "namedSpecialUses": {
@@ -360,26 +352,26 @@
       "animalsSentToGraveyard": {
         "A005": 1,
         "A004": 1,
-        "A007": 1,
         "A002": 1,
+        "A007": 1,
         "A006": 1
       },
       "animalsReturnedToHand": {},
       "voluntarySwaps": {},
       "scoreContributionByCard": {
-        "A004": 3,
+        "A001": 7,
+        "A004": 1,
         "A002": 4,
-        "A001": 6,
-        "A003": 4,
-        "A007": 1
+        "A006": 3,
+        "A003": 3
       },
       "highestScoringCard": {
         "cardId": "A001",
         "nameTh": "สุนัขจอมซน",
         "score": 4,
-        "ownerId": "P2"
+        "ownerId": "P1"
       },
-      "noUsefulLegalActionTurns": 12,
+      "noUsefulLegalActionTurns": 11,
       "onlyRecycleOrEndTurnTurns": 11,
       "persistenceScenario": "save and resume during handoff screen with privacy check",
       "persistenceResult": "PASS",
@@ -399,12 +391,10 @@
       "winner": "P2",
       "finishReason": "TARGET_SCORE",
       "turns": 6,
-      "acceptedActions": 56,
-      "rejectedActionCount": 1,
-      "repeatedRejectedActionReason": {
-        "Action player is not the current player": 1
-      },
-      "durationMs": 57000,
+      "acceptedActions": 69,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 69000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -489,84 +479,70 @@
       "stuck": false,
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
-      "turns": 6,
-      "acceptedActions": 57,
-      "rejectedActionCount": 1,
-      "repeatedRejectedActionReason": {
-        "MULLIGAN is only valid during READY phase": 1
-      },
-      "durationMs": 58000,
+      "turns": 5,
+      "acceptedActions": 59,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 59000,
       "animalsPlayed": {
         "P1": {
           "A003": 1,
           "A004": 1,
-          "A005": 1,
-          "A007": 1
+          "A006": 1
         },
         "P2": {
           "A001": 1,
           "A002": 1,
-          "A003": 1,
-          "A004": 1
+          "A003": 1
         }
       },
       "supportCardsUsed": {
         "S001": 2,
-        "S002": 1
+        "S003": 1
       },
       "matchingSupportsUsed": {
-        "S001": 1
+        "S001": 1,
+        "S003": 1
       },
       "weaknessCardsUsed": {
-        "W002": 1,
         "W003": 1
       },
       "directWeaknessHits": {
-        "W002": 1,
         "W003": 1
       },
       "offTargetWeaknessUses": {},
-      "specialCardsUsed": {
-        "X001": 1
-      },
+      "specialCardsUsed": {},
       "namedSpecialUses": {
-        "Lullaby": 1,
+        "Lullaby": 0,
         "Weakness Shield": 0,
         "Quick Swap": 0,
         "Strong Wind": 0,
         "Food Thief": 0
       },
       "recycleCount": 2,
-      "level3Evolutions": 1,
-      "evolutionTurns": [
-        5
-      ],
-      "cardsReachingLevel3": {
-        "A001": 1
-      },
+      "level3Evolutions": 0,
+      "evolutionTurns": [],
+      "cardsReachingLevel3": {},
       "animalsSentToGraveyard": {
-        "A006": 1,
-        "A003": 1,
-        "A005": 1,
-        "A002": 1
+        "A005": 2
       },
       "animalsReturnedToHand": {},
       "voluntarySwaps": {},
       "scoreContributionByCard": {
-        "A003": 5,
-        "A004": 5,
-        "A005": 3,
-        "A007": 1,
-        "A001": 5
+        "A003": 6,
+        "A004": 3,
+        "A006": 2,
+        "A001": 4,
+        "A002": 2
       },
       "highestScoringCard": {
-        "cardId": "A001",
-        "nameTh": "สุนัขจอมซน",
+        "cardId": "A003",
+        "nameTh": "กระต่ายว่องไว",
         "score": 5,
-        "ownerId": "P2"
+        "ownerId": "P1"
       },
-      "noUsefulLegalActionTurns": 10,
-      "onlyRecycleOrEndTurnTurns": 10,
+      "noUsefulLegalActionTurns": 8,
+      "onlyRecycleOrEndTurnTurns": 8,
       "persistenceScenario": "refresh/resume simulation twice",
       "persistenceResult": "PASS",
       "bugs": []
@@ -585,12 +561,10 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 5,
-      "acceptedActions": 47,
-      "rejectedActionCount": 1,
-      "repeatedRejectedActionReason": {
-        "MULLIGAN is only valid during READY phase": 1
-      },
-      "durationMs": 48000,
+      "acceptedActions": 60,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 60000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -598,18 +572,20 @@
           "A003": 1
         },
         "P2": {
-          "A001": 2,
+          "A001": 1,
           "A002": 1,
           "A003": 1
         }
       },
       "supportCardsUsed": {
         "S002": 2,
-        "S001": 2
+        "S001": 2,
+        "S003": 1
       },
       "matchingSupportsUsed": {
+        "S001": 2,
         "S002": 1,
-        "S001": 2
+        "S003": 1
       },
       "weaknessCardsUsed": {
         "W005": 1
@@ -618,36 +594,36 @@
       "offTargetWeaknessUses": {
         "W005": 1
       },
-      "specialCardsUsed": {
-        "X004": 1
-      },
+      "specialCardsUsed": {},
       "namedSpecialUses": {
         "Lullaby": 0,
         "Weakness Shield": 0,
         "Quick Swap": 0,
-        "Strong Wind": 1,
+        "Strong Wind": 0,
         "Food Thief": 0
       },
       "recycleCount": 1,
-      "level3Evolutions": 0,
-      "evolutionTurns": [],
-      "cardsReachingLevel3": {},
+      "level3Evolutions": 1,
+      "evolutionTurns": [
+        4
+      ],
+      "cardsReachingLevel3": {
+        "A001": 1
+      },
       "animalsSentToGraveyard": {
         "A006": 1
       },
-      "animalsReturnedToHand": {
-        "A001": 1
-      },
+      "animalsReturnedToHand": {},
       "voluntarySwaps": {},
       "scoreContributionByCard": {
-        "A001": 6,
-        "A002": 5,
-        "A003": 2
+        "A001": 10,
+        "A002": 6,
+        "A003": 4
       },
       "highestScoringCard": {
         "cardId": "A001",
         "nameTh": "สุนัขจอมซน",
-        "score": 5,
+        "score": 8,
         "ownerId": "P1"
       },
       "noUsefulLegalActionTurns": 8,
@@ -669,13 +645,11 @@
       "stuck": false,
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
-      "turns": 7,
-      "acceptedActions": 69,
-      "rejectedActionCount": 1,
-      "repeatedRejectedActionReason": {
-        "MULLIGAN is only valid during READY phase": 1
-      },
-      "durationMs": 70000,
+      "turns": 6,
+      "acceptedActions": 71,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 71000,
       "animalsPlayed": {
         "P1": {
           "A001": 2,
@@ -683,16 +657,15 @@
           "A003": 1
         },
         "P2": {
-          "A001": 2,
+          "A001": 1,
           "A002": 1,
           "A003": 1
         }
       },
       "supportCardsUsed": {
-        "S003": 2,
-        "S005": 1,
         "S002": 1,
-        "S004": 2
+        "S004": 1,
+        "S003": 1
       },
       "matchingSupportsUsed": {
         "S002": 1,
@@ -709,42 +682,44 @@
         "W004": 1
       },
       "specialCardsUsed": {
-        "X004": 2,
+        "X004": 1,
         "X001": 1
       },
       "namedSpecialUses": {
         "Lullaby": 1,
         "Weakness Shield": 0,
         "Quick Swap": 0,
-        "Strong Wind": 2,
+        "Strong Wind": 1,
         "Food Thief": 0
       },
-      "recycleCount": 0,
+      "recycleCount": 1,
       "level3Evolutions": 1,
       "evolutionTurns": [
-        7
+        5
       ],
       "cardsReachingLevel3": {
         "A002": 1
       },
-      "animalsSentToGraveyard": {},
+      "animalsSentToGraveyard": {
+        "A004": 1
+      },
       "animalsReturnedToHand": {
-        "A001": 2
+        "A001": 1
       },
       "voluntarySwaps": {},
       "scoreContributionByCard": {
-        "A001": 6,
-        "A002": 10,
-        "A003": 6
+        "A002": 11,
+        "A003": 4,
+        "A001": 4
       },
       "highestScoringCard": {
         "cardId": "A002",
         "nameTh": "แมวขี้สงสัย",
-        "score": 7,
+        "score": 8,
         "ownerId": "P1"
       },
-      "noUsefulLegalActionTurns": 12,
-      "onlyRecycleOrEndTurnTurns": 12,
+      "noUsefulLegalActionTurns": 10,
+      "onlyRecycleOrEndTurnTurns": 10,
       "persistenceScenario": "history save failure leaves active save recoverable",
       "persistenceResult": "PASS",
       "bugs": []
@@ -763,18 +738,15 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 6,
-      "acceptedActions": 58,
-      "rejectedActionCount": 1,
-      "repeatedRejectedActionReason": {
-        "MULLIGAN is only valid during READY phase": 1
-      },
-      "durationMs": 59000,
+      "acceptedActions": 71,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 71000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
           "A002": 1,
-          "A003": 1,
-          "A005": 1
+          "A003": 1
         },
         "P2": {
           "A001": 2,
@@ -784,11 +756,11 @@
       },
       "supportCardsUsed": {
         "S003": 1,
-        "S001": 1,
+        "S001": 2,
         "S002": 1
       },
       "matchingSupportsUsed": {
-        "S001": 1,
+        "S001": 2,
         "S002": 1
       },
       "weaknessCardsUsed": {
@@ -810,28 +782,32 @@
         "Strong Wind": 1,
         "Food Thief": 0
       },
-      "recycleCount": 3,
-      "level3Evolutions": 0,
-      "evolutionTurns": [],
-      "cardsReachingLevel3": {},
+      "recycleCount": 2,
+      "level3Evolutions": 1,
+      "evolutionTurns": [
+        5
+      ],
+      "cardsReachingLevel3": {
+        "A001": 1
+      },
       "animalsSentToGraveyard": {
         "A004": 1,
-        "A003": 1,
-        "A006": 1
+        "A005": 1,
+        "A003": 1
       },
       "animalsReturnedToHand": {
         "A001": 1
       },
       "voluntarySwaps": {},
       "scoreContributionByCard": {
-        "A001": 8,
+        "A001": 10,
         "A002": 7,
-        "A005": 2
+        "A003": 3
       },
       "highestScoringCard": {
         "cardId": "A001",
         "nameTh": "สุนัขจอมซน",
-        "score": 4,
+        "score": 5,
         "ownerId": "P2"
       },
       "noUsefulLegalActionTurns": 10,
@@ -854,10 +830,10 @@
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
       "turns": 6,
-      "acceptedActions": 56,
+      "acceptedActions": 69,
       "rejectedActionCount": 0,
       "repeatedRejectedActionReason": {},
-      "durationMs": 56000,
+      "durationMs": 69000,
       "animalsPlayed": {
         "P1": {
           "A001": 1,
@@ -938,13 +914,11 @@
       "stuck": false,
       "winner": "P1",
       "finishReason": "TARGET_SCORE",
-      "turns": 5,
-      "acceptedActions": 42,
-      "rejectedActionCount": 1,
-      "repeatedRejectedActionReason": {
-        "Action player is not the current player": 1
-      },
-      "durationMs": 43000,
+      "turns": 6,
+      "acceptedActions": 66,
+      "rejectedActionCount": 0,
+      "repeatedRejectedActionReason": {},
+      "durationMs": 66000,
       "animalsPlayed": {
         "P1": {
           "A006": 1,
@@ -954,12 +928,13 @@
         "P2": {
           "A001": 1,
           "A002": 1,
-          "A003": 1,
-          "A004": 1
+          "A004": 1,
+          "A005": 1
         }
       },
       "supportCardsUsed": {
-        "S006": 1
+        "S006": 1,
+        "S001": 1
       },
       "matchingSupportsUsed": {
         "S006": 1
@@ -976,13 +951,15 @@
         "W005": 1,
         "W004": 1
       },
-      "specialCardsUsed": {},
+      "specialCardsUsed": {
+        "X005": 1
+      },
       "namedSpecialUses": {
         "Lullaby": 0,
         "Weakness Shield": 0,
         "Quick Swap": 0,
         "Strong Wind": 0,
-        "Food Thief": 0
+        "Food Thief": 1
       },
       "recycleCount": 2,
       "level3Evolutions": 1,
@@ -993,26 +970,29 @@
         "A006": 1
       },
       "animalsSentToGraveyard": {
+        "A003": 1,
         "A002": 1,
-        "A005": 1
+        "A006": 1
       },
       "animalsReturnedToHand": {},
       "voluntarySwaps": {},
       "scoreContributionByCard": {
-        "A006": 7,
-        "A007": 1,
-        "A008": 1,
-        "A001": 2,
-        "A003": 1
+        "A006": 10,
+        "A007": 2,
+        "A008": 2,
+        "A001": 3,
+        "A004": 2,
+        "X005": 1,
+        "A005": 1
       },
       "highestScoringCard": {
         "cardId": "A006",
         "nameTh": "ปลาจอมพลัง",
-        "score": 7,
+        "score": 10,
         "ownerId": "P1"
       },
-      "noUsefulLegalActionTurns": 7,
-      "onlyRecycleOrEndTurnTurns": 7,
+      "noUsefulLegalActionTurns": 9,
+      "onlyRecycleOrEndTurnTurns": 9,
       "persistenceScenario": "normal regression comparison",
       "persistenceResult": "PASS",
       "bugs": []

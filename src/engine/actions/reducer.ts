@@ -31,7 +31,7 @@ export function dispatchAction(state: MatchState, envelope: ActionEnvelope): Dis
 
   if (!validation.valid) {
     return {
-      state: state.pregameStep === "STARTER_REVEAL" ? state : appendLog(state, action, validation, "Action rejected", timestamp, []),
+      state: state.pregameStep === "STARTER_REVEAL" || state.pregameStep === "OPENING_DRAW" ? state : appendLog(state, action, validation, "Action rejected", timestamp, []),
       validation
     };
   }
@@ -63,6 +63,8 @@ function resolveValidAction(state: MatchState, action: Action): MatchState {
       return undoLastReversibleAction(state, action.playerId);
     case "ACKNOWLEDGE_STARTER":
       return acknowledgeStarter(state);
+    case "DRAW_OPENING_CARD":
+      return drawOpeningCard(state, action.playerId);
   }
 }
 
@@ -72,8 +74,43 @@ function acknowledgeStarter(state: MatchState): MatchState {
   }
   return {
     ...state,
-    pregameStep: "COMPLETE",
-    phase: "ACTION"
+    pregameStep: "OPENING_DRAW",
+    phase: "READY",
+    openingDrawPlayerId: state.startingPlayerId,
+    openingDrawRemaining: { P1: engineConfig.starting_hand, P2: engineConfig.starting_hand }
+  };
+}
+
+function drawOpeningCard(state: MatchState, playerId: PlayerId): MatchState {
+  const remaining = state.openingDrawRemaining[playerId];
+  if (remaining <= 0) return state;
+
+  const nextState = drawCards(state, playerId, 1);
+  const otherPId = otherPlayerId(playerId);
+  const newRemaining = {
+    ...nextState.openingDrawRemaining,
+    [playerId]: remaining - 1
+  };
+
+  if (remaining - 1 <= 0) {
+    if (newRemaining[otherPId] > 0) {
+      return {
+        ...nextState,
+        openingDrawPlayerId: otherPId,
+        openingDrawRemaining: newRemaining
+      };
+    }
+    return {
+      ...nextState,
+      pregameStep: "COMPLETE",
+      phase: "READY",
+      openingDrawRemaining: newRemaining
+    };
+  }
+
+  return {
+    ...nextState,
+    openingDrawRemaining: newRemaining
   };
 }
 

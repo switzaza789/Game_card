@@ -20,6 +20,10 @@ export function validateAction(state: MatchState, action: Action): ValidationRes
     return invalid(["Pregame starter reveal must be acknowledged before gameplay"]);
   }
 
+  if (state.pregameStep === "OPENING_DRAW" && action.type !== "DRAW_OPENING_CARD") {
+    return invalid(["Opening draw must complete before gameplay"]);
+  }
+
   switch (action.type) {
     case "ADVANCE_PHASE":
       return valid();
@@ -39,7 +43,31 @@ export function validateAction(state: MatchState, action: Action): ValidationRes
       return state.pregameStep === "STARTER_REVEAL"
         ? valid()
         : invalid(["Starter has already been acknowledged"]);
+    case "DRAW_OPENING_CARD":
+      return validateDrawOpeningCard(state, action);
   }
+}
+
+function validateDrawOpeningCard(state: MatchState, action: Extract<Action, { type: "DRAW_OPENING_CARD" }>): ValidationResult {
+  const errors: string[] = [];
+
+  if (state.pregameStep !== "OPENING_DRAW") {
+    errors.push("DRAW_OPENING_CARD is only valid during OPENING_DRAW pregame step");
+  }
+
+  if (state.openingDrawPlayerId !== action.playerId) {
+    errors.push("Not the current opening draw player");
+  }
+
+  if (state.openingDrawRemaining[action.playerId] <= 0) {
+    errors.push("Player has no remaining opening draws");
+  }
+
+  if (state.players[action.playerId].deck.length === 0) {
+    errors.push("Cannot draw from an empty deck");
+  }
+
+  return errors.length > 0 ? invalid(errors) : valid();
 }
 
 export function valid(): ValidationResult {
@@ -57,7 +85,7 @@ function validateBaseAction(state: MatchState, playerId: PlayerId): string[] {
     errors.push("Match is already finished");
   }
 
-  if (state.currentPlayerId !== playerId) {
+  if (state.pregameStep !== "OPENING_DRAW" && state.currentPlayerId !== playerId) {
     errors.push("Action player is not the current player");
   }
 

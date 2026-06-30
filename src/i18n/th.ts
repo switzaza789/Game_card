@@ -436,5 +436,10 @@ export const th = {
   "pregame.computerGoesFirst": "คอมพิวเตอร์ได้เริ่มก่อน",
   "pregame.player1GoesFirst": "ผู้เล่น 1 ได้เริ่มก่อน",
   "pregame.player2GoesFirst": "ผู้เล่น 2 ได้เริ่มก่อน",
-  "pregame.startMatch": "เริ่มเกม"
+  "pregame.startMatch": "เริ่มเกม",
+  "pregame.openingDraw": "จั่วไพ่เปิด",
+  "pregame.drawCard": "จั่วการ์ด",
+  "pregame.openingProgress": "คุณ: {human}/{total} | {opponent}: {opponent}/{total}",
+  "pregame.opponentDrawing": "คู่ต่อสู้กำลังจั่ว",
+  "pregame.mulliganHint": "เลือกไพ่ที่ต้องการเปลี่ยน หรือกดพร้อมเล่นเพื่อเก็บไพ่ทั้งหมด"
 } satisfies Record<TranslationKey, string>;

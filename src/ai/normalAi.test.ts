@@ -3,13 +3,13 @@ import type { MatchState, PlayerId } from "../types/game";
 import { dispatchAction } from "../engine/actions/reducer";
 import { forcePhase } from "../engine/actions/reducer";
 import { getCardDefinition } from "../engine/cards/deck";
-import { createMatch } from "../engine/state/match";
+import { createMatch, drawCards } from "../engine/state/match";
 import { validateAction } from "../engine/validation/validation";
 import { chooseNormalAiAction } from "./normalAi";
 
 describe("Normal PvE AI", () => {
   it("plays an Animal into an empty slot", () => {
-    const state = p2ActionState("ai-animal");
+    const state = drawCards(p2ActionState("ai-animal"), "P2", 5);
     const decision = chooseNormalAiAction({ state, playerId: "P2" });
     expect(decision?.action.type).toBe("PLAY_CARD");
     if (decision?.action.type !== "PLAY_CARD") throw new Error("expected play");

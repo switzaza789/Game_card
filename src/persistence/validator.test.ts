@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { validateStoredMatch } from "./validator";
-import { createMatch } from "../engine/state/match";
+import { createMatch, drawCards } from "../engine/state/match";
 import { initStats } from "./statsTracker";
 import { getCardDefinition } from "../engine/cards/deck";
 import type { PersistedActiveMatch } from "./types";
@@ -180,8 +180,59 @@ describe("validator — validateStoredMatch", () => {
     }
   });
 
+  it("adds legacy opening draw defaults when fields are missing", () => {
+    const payload = makeValidPayload();
+    const state = { ...payload.state };
+    // @ts-expect-error simulate legacy data without opening draw fields
+    delete state.openingDrawPlayerId;
+    // @ts-expect-error simulate legacy data without opening draw fields
+    delete state.openingDrawRemaining;
+    state.currentPlayerId = "P2";
+    state.startingPlayerId = "P1";
+    const result = validateStoredMatch({ ...payload, state });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.state.openingDrawPlayerId).toBe("P1");
+      expect(result.value.state.openingDrawRemaining).toEqual({ P1: 0, P2: 0 });
+    }
+  });
+
+  it("preserves opening draw fields through round-trip", () => {
+    const payload = makeValidPayload();
+    const state = {
+      ...payload.state,
+      pregameStep: "OPENING_DRAW" as const,
+      openingDrawPlayerId: "P1" as const,
+      openingDrawRemaining: { P1: 3, P2: 5 } as Record<import("../types/game").PlayerId, number>
+    };
+    const result = validateStoredMatch({ ...payload, state });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.state.pregameStep).toBe("OPENING_DRAW");
+      expect(result.value.state.openingDrawPlayerId).toBe("P1");
+      expect(result.value.state.openingDrawRemaining.P1).toBe(3);
+      expect(result.value.state.openingDrawRemaining.P2).toBe(5);
+    }
+  });
+
+  it("rejects invalid openingDrawPlayerId and resets remaining on bad openingDrawRemaining", () => {
+    const payload = makeValidPayload();
+    const badState = {
+      ...payload.state,
+      openingDrawPlayerId: "P3" as any,
+      openingDrawRemaining: "invalid" as any
+    };
+    const result = validateStoredMatch({ ...payload, state: badState });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(["P1", "P2"]).toContain(result.value.state.openingDrawPlayerId);
+      expect(result.value.state.openingDrawRemaining).toEqual({ P1: 0, P2: 0 });
+    }
+  });
+
   it("defaults old saved board Animals without evolutionPoints to zero", () => {
     const payload = makeValidPayload();
+    payload.state = drawCards(payload.state, "P1", 5);
     const animalId = payload.state.players.P1.hand.find((id) => getCardDefinition(payload.state.cardsByInstanceId[id].definitionId).category === "Animal");
     if (!animalId) throw new Error("Fixture needs P1 Animal");
     const animal = payload.state.cardsByInstanceId[animalId];
